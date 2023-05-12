@@ -1,0 +1,55 @@
+name: Test Suite
+
+on:
+  pull_request:
+    paths:
+      - src/**
+      - tests/**
+      - package.json
+      - yarn.lock
+  workflow_call:
+    secrets:
+      RPC_URL:
+        required: true
+
+jobs:
+  test-units:
+    runs-on: ubuntu-latest]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+          cache: yarn
+
+      - name: Install dependencies
+        run: yarn --frozen-lockfile
+
+      - name: Run units test suite
+        run: yarn test
+        env:
+          RPC_URL: ${{ secrets.RPC_URL }}
+
+  test-e2e:
+    runs-on: ubuntu-latest]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+          cache: yarn
+
+      - name: Install dependencies
+        run: yarn --frozen-lockfile
+
+      - name: Run e2e test suite
+        run: yarn test:e2e
+        env:
+          RPC_URL: ${{ secrets.RPC_URL }}
+

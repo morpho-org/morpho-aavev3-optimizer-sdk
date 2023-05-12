@@ -1,0 +1,403 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`P2PInterestRates computeP2PIndexes in case deltas are equals to 0 REPL test cases CASE 1: p2pIndex at 50% and supply growth rate <= borrow growth rate  1`] = `
+{
+  "deltas": {
+    "borrow": {
+      "scaledDelta": {
+        "hex": "0x00",
+        "type": "BigNumber",
+      },
+      "scaledP2PTotal": {
+        "hex": "0x00",
+        "type": "BigNumber",
+      },
+    },
+    "supply": {
+      "scaledDelta": {
+        "hex": "0x00",
+        "type": "BigNumber",
+      },
+      "scaledP2PTotal": {
+        "hex": "0x00",
+        "type": "BigNumber",
+      },
+    },
+  },
+  "lastBorrowIndexes": {
+    "p2pIndex": {
+      "hex": "0x033b2e3c9fd0803ce8000000",
+      "type": "BigNumber",
+    },
+    "poolIndex": {
+      "hex": "0x033b2e3c9fd0803ce8000000",
+      "type": "BigNumber",
+    },
+  },
+  "lastSupplyIndexes": {
+    "p2pIndex": {
+      "hex": "0x033b2e3c9fd0803ce8000000",
+      "type": "BigNumber",
+    },
+    "poolIndex": {
+      "hex": "0x033b2e3c9fd0803ce8000000",
+      "type": "BigNumber",
+    },
+  },
+  "p2pIndexCursor": {
+    "hex": "0x1388",
+    "type": "BigNumber",
+  },
+  "poolBorrowIndex": {
+    "hex": "0x06765c793fa10079d0000000",
+    "type": "BigNumber",
+  },
+  "poolSupplyIndex": {
+    "hex": "0x04d8c55aefb8c05b5c000000",
+    "type": "BigNumber",
+  },
+  "proportionIdle": {
+    "hex": "0x00",
+    "type": "BigNumber",
+  },
+  "reserveFactor": {
+    "hex": "0x00",
+    "type": "BigNumber",
+  },
+}
+`;
+
+exports[`P2PInterestRates computeP2PIndexes in case deltas are equals to 0 REPL test cases CASE 2: supply index should be limited by borrow index growth 1`] = `
+{
+  "deltas": {
+    "borrow": {
+      "scaledDelta": {
+        "hex": "0x00",
+        "type": "BigNumber",
+      },
+      "scaledP2PTotal": {
+        "hex": "0x00",
+        "type": "BigNumber",
+      },
+    },
+    "supply": {
+      "scaledDelta": {
+        "hex": "0x00",
+        "type": "BigNumber",
+      },
+      "scaledP2PTotal": {
+        "hex": "0x00",
+        "type": "BigNumber",
+      },
+    },
+  },
+  "lastBorrowIndexes": {
+    "p2pIndex": {
+      "hex": "0x033b2e3c9fd0803ce8000000",
+      "type": "BigNumber",
+    },
+    "poolIndex": {
+      "hex": "0x033b2e3c9fd0803ce8000000",
+      "type": "BigNumber",
+    },
+  },
+  "lastSupplyIndexes": {
+    "p2pIndex": {
+      "hex": "0x033b2e3c9fd0803ce8000000",
+      "type": "BigNumber",
+    },
+    "poolIndex": {
+      "hex": "0x033b2e3c9fd0803ce8000000",
+      "type": "BigNumber",
+    },
+  },
+  "p2pIndexCursor": {
+    "hex": "0x00",
+    "type": "BigNumber",
+  },
+  "poolBorrowIndex": {
+    "hex": "0x03648a260e3486a65a000000",
+    "type": "BigNumber",
+  },
+  "poolSupplyIndex": {
+    "hex": "0x038de60f7c988d0fcc000000",
+    "type": "BigNumber",
+  },
+  "proportionIdle": {
+    "hex": "0x00",
+    "type": "BigNumber",
+  },
+  "reserveFactor": {
+    "hex": "0x00",
+    "type": "BigNumber",
+  },
+}
+`;
+
+exports[`P2PInterestRates computeP2PIndexes in case deltas are equals to 0 REPL test cases CASE 3: reserve factor and p2pIndexCursor non zero 1`] = `
+{
+  "deltas": {
+    "borrow": {
+      "scaledDelta": {
+        "hex": "0x00",
+        "type": "BigNumber",
+      },
+      "scaledP2PTotal": {
+        "hex": "0x00",
+        "type": "BigNumber",
+      },
+    },
+    "supply": {
+      "scaledDelta": {
+        "hex": "0x00",
+        "type": "BigNumber",
+      },
+      "scaledP2PTotal": {
+        "hex": "0x00",
+        "type": "BigNumber",
+      },
+    },
+  },
+  "lastBorrowIndexes": {
+    "p2pIndex": {
+      "hex": "0x033b2e3c9fd0803ce8000000",
+      "type": "BigNumber",
+    },
+    "poolIndex": {
+      "hex": "0x033b2e3c9fd0803ce8000000",
+      "type": "BigNumber",
+    },
+  },
+  "lastSupplyIndexes": {
+    "p2pIndex": {
+      "hex": "0x033b2e3c9fd0803ce8000000",
+      "type": "BigNumber",
+    },
+    "poolIndex": {
+      "hex": "0x033b2e3c9fd0803ce8000000",
+      "type": "BigNumber",
+    },
+  },
+  "p2pIndexCursor": {
+    "hex": "0x08bd",
+    "type": "BigNumber",
+  },
+  "poolBorrowIndex": {
+    "hex": "0x043355b53628a6b594000000",
+    "type": "BigNumber",
+  },
+  "poolSupplyIndex": {
+    "hex": "0x038de60f7c988d0fcc000000",
+    "type": "BigNumber",
+  },
+  "proportionIdle": {
+    "hex": "0x00",
+    "type": "BigNumber",
+  },
+  "reserveFactor": {
+    "hex": "0x03e8",
+    "type": "BigNumber",
+  },
+}
+`;
+
+exports[`P2PInterestRates computeP2PIndexes in case deltas are equals to 0 REPL test cases CASE 4: proportion idle non zero 1`] = `
+{
+  "deltas": {
+    "borrow": {
+      "scaledDelta": {
+        "hex": "0x00",
+        "type": "BigNumber",
+      },
+      "scaledP2PTotal": {
+        "hex": "0x00",
+        "type": "BigNumber",
+      },
+    },
+    "supply": {
+      "scaledDelta": {
+        "hex": "0x00",
+        "type": "BigNumber",
+      },
+      "scaledP2PTotal": {
+        "hex": "0x00",
+        "type": "BigNumber",
+      },
+    },
+  },
+  "lastBorrowIndexes": {
+    "p2pIndex": {
+      "hex": "0x033b2e3c9fd0803ce8000000",
+      "type": "BigNumber",
+    },
+    "poolIndex": {
+      "hex": "0x033b2e3c9fd0803ce8000000",
+      "type": "BigNumber",
+    },
+  },
+  "lastSupplyIndexes": {
+    "p2pIndex": {
+      "hex": "0x033b2e3c9fd0803ce8000000",
+      "type": "BigNumber",
+    },
+    "poolIndex": {
+      "hex": "0x033b2e3c9fd0803ce8000000",
+      "type": "BigNumber",
+    },
+  },
+  "p2pIndexCursor": {
+    "hex": "0x1388",
+    "type": "BigNumber",
+  },
+  "poolBorrowIndex": {
+    "hex": "0x06765c793fa10079d0000000",
+    "type": "BigNumber",
+  },
+  "poolSupplyIndex": {
+    "hex": "0x04d8c55aefb8c05b5c000000",
+    "type": "BigNumber",
+  },
+  "proportionIdle": {
+    "hex": "0x03e8",
+    "type": "BigNumber",
+  },
+  "reserveFactor": {
+    "hex": "0x00",
+    "type": "BigNumber",
+  },
+}
+`;
+
+exports[`P2PInterestRates computeP2PIndexes in case deltas non zero REPL test cases CASE A1: proportionDelta computation in computeP2PIndex() 1`] = `
+{
+  "deltas": {
+    "borrow": {
+      "scaledDelta": {
+        "hex": "0x8ac7230489e80000",
+        "type": "BigNumber",
+      },
+      "scaledP2PTotal": {
+        "hex": "0x01e86ede3ef95d880000",
+        "type": "BigNumber",
+      },
+    },
+    "supply": {
+      "scaledDelta": {
+        "hex": "0x3635c9adc5dea00000",
+        "type": "BigNumber",
+      },
+      "scaledP2PTotal": {
+        "hex": "0x01e7e4171bf4d3a00000",
+        "type": "BigNumber",
+      },
+    },
+  },
+  "lastBorrowIndexes": {
+    "p2pIndex": {
+      "hex": "0x033b2e3c9fd0803ce8000000",
+      "type": "BigNumber",
+    },
+    "poolIndex": {
+      "hex": "0x033b2e3c9fd0803ce8000000",
+      "type": "BigNumber",
+    },
+  },
+  "lastSupplyIndexes": {
+    "p2pIndex": {
+      "hex": "0x033b2e3c9fd0803ce8000000",
+      "type": "BigNumber",
+    },
+    "poolIndex": {
+      "hex": "0x033b2e3c9fd0803ce8000000",
+      "type": "BigNumber",
+    },
+  },
+  "p2pIndexCursor": {
+    "hex": "0x1388",
+    "type": "BigNumber",
+  },
+  "poolBorrowIndex": {
+    "hex": "0x06765c793fa10079d0000000",
+    "type": "BigNumber",
+  },
+  "poolSupplyIndex": {
+    "hex": "0x04d8c55aefb8c05b5c000000",
+    "type": "BigNumber",
+  },
+  "proportionIdle": {
+    "hex": "0x00",
+    "type": "BigNumber",
+  },
+  "reserveFactor": {
+    "hex": "0x00",
+    "type": "BigNumber",
+  },
+}
+`;
+
+exports[`P2PInterestRates computeP2PIndexes in case deltas non zero REPL test cases CASE A2 proportion idle 1`] = `
+{
+  "deltas": {
+    "borrow": {
+      "scaledDelta": {
+        "hex": "0x8ac7230489e80000",
+        "type": "BigNumber",
+      },
+      "scaledP2PTotal": {
+        "hex": "0x01e86ede3ef95d880000",
+        "type": "BigNumber",
+      },
+    },
+    "supply": {
+      "scaledDelta": {
+        "hex": "0x3635c9adc5dea00000",
+        "type": "BigNumber",
+      },
+      "scaledP2PTotal": {
+        "hex": "0x01e7e4171bf4d3a00000",
+        "type": "BigNumber",
+      },
+    },
+  },
+  "lastBorrowIndexes": {
+    "p2pIndex": {
+      "hex": "0x033b2e3c9fd0803ce8000000",
+      "type": "BigNumber",
+    },
+    "poolIndex": {
+      "hex": "0x033b2e3c9fd0803ce8000000",
+      "type": "BigNumber",
+    },
+  },
+  "lastSupplyIndexes": {
+    "p2pIndex": {
+      "hex": "0x033b2e3c9fd0803ce8000000",
+      "type": "BigNumber",
+    },
+    "poolIndex": {
+      "hex": "0x033b2e3c9fd0803ce8000000",
+      "type": "BigNumber",
+    },
+  },
+  "p2pIndexCursor": {
+    "hex": "0x1388",
+    "type": "BigNumber",
+  },
+  "poolBorrowIndex": {
+    "hex": "0x06765c793fa10079d0000000",
+    "type": "BigNumber",
+  },
+  "poolSupplyIndex": {
+    "hex": "0x04d8c55aefb8c05b5c000000",
+    "type": "BigNumber",
+  },
+  "proportionIdle": {
+    "hex": "0x03e8",
+    "type": "BigNumber",
+  },
+  "reserveFactor": {
+    "hex": "0x00",
+    "type": "BigNumber",
+  },
+}
+`;

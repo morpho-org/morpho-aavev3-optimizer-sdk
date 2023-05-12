@@ -1,0 +1,42 @@
+import { constants, providers } from "ethers";
+
+import { GlobalData } from "../../types";
+import { GlobalDataFetcher } from "../fetchers.interfaces";
+
+import { StaticFetcher } from "./StaticFetcher";
+
+export class StaticGlobalDataFetcher
+  extends StaticFetcher
+  implements GlobalDataFetcher
+{
+  constructor(
+    private _globalData: Omit<
+      GlobalData,
+      "lastFetchTimestamp" | "currentBlock"
+    >,
+    _longDelay: number,
+    _shortDelay?: number
+  ) {
+    super(_longDelay, _shortDelay);
+  }
+  async fetchGlobalData() {
+    return {
+      ...this._globalData,
+      lastFetchTimestamp: 1679584231593,
+      currentBlock: {
+        timestamp: 1679584232,
+        number: 16000000,
+        extraData: "",
+        _difficulty: constants.Zero,
+        difficulty: 0,
+        gasLimit: constants.Zero,
+        hash: "",
+        gasUsed: constants.Zero,
+        miner: "",
+        nonce: "",
+        parentHash: "",
+        transactions: [],
+      } as providers.Block,
+    };
+  }
+}
