@@ -1,7 +1,7 @@
 {
   "name": "@morpho-org/morpho-aave-v3-sdk",
   "version": "1.0.0",
-  "description": "",
+  "description": "\uD83D\uDCE6 SDK library for interacting with Morpho AaveV3",
   "main": "lib/index.js",
   "files": [
     "lib/*"
@@ -26,12 +26,13 @@
   },
   "keywords": [
     "ethers",
-    "multicall",
-    "provider",
-    "rpc",
-    "call",
+    "lending",
+    "sdk",
+    "morpho",
+    "aave",
     "evm",
-    "smart contract"
+    "smart contract",
+    "web3"
   ],
   "bugs": {
     "url": "https://github.com/morpho-org/morpho-aave-v3-sdk/issues"
@@ -176,5 +177,4 @@
     ],
     "preset": "ts-jest"
   }
-
 }
