@@ -14,7 +14,7 @@ on:
 
 jobs:
   test-units:
-    runs-on: ubuntu-latest]
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -34,7 +34,7 @@ jobs:
           RPC_URL: ${{ secrets.RPC_URL }}
 
   test-e2e:
-    runs-on: ubuntu-latest]
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v3
