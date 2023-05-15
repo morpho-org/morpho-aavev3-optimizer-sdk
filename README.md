@@ -87,6 +87,7 @@ const adapter = MorphoAaveV3Adapter.fromChain();
 
 ```ts
 const adapter = MorphoAaveV3Adapter.fromChain({ provider: myProvider });
+await adapter.refreshAll("latest");
 ```
 
 by default, the one from the [configuration](#configuration) will be used
@@ -95,6 +96,7 @@ by default, the one from the [configuration](#configuration) will be used
 
 ```ts
 const adapter = MorphoAaveV3Adapter.fromChain({ extraFetchersConfig });
+await adapter.refreshAll("latest");
 ```
 
 where `extraFetchersConfig` has the following interface:
@@ -117,6 +119,7 @@ You can also provide static data to the adapter to have a static state in the ad
 
 ```ts
 const adapter = MorphoAaveV3Adapter.fromMock(mock);
+await adapter.refreshAll("latest");
 ```
 
 Where `mock` can be an [`AdapterMock`](src/mocks/index.ts#L18). If no mock is provided, [this one](src/mocks/mock1.ts#L119) will be used
@@ -133,6 +136,7 @@ To do so, every public data (see [Data structure](#data-structure)) are associat
 
 ```ts
 const adapter = MorphoAaveV3Adapter.fromChain();
+await adapter.refreshAll("latest");
 
 adapter.marketsConfigs$.subscribe((marketsConfigs) => ...);
 adapter.marketsData$.subscribe((marketsData) => ...);
@@ -148,6 +152,7 @@ If you don't use RxJs, you can access these data using getter functions:
 
 ```ts
 const adapter = MorphoAaveV3Adapter.fromChain();
+await adapter.refreshAll("latest");
 
 const marketsConfigs = adapter.getMarketsConfigs();
 const marketsData = adapter.getMarketsData();
@@ -264,11 +269,12 @@ adapter.isConnected();
 ##### `refreshAll`
 
 ```ts
-adapter.refreshAll();
-adapter.refreshAllAt(blockTag);
+adapter.refreshAll('latest');
 ```
 
-All the data will be refreshed
+All the data will be refreshed.
+> **Note**
+> If the block is undefined, the data will be fetched at the last fetched block. If `refreshAll` is called for the first time, the data will be fetched at the block "latest"
 
 ##### `refreshData`
 
