@@ -4,8 +4,19 @@
   "description": "\uD83D\uDCE6 SDK library for interacting with Morpho AaveV3",
   "main": "lib/index.js",
   "files": [
-    "lib/*"
+    "lib/*",
+    "package.json"
   ],
+  "exports": {
+    "./": "./lib/"
+  },
+  "typesVersions": {
+    "*": {
+      "*": [
+        "lib/*"
+      ]
+    }
+  },
   "scripts": {
     "build": "tsc --build ./tsconfig.build.json",
     "lint": "eslint ./src --fix",
