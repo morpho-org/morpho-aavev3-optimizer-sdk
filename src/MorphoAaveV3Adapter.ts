@@ -71,7 +71,6 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
     txSignature?: string;
     extraFetchersConfig?: Partial<ExtraFetchersConfig>;
     _provider?: Provider;
-    _blockTag?: BlockTag;
   }) {
     const { txSignature, extraFetchersConfig, _provider } = params ?? {};
     const { marketSupplyFetcher, rewardsFetcher } =
@@ -93,8 +92,7 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
       new ChainGlobalDataFetcher(provider),
       marketSupplyFetcher,
       rewardsFetcher,
-      new Web3TxHandler(txSignature ?? sdk.configuration.txSignature),
-      params?._blockTag
+      new Web3TxHandler(txSignature ?? sdk.configuration.txSignature)
     );
   }
 
@@ -145,14 +143,15 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
   protected _scaledUserMarketsData: ScaledUserMarketsData = {};
   protected _rewardsDistribution: MorphoEpochDistribution | undefined;
 
+  private _ready: boolean = false;
+
   constructor(
     private _marketFetcher: MarketFetcher,
     private _userFetcher: UserFetcher,
     private _globalDataFetcher: GlobalDataFetcher,
     private _marketSupplyFetcher: MarketSupplyFetcher,
     private _rewardsFetcher: RewardsFetcher,
-    private _txHandler: ITransactionHandler | null = null,
-    private _blockTag: BlockTag = "latest"
+    private _txHandler: ITransactionHandler | null = null
   ) {
     super();
     this.marketsData$.next({});
@@ -205,7 +204,7 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
 
     if (signer?.provider) await this._setProvider(signer.provider);
 
-    await this.refreshAll(this._blockTag);
+    await this._updateUserData(true);
 
     if (Web3TxHandler.isWeb3TxHandler(this._txHandler)) {
       this._txHandler.connect(signer);
@@ -464,6 +463,7 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
   }
 
   private async _initMarkets(blockTag?: BlockTag) {
+    this._ready = false;
     this.marketsList = null;
     this._scaledMarketsData = {};
     this._scaledUserMarketsData = {};
@@ -471,7 +471,7 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
       await this._fetchGlobalData(blockTag);
       // ensure to checksum addresses
       this.marketsList = await this._marketFetcher
-        .fetchAllMarkets(blockTag)
+        .fetchAllMarkets(this._globalData!.currentBlock.number)
         .then((r) => r.map(getAddress));
       this.marketsConfigs = Object.fromEntries(
         this._marketsList!.map((underlyingAddress) => [underlyingAddress, null])
@@ -489,6 +489,8 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
       await Promise.all(
         this._marketsList!.map((markets) => this._updateMarketsConfigs(markets))
       );
+
+      this._ready = true;
     } catch (e) {
       throw Error(`Error during initialization.\n\n${e}`);
     }
@@ -530,7 +532,9 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
 
   private async _fetchGlobalData(blockTag?: BlockTag) {
     [this.globalData, this._rewardsDistribution] = await Promise.all([
-      this._globalDataFetcher.fetchGlobalData(blockTag),
+      this._globalDataFetcher.fetchGlobalData(
+        blockTag ?? this._globalData?.currentBlock.number
+      ),
       this._rewardsFetcher.fetchMarketsRewardsDistribution(),
     ]);
     return this;
@@ -538,11 +542,10 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
 
   private async _updateUserData(fetch = false) {
     if (
-      !this._marketsList ||
+      !this._ready ||
       !this._user ||
       (!fetch && !this._userData) ||
-      (!fetch &&
-        !Object.values(this._scaledUserMarketsData).filter(Boolean).length)
+      (!fetch && Object.values(this._scaledUserMarketsData).includes(null))
     )
       return;
 
@@ -710,7 +713,7 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
   }
 
   private async _updateMarketsData(fetch = false) {
-    if (!this._marketsList) return;
+    if (!this._ready) return;
     const blockTag = this._globalData!.currentBlock.number;
 
     return await Promise.all(

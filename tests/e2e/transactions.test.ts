@@ -59,8 +59,8 @@ describe("MorphoAaveV3", () => {
     morphoAdapter = MorphoAaveV3Adapter.fromChain({
       txSignature: "DA44",
       _provider: hre.ethers.provider,
-      _blockTag: initialBlock,
     });
+    await morphoAdapter.refreshAll(initialBlock);
     await morphoAdapter.connect(morphoUser.address, morphoUser);
   });
 
