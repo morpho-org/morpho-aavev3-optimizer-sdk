@@ -8,10 +8,7 @@ import { Underlying } from "./markets";
 
 const SECONDS_PER_WEEK = 24 * 3600 * 7; // in s
 
-export const GLOBAL_DATA: Omit<
-  GlobalData,
-  "lastFetchTimestamp" | "currentBlock"
-> = {
+export const GLOBAL_DATA: Omit<GlobalData, "lastFetchTimestamp"> = {
   ethUsdPrice: parseUnits("1342.546"),
   feeData: {
     maxFeePerGas: null,
@@ -27,6 +24,21 @@ export const GLOBAL_DATA: Omit<
     liquidationThreshold: constants.Zero,
     priceSource: constants.AddressZero,
   },
+  currentBlock: {
+    timestamp: 1679584232 + 1800,
+    number: 16997062,
+    extraData: "",
+    hash: constants.HashZero,
+    nonce: "",
+    _difficulty: constants.Zero,
+    difficulty: 0,
+    gasLimit: constants.Zero,
+    gasUsed: constants.Zero,
+    miner: constants.AddressZero,
+    transactions: [],
+    parentHash: constants.HashZero,
+    baseFeePerGas: null,
+  },
   currRoot: "",
 };
 
@@ -36,12 +48,8 @@ export const MARKETS_REWARDS_DISTRIBUTION: MorphoEpochDistribution = {
   totalEmission: "2000000.0",
   parameters: {
     snapshotBlock: 16997062,
-    initialTimestamp: (
-      Math.floor(Date.now() / 1000) - SECONDS_PER_WEEK
-    ).toString(),
-    finalTimestamp: (
-      Math.floor(Date.now() / 1000) + SECONDS_PER_WEEK
-    ).toString(),
+    initialTimestamp: (Math.floor(Date.now() / 1000) - SECONDS_PER_WEEK).toString(),
+    finalTimestamp: (Math.floor(Date.now() / 1000) + SECONDS_PER_WEEK).toString(),
     duration: (SECONDS_PER_WEEK * 2).toString(),
   },
   markets: {
