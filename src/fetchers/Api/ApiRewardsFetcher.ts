@@ -2,16 +2,15 @@ import { BigNumber } from "ethers";
 import { parseUnits } from "ethers/lib/utils";
 
 import { fetchUserRewards } from "../../helpers/rewards/fetchUserRewards";
-import { RewardsData } from "../../helpers/rewards/rewards.types";
+import { MorphoEpochDistribution, RewardsData } from "../../helpers/rewards/rewards.types";
 import { Address } from "../../types";
 import { Fetcher } from "../Fetcher";
 import { RewardsFetcher } from "../fetchers.interfaces";
 
+import { API_URL } from "./api.constants";
+
 export class ApiRewardsFetcher extends Fetcher implements RewardsFetcher {
-  async fetchRewardsData(
-    userAddress: Address,
-    root: string
-  ): Promise<RewardsData | null> {
+  async fetchRewardsData(userAddress: Address, root: string): Promise<RewardsData | null> {
     try {
       const userRewards = await fetchUserRewards(userAddress);
 
@@ -53,7 +52,16 @@ export class ApiRewardsFetcher extends Fetcher implements RewardsFetcher {
   }
 
   async fetchMarketsRewardsDistribution() {
-    //TODO Fetch API
-    return undefined;
+    const url = [API_URL, "rewards/emissions"].join("/");
+    try {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("No rewards");
+      const data: MorphoEpochDistribution = await response.json();
+      return data;
+    } catch {
+      // In case of rewards fetching error, or if there is no rewards (404),
+      //   return undefined and don't display MORPHO rewards
+      return undefined;
+    }
   }
 }

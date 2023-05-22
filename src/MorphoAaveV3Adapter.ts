@@ -770,7 +770,7 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
       this._globalData?.currentBlock.timestamp ?? 0
     );
     const marketRewardsData =
-      this._rewardsDistribution?.markets[underlyingAddress];
+      this._rewardsDistribution?.markets[underlyingAddress.toLowerCase()];
 
     if (!marketData || !marketConfig || currentTimestamp.isZero()) return;
     const {
