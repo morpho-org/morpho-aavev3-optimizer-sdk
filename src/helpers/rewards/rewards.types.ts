@@ -79,7 +79,6 @@ export interface MorphoEpochDistribution {
       | {
           morphoRatePerSecondSupplySide: string;
           morphoRatePerSecondBorrowSide: string;
-          morphoRatePerSecondCollateralSide: string;
         }
       | undefined;
   };

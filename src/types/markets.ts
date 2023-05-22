@@ -468,13 +468,6 @@ export interface MarketData
    * `18` _(WEI)_
    */
   readonly supplyMorphoRewardsRate: BigNumber;
-
-  /** Number of morpho tokens distributed every second among all collateral positions
-   *
-   * Number of decimals:
-   * `18` _(WEI)_
-   */
-  readonly collateralMorphoRewardsRate: BigNumber;
 }
 
 export interface ScaledMarketSupply {
