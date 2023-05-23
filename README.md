@@ -49,23 +49,23 @@ The whole sdk is built around the `MorphoAaveV3Adapter` class. This is the core 
 
 Within the adapter, data are stored in different objects:
 
-| name                  | public\* | source      | interface                                                            | description                                                              |
-| --------------------- | -------- | ----------- | -------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| globalData            |   ✅ yes | ⚡️ fetched | [GlobalData](src/types/common.ts#L7)                                 | _Global data about the chain and the protocol_                           |
-| marketsConfigs        |   ✅ yes | ⚡️ fetched | `MarketMapping<`[`MarketConfig`](src/types/markets.ts#L86)`>`        | _Properties of each market that don't (or rarely) change_                |
-| marketsData           |   ✅ yes | ⚙️ computed | `MarketMapping<`[`MarketData`](src/types/markets.ts#L296)`>`         | _Data by market (metrics, apys, ...) that need to be updated frequently_ |
-| marketsList           |   ✅ yes | ⚡️ fetched | `string[]`                                                           | _List of the markets listed on Morpho-AaveV3_                            |
-| userData              |   ✅ yes | ⚙️ computed | [`UserData`](src/types/user.ts#L6)                                   | _User Data that are not specific to a market_                            |
-| userMarketsData       |   ✅ yes | ⚙️ computed | `MarketMapping<`[`UserMarketData`](src/types/user.ts#L262)`>`        | _User Data by market_                                                    |
-| scaledMarketsData     |   ❌ no  | ⚡️ fetched | `MarketMapping<`[`ScaledMarketData`](src/types/markets.ts#L182)`>`   | _Raw data by market, before any processing or computation_               |
-| scaledUserMarketsData |   ❌ no  | ⚡️ fetched | `MarketMapping<`[`ScaledUserMarketData`](src/types/user.ts#L184)`>`  | _Raw user data by market, before any processing or computation_          |
-| rewardsDistribution   |   ❌ no  | ⚡️ fetched | [`MorphoEpochDistribution`](src/helpers/rewards/rewards.types.ts#L6) | _Morpho rewards distribution of the current epoch_                       |
+| name                  | public\* | source      | interface                                                             | description                                                              |
+| --------------------- | -------- | ----------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| globalData            |   ✅ yes | ⚡️ fetched | [GlobalData](src/types/common.ts#L7)                                  | _Global data about the chain and the protocol_                           |
+| marketsConfigs        |   ✅ yes | ⚡️ fetched | `MarketMapping<`[`MarketConfig`](src/types/markets.ts#L86)`>`         | _Properties of each market that don't (or rarely) change_                |
+| marketsData           |   ✅ yes | ⚙️ computed | `MarketMapping<`[`MarketData`](src/types/markets.ts#L296)`>`          | _Data by market (metrics, apys, ...) that need to be updated frequently_ |
+| marketsList           |   ✅ yes | ⚡️ fetched | `string[]`                                                            | _List of the markets listed on Morpho-AaveV3_                            |
+| userData              |   ✅ yes | ⚙️ computed | [`UserData`](src/types/user.ts#L6)                                    | _User Data that are not specific to a market_                            |
+| userMarketsData       |   ✅ yes | ⚙️ computed | `MarketMapping<`[`UserMarketData`](src/types/user.ts#L262)`>`         | _User Data by market_                                                    |
+| scaledMarketsData     |   ❌ no  | ⚡️ fetched | `MarketMapping<`[`ScaledMarketData`](src/types/markets.ts#L182)`>`    | _Raw data by market, before any processing or computation_               |
+| scaledUserMarketsData |   ❌ no  | ⚡️ fetched | `MarketMapping<`[`ScaledUserMarketData`](src/types/user.ts#L184)`>`   | _Raw user data by market, before any processing or computation_          |
+| rewardsDistribution   |   ❌ no  | ⚡️ fetched | [`MorphoEpochDistribution`](src/helpers/rewards/rewards.types.ts#L66) | _Morpho rewards distribution of the current epoch_                       |
 
 _\* see [the section about data](#read-data) to see how to access public data_
 
 ### Initialization
 
-To create an adapter, you must provide _fetchers_. These are special entities that are used to fetch [data](#data-structure). For each fetcher, you can use one from this sdk or use your own one (as long as it matches the interface). You have 5 different fetchers:
+To create an adapter, you must provide _fetchers_. These are special entities that are used to fetch [data](#data-structure). For each fetcher, you can use one from this fetchers or use your own one (as long as it matches the interface). You have 5 different fetchers:
 
 | fetcher                                                        | fetched data                                                                             | available                                                                                                           |
 | -------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
@@ -269,10 +269,11 @@ adapter.isConnected();
 ##### `refreshAll`
 
 ```ts
-adapter.refreshAll('latest');
+adapter.refreshAll("latest");
 ```
 
 All the data will be refreshed.
+
 > **Note**
 > If the block is undefined, the data will be fetched at the last fetched block. If `refreshAll` is called for the first time, the data will be fetched at the block "latest"
 
@@ -301,10 +302,7 @@ Refetch the data from the chain and recompute computed data.
 You can use `getUserMaxCapacity` to get the maximum amount for a given operation on a given market.
 
 ```ts
-const { amount, limiter } = adapter.getUserMaxCapacity(
-  underlyingAddress,
-  txType
-);
+const { amount, limiter } = adapter.getUserMaxCapacity(underlyingAddress, txType);
 ```
 
 The maximum `amount` is given in underlying and the `limiter` is one of the following (see [MaxCapacityLimiter](src/types/common.ts#L74))

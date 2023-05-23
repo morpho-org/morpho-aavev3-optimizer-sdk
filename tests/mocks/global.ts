@@ -56,36 +56,29 @@ export const MARKETS_REWARDS_DISTRIBUTION: MorphoEpochDistribution = {
     [Underlying.dai]: {
       morphoRatePerSecondSupplySide: "0.015926698119479455",
       morphoRatePerSecondBorrowSide: "0.00897042122208433",
-      morphoRatePerSecondCollateralSide: "0.021014943302718687",
     },
     [Underlying.usdt]: {
       morphoRatePerSecondSupplySide: "0.096423328302219583",
       morphoRatePerSecondBorrowSide: "0.121014943302718687",
-      morphoRatePerSecondCollateralSide: "0.221014943302718687",
     },
     [Underlying.usdc]: {
       morphoRatePerSecondSupplySide: "0.041629805786739673",
       morphoRatePerSecondBorrowSide: "0.012331099563054565",
-      morphoRatePerSecondCollateralSide: "0.022331099563054565",
     },
     [Underlying.wbtc]: {
       morphoRatePerSecondSupplySide: "0.016575981089815777",
       morphoRatePerSecondBorrowSide: "0.02694253742870274",
-      morphoRatePerSecondCollateralSide: "0.006575981089815777",
     },
     [Underlying.weth]: {
       morphoRatePerSecondSupplySide: "0.037948737095378422",
-      morphoRatePerSecondCollateralSide: "0.017948737095378422",
       morphoRatePerSecondBorrowSide: "0.01354303245194668",
     },
     [Underlying.uni]: {
       morphoRatePerSecondSupplySide: "0.037948737095378422",
-      morphoRatePerSecondCollateralSide: "0.017948737095378422",
       morphoRatePerSecondBorrowSide: "0.01354303245194668",
     },
     [Underlying.stEth]: {
       morphoRatePerSecondSupplySide: "0.041615226337448559",
-      morphoRatePerSecondCollateralSide: "0.021615226337448559",
       morphoRatePerSecondBorrowSide: "0.0",
     },
   },

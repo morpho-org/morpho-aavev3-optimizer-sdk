@@ -615,8 +615,6 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
       totalMorphoBorrow,
       supplyMorphoRewardsRate,
       totalMorphoSupply,
-      collateralMorphoRewardsRate,
-      totalMorphoCollateral,
     } = this._marketsData[underlyingAddress]!;
 
     const scaledData = this._scaledUserMarketsData[underlyingAddress]!;
@@ -702,12 +700,6 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
               .mul(supplyMorphoRewardsRate)
               .mul(SECONDS_PER_YEAR)
               .div(totalMorphoSupply),
-        experiencedCollateralMorphoEmission: totalMorphoCollateral.isZero()
-          ? constants.Zero
-          : totalCollateral
-              .mul(collateralMorphoRewardsRate)
-              .mul(SECONDS_PER_YEAR)
-              .div(totalMorphoCollateral),
       },
     };
   }
@@ -778,7 +770,7 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
       this._globalData?.currentBlock.timestamp ?? 0
     );
     const marketRewardsData =
-      this._rewardsDistribution?.markets[underlyingAddress];
+      this._rewardsDistribution?.markets[underlyingAddress.toLowerCase()];
 
     if (!marketData || !marketConfig || currentTimestamp.isZero()) return;
     const {
@@ -955,9 +947,6 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
           : constants.Zero,
         supplyMorphoRewardsRate: marketRewardsData
           ? parseUnits(marketRewardsData.morphoRatePerSecondSupplySide)
-          : constants.Zero,
-        collateralMorphoRewardsRate: marketRewardsData
-          ? parseUnits(marketRewardsData.morphoRatePerSecondCollateralSide)
           : constants.Zero,
       },
     };

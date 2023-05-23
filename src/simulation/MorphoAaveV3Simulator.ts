@@ -583,12 +583,6 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
       experiencedCollateralAPY: totalCollateral.isZero()
         ? constants.Zero
         : marketData.poolSupplyAPY,
-      experiencedCollateralMorphoEmission: totalMorphoCollateral.isZero()
-        ? constants.Zero
-        : totalCollateral
-            .mul(marketData.collateralMorphoRewardsRate)
-            .mul(SECONDS_PER_YEAR)
-            .div(totalMorphoCollateral),
     };
 
     const newMarketsData = {
@@ -967,12 +961,6 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
       experiencedCollateralAPY: totalCollateral.isZero()
         ? constants.Zero
         : marketData.poolSupplyAPY,
-      experiencedCollateralMorphoEmission: totalMorphoCollateral.isZero()
-        ? constants.Zero
-        : totalCollateral
-            .mul(marketData.collateralMorphoRewardsRate)
-            .mul(SECONDS_PER_YEAR)
-            .div(totalMorphoCollateral),
     };
 
     const newMarketsData = {

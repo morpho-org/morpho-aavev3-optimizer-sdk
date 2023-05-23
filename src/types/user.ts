@@ -329,13 +329,6 @@ export interface UserMarketData
    */
   readonly experiencedSupplyMorphoEmission: BigNumber;
 
-  /** Number of morpho tokens received by the user after one year with his collateral position
-   *
-   * Number of decimals:
-   * `18` _(WEI)_
-   */
-  readonly experiencedCollateralMorphoEmission: BigNumber;
-
   /** Proportion of the user position on this market that's matched (supply + borrow)
    *
    * Number of decimals:
