@@ -1,6 +1,6 @@
 import { constants, Wallet } from "ethers";
 
-import { PercentMath } from "@morpho-labs/ethers-utils/lib/maths";
+import { PercentMath, WadRayMath } from "@morpho-labs/ethers-utils/lib/maths";
 import { pow10 } from "@morpho-labs/ethers-utils/lib/utils";
 
 import { MorphoAaveV3Adapter } from "../../src";
@@ -17,8 +17,8 @@ describe("computeUserData", () => {
 
   beforeAll(async () => {
     adapter = MorphoAaveV3Adapter.fromMock(ADAPTER_MOCK);
-    await adapter.refreshAll();
     await adapter.connect(userAddress);
+    await adapter.refreshAll();
     marketsConfigs = adapter.getMarketsConfigs()!;
   });
 
@@ -29,23 +29,29 @@ describe("computeUserData", () => {
     Object.entries(ADAPTER_MOCK.userMarketsData).forEach(([underlying, userMarketData]) => {
       const underlyingUnit = pow10(marketsConfigs[underlying]!.decimals);
 
-      const userBorrowOnPool = __MATHS__.indexMul(
+      const userBorrowOnPool = __MATHS__.indexMulUp(
         userMarketData.scaledBorrowOnPool,
         ADAPTER_MOCK.marketsData[underlying].aaveIndexes.variableBorrowIndex
       );
 
       expectedBorrowPool = expectedBorrowPool.add(
-        userBorrowOnPool.mul(ADAPTER_MOCK.marketsData[underlying].chainUsdPrice).div(underlyingUnit)
+        __MATHS__.divUp(
+          userBorrowOnPool.mul(ADAPTER_MOCK.marketsData[underlying].chainUsdPrice),
+          underlyingUnit
+        )
       );
 
-      const userBorrowInP2P = __MATHS__.indexMul(
+      const userBorrowInP2P = __MATHS__.indexMulUp(
         userMarketData.scaledBorrowInP2P,
         // the good computation of the p2p indexes is tested in the IRM p2p tests
         adapter.getMarketsData()[underlying]!.indexes.p2pBorrowIndex
       );
 
       expectedBorrowP2P = expectedBorrowP2P.add(
-        userBorrowInP2P.mul(ADAPTER_MOCK.marketsData[underlying].chainUsdPrice).div(underlyingUnit)
+        __MATHS__.divUp(
+          userBorrowInP2P.mul(ADAPTER_MOCK.marketsData[underlying].chainUsdPrice),
+          underlyingUnit
+        )
       );
     });
 
@@ -119,8 +125,43 @@ describe("computeUserData", () => {
 
     expect(borrowCapacity).toBnEq(expectedBorrowCapacity);
   });
-  // TODO: implement
-  it.skip("healthFactor is as expected", () => {
-    const expectedHealthFactor = constants.Zero;
+
+  it("healthFactor is as expected", () => {
+    let debt = constants.Zero; // computed in _totalDebt()
+    // https://github.com/morpho-org/morpho-aave-v3/blob/03cee70c50a8d0abf3c5eebdd416127fe8a54ea5/src/MorphoInternal.sol#L264
+    Object.entries(adapter.getUserMarketsData()).forEach(([underlying, userMarketData]) => {
+      const underlyingPrice = ADAPTER_MOCK.marketsData[underlying].chainUsdPrice;
+      const underlyingUnit = pow10(ADAPTER_MOCK.marketsConfigs[underlying]!.decimals);
+      debt = debt.add(
+        __MATHS__.divUp(userMarketData!.totalBorrow.mul(underlyingPrice), underlyingUnit)
+      );
+    });
+
+    let maxDebt = constants.Zero; // computed in _totalCollateralData()
+    // https://github.com/morpho-org/morpho-aave-v3/blob/03cee70c50a8d0abf3c5eebdd416127fe8a54ea5/src/MorphoInternal.sol#L277
+    Object.entries(adapter.getUserMarketsData()).forEach(([underlying, userMarketData]) => {
+      const liquidationTreshold = adapter.getMarketsConfigs()[underlying]!.collateralFactor;
+
+      const [underlyingPrice, underlyingUnit] = [
+        ADAPTER_MOCK.marketsData[underlying].chainUsdPrice,
+        pow10(ADAPTER_MOCK.marketsConfigs[underlying].decimals),
+      ];
+
+      const rawCollateral = userMarketData!.totalCollateral
+        .mul(underlyingPrice)
+        .div(underlyingUnit);
+
+      const collateral = rawCollateral.mul(LT_LOWER_BOUND.sub(1)).div(LT_LOWER_BOUND);
+
+      maxDebt = maxDebt.add(__MATHS__.percentMulDown(collateral, liquidationTreshold));
+    });
+
+    const expectedHealthFactor = debt.eq(constants.Zero)
+      ? constants.MaxUint256
+      : WadRayMath.wadDiv(maxDebt, debt);
+
+    const { healthFactor, totalBorrow, liquidationValue } = adapter.computeUserData();
+
+    expect(healthFactor).toBnEq(expectedHealthFactor);
   });
 });
