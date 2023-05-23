@@ -11,6 +11,16 @@ export class MorphoAaveMath implements IMath {
   /** Indexes are expressed in RAY */
   private _indexesDecimals = 27;
   indexMul = WadRayMath.rayMul;
+  // rayMulUp
+  indexMulUp = (a: BigNumberish, b: BigNumberish) => {
+    a = BigNumber.from(a);
+    b = BigNumber.from(b);
+
+    if (a.eq(0) || b.eq(0)) return BigNumber.from(0);
+
+    return a.mul(b).add(WadRayMath.RAY.sub(1)).div(WadRayMath.RAY);
+  };
+
   indexDiv = WadRayMath.rayDiv;
   INDEX_ONE = WadRayMath.RAY;
   indexDivUp = (a: BigNumberish, b: BigNumberish) =>
@@ -24,9 +34,14 @@ export class MorphoAaveMath implements IMath {
   divDown = (a: BigNumberish, b: BigNumberish) => WadRayMath.WAD.mul(a).div(b);
 
   percentMul = PercentMath.percentMul;
+  percentMulDown = (x: BigNumber, percentage: BigNumber) => {
+    return x.mul(percentage).div(PercentMath.BASE_PERCENT);
+  };
   percentDiv = PercentMath.percentDiv;
   PERCENT_ONE = PercentMath.BASE_PERCENT;
 
+  // https://github.com/morpho-org/morpho-aave-v3/blob/main/src/MorphoInternal.sol#LL312C20-L312C20
+  divUp = (a: BigNumber, b: BigNumber) => a.div(b).add(a.mod(b).gt(0) ? 1 : 0);
   /**
    * Computes the mid rate depending on the p2p index cursor
    *

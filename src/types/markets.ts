@@ -302,8 +302,13 @@ export interface MarketData
     | "scaledMorphoBorrowInP2P"
     | "scaledPoolBorrow"
     | "scaledPoolSupply"
-    | "chainUsdPrice"
   > {
+  /** The USD price of the underlying token as it is on chain
+   *
+   * Number of decimals:
+   * `8`
+   */
+  readonly chainUsdPrice: BigNumber;
   /** The USD price of the underlying token
    *
    * Number of decimals:

@@ -2,7 +2,7 @@ import { constants } from "ethers";
 import { deepCopy } from "ethers/lib/utils";
 
 import { PercentMath } from "@morpho-labs/ethers-utils/lib/maths";
-import { maxBN, minBNS } from "@morpho-labs/ethers-utils/lib/utils";
+import { maxBN, minBNS, pow10 } from "@morpho-labs/ethers-utils/lib/utils";
 
 import { MarketsConfigs, MarketsData, UserMarketsData } from "./adapter.types";
 import { LT_LOWER_BOUND } from "./constants";
@@ -71,6 +71,7 @@ export class MorphoAaveV3DataHolder {
         const marketData = this._marketsData[underlyingAddress];
         if (!marketConfig || !marketData || !userMarketData) return;
 
+        const underlyingUnit = pow10(marketConfig.decimals);
         const collateralUsd = this.__MATH__.mulDown(
           userMarketData.totalCollateral,
           marketData.usdPrice
@@ -86,7 +87,7 @@ export class MorphoAaveV3DataHolder {
           .div(LT_LOWER_BOUND);
 
         liquidationValue = liquidationValue.add(
-          PercentMath.percentMul(
+          this.__MATH__.percentMulDown(
             collateralReduced,
             marketConfig.collateralFactor
           )
@@ -107,13 +108,13 @@ export class MorphoAaveV3DataHolder {
           userMarketData.supplyOnPool,
           marketData.usdPrice
         );
-        const borrowInP2PUsd = this.__MATH__.mulDown(
-          userMarketData.borrowInP2P,
-          marketData.usdPrice
+        const borrowInP2PUsd = this.__MATH__.divUp(
+          userMarketData.borrowInP2P.mul(marketData.chainUsdPrice),
+          underlyingUnit
         );
-        const borrowOnPoolUsd = this.__MATH__.mulDown(
-          userMarketData.borrowOnPool,
-          marketData.usdPrice
+        const borrowOnPoolUsd = this.__MATH__.divUp(
+          userMarketData.borrowOnPool.mul(marketData.chainUsdPrice),
+          underlyingUnit
         );
 
         totalSupplyInP2P = totalSupplyInP2P.add(supplyInP2PUsd);
@@ -173,11 +174,16 @@ export class MorphoAaveV3DataHolder {
         ? constants.Zero
         : constants.MaxUint256
       : this.__MATH__.percentDiv(totalBorrow, borrowCapacity);
+
     const liquidationValueUsedPercentage = liquidationValue.isZero()
       ? totalBorrow.isZero()
         ? constants.Zero
         : constants.MaxUint256
       : this.__MATH__.percentDiv(totalBorrow, liquidationValue);
+
+    const healthFactor = totalBorrow.isZero()
+      ? constants.MaxUint256
+      : this.__MATH__.div(liquidationValue, totalBorrow);
 
     const normalizer = totalSupply.add(totalCollateral).eq(totalBorrow)
       ? totalSupply.add(totalCollateral)
@@ -226,6 +232,7 @@ export class MorphoAaveV3DataHolder {
       totalSupplyOnPool,
       borrowCapacityUsedPercentage,
       liquidationValueUsedPercentage,
+      healthFactor,
       supplyMatchingRatio: totalSupply.isZero()
         ? constants.Zero
         : this.__MATH__.percentDiv(totalSupplyInP2P, totalSupply),
@@ -237,12 +244,6 @@ export class MorphoAaveV3DataHolder {
         : this.__MATH__.percentDiv(
             totalBorrowInP2P.add(totalSupplyInP2P),
             totalBorrow.add(totalSupply)
-          ),
-      healthFactor: liquidationValueUsedPercentage.eq(0)
-        ? constants.MaxUint256
-        : this.__MATH__.percentDiv(
-            this.__MATH__.ONE,
-            liquidationValueUsedPercentage
           ),
       experiencedMorphoEmission: projectedYearlyInterests.nMorpho,
       netAPY,
