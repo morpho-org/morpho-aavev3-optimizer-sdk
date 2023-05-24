@@ -247,6 +247,10 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
     if (ChainFetcher.isChainFetcher(this._globalDataFetcher)) {
       await this._globalDataFetcher.setProvider(provider);
     }
+    if(!this._ready) {
+      await this._initMarkets();
+      await this.refetchData(this._globalData!.currentBlock.number);
+    }
   }
 
   public addNotifier(notifier: ITransactionNotifier) {
