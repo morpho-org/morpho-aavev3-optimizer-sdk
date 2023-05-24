@@ -1,0 +1,13 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Connection should initialize when we connect a user 1`] = `
+"Error during initialization.
+
+Error: Error during initialisation"
+`;
+
+exports[`Simulator should initialize when we connect a user 1`] = `
+"Error during initialization.
+
+Error: Error during initialisation"
+`;
