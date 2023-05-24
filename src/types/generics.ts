@@ -12,8 +12,6 @@ export type FetchedUpdated<T> = Fetched<T>;
 export type PromiseOrValue<T> = T | Promise<T>;
 
 export type GraphResult<T> = {
-  data: {
-    data?: T;
-    errors?: { message: string }[];
-  };
+  data?: T;
+  errors?: { message: string }[];
 };

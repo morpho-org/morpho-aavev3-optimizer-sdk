@@ -1,15 +1,9 @@
-import axios from "axios";
 import { BigNumber, constants } from "ethers";
 
 import { BlockTag } from "@ethersproject/abstract-provider";
 
 import CONTRACT_ADDRESSES from "../../contracts/addresses";
-import {
-  Address,
-  GraphResult,
-  MarketMapping,
-  ScaledMarketSupply,
-} from "../../types";
+import { Address, GraphResult, MarketMapping, ScaledMarketSupply } from "../../types";
 import { MarketSupplyFetcher } from "../fetchers.interfaces";
 
 import { GraphFetcher } from "./GraphFetcher";
@@ -40,18 +34,12 @@ interface GraphMarket {
   _scaledSupplyOnPool: string;
 }
 
-export class GraphMarketSupplyFetcher
-  extends GraphFetcher
-  implements MarketSupplyFetcher
-{
-  private _marketsSupply:
-    | Promise<MarketMapping<ScaledMarketSupply>>
-    | undefined;
+export class GraphMarketSupplyFetcher extends GraphFetcher implements MarketSupplyFetcher {
+  private _marketsSupply: Promise<MarketMapping<ScaledMarketSupply>> | undefined;
   private _lastUpdate?: number;
 
   async fetchMarketSupply(underlyingAddress: Address, _blockTag?: BlockTag) {
-    const lastIndexedBlock =
-      await GraphMarketSupplyFetcher.getLastIndexedBlock();
+    const lastIndexedBlock = await GraphMarketSupplyFetcher.getLastIndexedBlock();
 
     const blockTag = typeof _blockTag === "string" ? undefined : _blockTag;
 
@@ -63,25 +51,21 @@ export class GraphMarketSupplyFetcher
       if (!lastIndexedBlock) return DEFAULT_MARKET_SUPPLY;
       this._lastUpdate = Date.now();
 
-      this._marketsSupply = axios
-        .post<{}, GraphResult<{ markets: GraphMarket[] }>>(GRAPH_URL, {
-          query: getMarketsSupplyQuery(
-            blockTag && Math.min(blockTag, lastIndexedBlock)
-          ),
-        })
-        .then(({ data }) => {
-          if (!data.data) {
+      this._marketsSupply = fetch(GRAPH_URL, {
+        method: "POST",
+        body: JSON.stringify({
+          query: getMarketsSupplyQuery(blockTag && Math.min(blockTag, lastIndexedBlock)),
+        }),
+      })
+        .then(res => res.json())
+        .then((res: GraphResult<{ markets: GraphMarket[] }>) => {
+          if (!res.data) {
             // eslint-disable-next-line no-console
-            console.error(
-              `Error while fetching graph: ${JSON.stringify(data.errors)}`
-            ); //Silently fail if graph error
+            console.error(`Error while fetching graph: ${JSON.stringify(res.errors)}`); //Silently fail if graph error
             return {};
           }
-          return data.data.markets.reduce(
-            (
-              acc,
-              { inputToken, _scaledPoolCollateral, _scaledSupplyOnPool }
-            ) => ({
+          return res.data.markets.reduce(
+            (acc, { inputToken, _scaledPoolCollateral, _scaledSupplyOnPool }) => ({
               ...acc,
               [inputToken.id]: {
                 scaledMorphoSupplyOnPool: BigNumber.from(_scaledSupplyOnPool),
