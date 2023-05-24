@@ -1,5 +1,3 @@
-import axios from "axios";
-
 import { GraphResult } from "../../types";
 import { Fetcher } from "../Fetcher";
 
@@ -30,25 +28,22 @@ export abstract class GraphFetcher extends Fetcher {
       Date.now() - this._lastUpdateTimestamp > this.CACHE_DURATION
     ) {
       this._lastUpdateTimestamp = Date.now();
-      this._lastIndexedBlock = axios
-        .post<{}, GraphResult<{ _meta: { block: { number: number } } }>>(
-          GRAPH_URL,
-          {
-            query: BLOCK_QUERY,
-          }
-        )
-        .then(({ data }) => {
-          if (!data.data) {
+      this._lastIndexedBlock = fetch(GRAPH_URL, {
+        method: "POST",
+        body: JSON.stringify({
+          query: BLOCK_QUERY,
+        }),
+      })
+        .then(res => res.json())
+        .then((res: GraphResult<{ _meta: { block: { number: number } } }>) => {
+          if (!res.data) {
             // eslint-disable-next-line no-console
-            console.error(
-              `Error while fetching graph: ${JSON.stringify(data.errors)}`
-            ); //Silently fail if graph error
+            console.error(`Error while fetching graph: ${JSON.stringify(res.errors)}`); //Silently fail if graph error
             return;
           }
-          return data.data._meta.block.number;
+          return res.data._meta.block.number as number;
         });
     }
-
     return await this._lastIndexedBlock;
   }
 }
