@@ -8,6 +8,7 @@ import { Fetcher } from "../Fetcher";
 import { RewardsFetcher } from "../fetchers.interfaces";
 
 import { API_URL } from "./api.constants";
+import { fetchJson } from "../../utils/fetchJson";
 
 export class ApiRewardsFetcher extends Fetcher implements RewardsFetcher {
   async fetchRewardsData(userAddress: Address, root: string): Promise<RewardsData | null> {
@@ -54,10 +55,7 @@ export class ApiRewardsFetcher extends Fetcher implements RewardsFetcher {
   async fetchMarketsRewardsDistribution() {
     const url = [API_URL, "rewards/emissions"].join("/");
     try {
-      const response = await fetch(url);
-      if (!response.ok) throw new Error("No rewards");
-      const data: MorphoEpochDistribution = await response.json();
-      return data;
+      return await fetchJson<MorphoEpochDistribution>(url);
     } catch {
       // In case of rewards fetching error, or if there is no rewards (404),
       //   return undefined and don't display MORPHO rewards

@@ -2,6 +2,7 @@ import { GraphResult } from "../../types";
 import { Fetcher } from "../Fetcher";
 
 import { GRAPH_URL } from "./graph.constants";
+import { fetchSubgraph } from "../../utils/fetchJson";
 
 const BLOCK_QUERY = `{
   _meta {
@@ -28,21 +29,17 @@ export abstract class GraphFetcher extends Fetcher {
       Date.now() - this._lastUpdateTimestamp > this.CACHE_DURATION
     ) {
       this._lastUpdateTimestamp = Date.now();
-      this._lastIndexedBlock = fetch(GRAPH_URL, {
-        method: "POST",
-        body: JSON.stringify({
-          query: BLOCK_QUERY,
-        }),
-      })
-        .then(res => res.json())
-        .then((res: GraphResult<{ _meta: { block: { number: number } } }>) => {
-          if (!res.data) {
-            // eslint-disable-next-line no-console
-            console.error(`Error while fetching graph: ${JSON.stringify(res.errors)}`); //Silently fail if graph error
-            return;
-          }
-          return res.data._meta.block.number as number;
-        });
+      this._lastIndexedBlock = fetchSubgraph<{ _meta: { block: { number: number } } }>(
+        GRAPH_URL,
+        BLOCK_QUERY
+      ).then((res: GraphResult<{ _meta: { block: { number: number } } }>) => {
+        if (!res.data) {
+          // eslint-disable-next-line no-console
+          console.error(`Error while fetching graph: ${JSON.stringify(res.errors)}`); //Silently fail if graph error
+          return;
+        }
+        return res.data._meta.block.number;
+      });
     }
     return await this._lastIndexedBlock;
   }
