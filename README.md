@@ -31,15 +31,14 @@ sdk.setConfiguration(config);
 
 where `config` is an object with the following optional properties:
 
-| property               | type                                 | default                                             | description                                                                                                                                |
-| ---------------------- | ------------------------------------ | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| `isProd`               | `boolean`                            | `false`                                             | _Set to `true` if the dapp is running in production_                                                                                       |
-| `rpcHttpUrl`           | `string`                             | `process.env.RPC_HTTP_URL \|\| process.env.RPC_URL` | _The default RPC url to use_                                                                                                               |
-| `network`              | `number`                             | `1 (Ethereum mainnet)`                              | _ID of the connected chain_                                                                                                                |
-| `defaultMaxIterations` | `{ supply: number; borrow: number }` | `{ supply: 4, borrow: 4 }`                          | _Max number of iterations run by the [matching engine](https://docs.morpho.xyz/concepts-overview/advanced-concepts/matching-engine)_       |
-| `gasLimitPercent`      | `ethers.BigNumber`                   | `11000 (110%)`                                      | _Percentage of the gas estimation used as the gas limit for transactions (with 4 decimals)_                                                |
-| `percentApproximation` | `ethers.BigNumber`                   | `9900 (99%)`                                        | _Scaling applied to transactions' amount to prevent reverting due to block inclusion delay_                                                |
-| `txSignature`          | `string`                             | `undefined`                                         | _If provided, the signature will be appended to the transaction's data to identify the transaction's origin. **It must be in hex format**_ |
+| property               | type                                 | default                   | description                                                                                                                             |
+|------------------------| ------------------------------------ |---------------------------|-----------------------------------------------------------------------------------------------------------------------------------------|
+| `isProd`               | `boolean`                            | `false`                   | _Set to `true` if the dapp is running in production_                                                                                    |
+| `defaultProvider`      | `string`                             | `process.env.RPC_URL`     | _The default provider to use. It fallbacks on the default provider from `ethers`_                                                         |
+| `defaultMaxIterations` | `{ supply: number; borrow: number }` | `{ supply: 4, borrow: 4 }` | _Max number of iterations run by the [matching engine](https://docs.morpho.xyz/concepts-overview/advanced-concepts/matching-engine)_    |
+| `gasLimitPercent`      | `ethers.BigNumber`                   | `11000 (110%)`            | _Percentage of the gas estimation used as the gas limit for transactions (with 4 decimals)_                                             |
+| `percentApproximation` | `ethers.BigNumber`                   | `9900 (99%)`              | _Scaling applied to transactions' amount to prevent reverting due to block inclusion delay_                                             |
+| `txSignature`          | `string`                             | `undefined`               | _If provided, the signature will be appended to the transaction's data to identify the transaction's origin. **It must be in hex format**_ |
 
 ## Usage
 
