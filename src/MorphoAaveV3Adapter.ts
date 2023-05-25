@@ -70,21 +70,15 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
   static fromChain(params?: {
     txSignature?: string;
     extraFetchersConfig?: Partial<ExtraFetchersConfig>;
-    _provider?: Provider;
+    provider?: Provider;
   }) {
-    const { txSignature, extraFetchersConfig, _provider } = params ?? {};
+    const { txSignature, extraFetchersConfig, provider: _provider } = params ?? {};
     const { marketSupplyFetcher, rewardsFetcher } =
       getExtraFetchers(extraFetchersConfig);
 
-    if (!sdk.configuration.rpcHttpUrl)
-      throw new Error("no rpcHttpUrl set in configuration");
-
     const provider = _provider
       ? _provider
-      : new ethers.providers.JsonRpcProvider(
-          sdk.configuration.rpcHttpUrl,
-          sdk.configuration.network
-        );
+      : sdk.configuration.defaultProvider;
 
     return new MorphoAaveV3Adapter(
       new ChainMarketFetcher(provider),
@@ -242,10 +236,7 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
   }
 
   private async _setProvider(provider?: ethers.providers.Provider) {
-    provider ??= new ethers.providers.JsonRpcProvider(
-      sdk.configuration.rpcHttpUrl,
-      sdk.configuration.network
-    );
+    provider ??= sdk.configuration.defaultProvider;
 
     if (ChainFetcher.isChainFetcher(this._marketFetcher)) {
       await this._marketFetcher.setProvider(provider);
