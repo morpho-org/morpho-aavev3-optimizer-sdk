@@ -3,12 +3,13 @@ import { BigNumber } from "ethers";
 import { Token, TransactionOptions, TransactionType } from "../types";
 
 import { ApprovalHandlerOptions } from "./ApprovalHandler.interface";
+import { Bulker } from "./Bulker.TxHandler.interface";
 import { BaseTxHandler } from "./TxHandler";
 import { IBatchTxHandler } from "./TxHandler.interface";
 
 export default class BulkerTxHandler extends BaseTxHandler implements IBatchTxHandler {
   public handleBatchTransaction(
-    operations: { type: TransactionType; params: any }[],
+    operations: Bulker.TransactionType[],
     options?: TransactionOptions | undefined
   ): Promise<any> {
     return Promise.reject("TODO: to implement");
