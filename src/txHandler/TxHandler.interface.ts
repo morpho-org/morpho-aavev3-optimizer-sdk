@@ -12,24 +12,15 @@ import {
 import { ApprovalHandlerInterface } from "./ApprovalHandler.interface";
 import { ITransactionNotifier } from "./notifiers/TransactionNotifier.interface";
 
-export enum TxHandlerOperation {
-  supply = "supply",
-  borrow = "borrow",
-  withdraw = "withdraw",
-  repay = "repay",
-  swap = "swap",
-  claimRewards = "claimRewards",
-  claimMorphoRewards = "claimMorphoRewards",
-  wrapEth = "wrapEth",
+export interface INotifierManager {
+  addNotifier: (notifier: ITransactionNotifier) => void;
+  removeNotifier: (notifier: ITransactionNotifier) => void;
+  resetNotifiers: () => ITransactionNotifier[];
 }
 
-export interface ITransactionHandler extends ApprovalHandlerInterface {
-  addNotifier: (notifier: ITransactionNotifier) => void;
+export interface IBaseTxHandler extends INotifierManager, ApprovalHandlerInterface {}
 
-  removeNotifier: (notifier: ITransactionNotifier) => void;
-
-  resetNotifiers: () => ITransactionNotifier[];
-
+export interface IOneTxHandler extends IBaseTxHandler {
   handleMorphoTransaction: (
     operation: TransactionType,
     market: Token,
@@ -45,8 +36,12 @@ export interface ITransactionHandler extends ApprovalHandlerInterface {
     options?: TransactionOptions
   ) => Promise<any>;
 
-  handleWrapEth: (
-    amount: BigNumber,
+  handleWrapEth: (amount: BigNumber, options?: TransactionOptions) => Promise<void>;
+}
+
+export interface IBatchTxHandler extends IBaseTxHandler {
+  handleBatchTransaction: (
+    operations: { type: TransactionType; params: any }[],
     options?: TransactionOptions
-  ) => Promise<void>;
+  ) => Promise<any>;
 }

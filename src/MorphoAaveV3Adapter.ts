@@ -1,14 +1,7 @@
 import { BigNumber, constants, ethers, Signer } from "ethers";
-import {
-  formatUnits,
-  getAddress,
-  isAddress,
-  parseUnits,
-  deepCopy,
-} from "ethers/lib/utils";
+import { formatUnits, getAddress, isAddress, parseUnits, deepCopy } from "ethers/lib/utils";
 
 import { BlockTag, Provider } from "@ethersproject/abstract-provider";
-
 import { PercentMath } from "@morpho-labs/ethers-utils/lib/maths";
 import { minBN } from "@morpho-labs/ethers-utils/lib/utils";
 
@@ -30,17 +23,10 @@ import {
   ChainMarketFetcher,
   ChainUserFetcher,
 } from "./fetchers/Chain";
-import {
-  StaticGlobalDataFetcher,
-  StaticMarketFetcher,
-  StaticUserFetcher,
-} from "./fetchers/Static";
+import { StaticGlobalDataFetcher, StaticMarketFetcher, StaticUserFetcher } from "./fetchers/Static";
 import { StaticMarketSupplyFetcher } from "./fetchers/Static/StaticMarketSupplyFetcher";
 import { StaticRewardsFetcher } from "./fetchers/Static/StaticRewardsFetcher";
-import {
-  ExtraFetchersConfig,
-  getExtraFetchers,
-} from "./fetchers/getExtraFetchers";
+import { ExtraFetchersConfig, getExtraFetchers } from "./fetchers/getExtraFetchers";
 import { MorphoEpochDistribution } from "./helpers/rewards/rewards.types";
 import { validateMarketSupplyData } from "./helpers/validators/supplyData";
 import P2PInterestRates from "./maths/P2PInterestRates";
@@ -50,7 +36,7 @@ import { ADAPTER_MOCK_1 } from "./mocks/mock1";
 import { MorphoAaveV3Simulator } from "./simulation/MorphoAaveV3Simulator";
 import { ApprovalHandlerOptions } from "./txHandler/ApprovalHandler.interface";
 import MockTxHandler from "./txHandler/Mock.TxHandler";
-import { ITransactionHandler } from "./txHandler/TransactionHandler.interface";
+import { IOneTxHandler } from "./txHandler/TxHandler.interface";
 import Web3TxHandler from "./txHandler/Web3.TxHandler";
 import { ITransactionNotifier } from "./txHandler/notifiers/TransactionNotifier.interface";
 import {
@@ -73,12 +59,9 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
     provider?: Provider;
   }) {
     const { txSignature, extraFetchersConfig, provider: _provider } = params ?? {};
-    const { marketSupplyFetcher, rewardsFetcher } =
-      getExtraFetchers(extraFetchersConfig);
+    const { marketSupplyFetcher, rewardsFetcher } = getExtraFetchers(extraFetchersConfig);
 
-    const provider = _provider
-      ? _provider
-      : sdk.configuration.defaultProvider;
+    const provider = _provider ? _provider : sdk.configuration.defaultProvider;
 
     return new MorphoAaveV3Adapter(
       new ChainMarketFetcher(provider),
@@ -106,16 +89,8 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
         longDelay,
         shortDelay
       ),
-      new StaticGlobalDataFetcher(
-        ADAPTER_MOCK.globalData,
-        longDelay,
-        shortDelay
-      ),
-      new StaticMarketSupplyFetcher(
-        ADAPTER_MOCK.marketsSupply,
-        longDelay ?? 0,
-        shortDelay
-      ),
+      new StaticGlobalDataFetcher(ADAPTER_MOCK.globalData, longDelay, shortDelay),
+      new StaticMarketSupplyFetcher(ADAPTER_MOCK.marketsSupply, longDelay ?? 0, shortDelay),
       new StaticRewardsFetcher(
         ADAPTER_MOCK.userRewardsData,
         ADAPTER_MOCK.marketsRewardsDistribution,
@@ -145,7 +120,7 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
     private _globalDataFetcher: GlobalDataFetcher,
     private _marketSupplyFetcher: MarketSupplyFetcher,
     private _rewardsFetcher: RewardsFetcher,
-    private _txHandler: ITransactionHandler | null = null
+    private _txHandler: IOneTxHandler | null = null
   ) {
     super();
     this.marketsData$.next({});
@@ -299,10 +274,7 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
       case TransactionType.supplyCollateral:
       case TransactionType.borrow:
         if (inputAmount.eq(constants.MaxUint256)) {
-          const amountWithReason = this.getUserMaxCapacity(
-            underlyingAddress,
-            txType
-          )!;
+          const amountWithReason = this.getUserMaxCapacity(underlyingAddress, txType)!;
           inputAmount = amountWithReason.amount;
           limiter = amountWithReason.limiter;
         }
@@ -311,10 +283,7 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
       case TransactionType.withdraw:
       case TransactionType.withdrawCollateral:
         if (inputAmount.eq(constants.MaxUint256)) {
-          const amountWithReason = this.getUserMaxCapacity(
-            underlyingAddress,
-            txType
-          )!;
+          const amountWithReason = this.getUserMaxCapacity(underlyingAddress, txType)!;
           limiter = amountWithReason.limiter;
           if (amountWithReason.limiter !== MaxCapacityLimiter.balance)
             inputAmount = amountWithReason.amount;
@@ -330,10 +299,7 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
 
     if (limiter === MaxCapacityLimiter.borrowCapacity) {
       // Add 0.1% to the borrow & withdraw amount to avoid tx to revert due to block inclusion latency
-      inputAmount = PercentMath.percentMul(
-        inputAmount,
-        sdk.configuration.percentApproximation
-      );
+      inputAmount = PercentMath.percentMul(inputAmount, sdk.configuration.percentApproximation);
     }
 
     const refreshNotifier = {
@@ -426,13 +392,7 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
 
     this._txHandler.addNotifier(refreshNotifier);
 
-    await this._txHandler.handlePermit2Approval(
-      token,
-      amount,
-      deadline,
-      nonce,
-      options
-    );
+    await this._txHandler.handlePermit2Approval(token, amount, deadline, nonce, options);
 
     this._txHandler.removeNotifier(refreshNotifier);
   }
@@ -477,9 +437,7 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
 
       this.userData = null;
 
-      await Promise.all(
-        this._marketsList!.map((markets) => this._updateMarketsConfigs(markets))
-      );
+      await Promise.all(this._marketsList!.map((markets) => this._updateMarketsConfigs(markets)));
 
       this._ready = true;
     } catch (e) {
@@ -488,21 +446,15 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
   }
   private async _updateMarketsConfigs(underlyingAddress: Address) {
     const blockTag = this._globalData!.currentBlock.number;
-    let marketConfig = await this._marketFetcher.fetchMarketConfig(
-      underlyingAddress,
-      blockTag
-    );
+    let marketConfig = await this._marketFetcher.fetchMarketConfig(underlyingAddress, blockTag);
     if (
       !marketConfig.eModeCategoryId.isZero() &&
-      this._globalData!.eModeCategoryData.eModeId.eq(
-        marketConfig.eModeCategoryId
-      )
+      this._globalData!.eModeCategoryData.eModeId.eq(marketConfig.eModeCategoryId)
     ) {
       marketConfig = {
         ...marketConfig,
         // override LTV and LT with eMode values
-        collateralFactor:
-          this._globalData!.eModeCategoryData.liquidationThreshold,
+        collateralFactor: this._globalData!.eModeCategoryData.liquidationThreshold,
         // If LTV = 0, then LT = 0 on Morpho
         borrowableFactor: this._globalData!.eModeCategoryData.ltv,
       };
@@ -523,9 +475,7 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
 
   private async _fetchGlobalData(blockTag?: BlockTag) {
     [this.globalData, this._rewardsDistribution] = await Promise.all([
-      this._globalDataFetcher.fetchGlobalData(
-        blockTag ?? this._globalData?.currentBlock.number
-      ),
+      this._globalDataFetcher.fetchGlobalData(blockTag ?? this._globalData?.currentBlock.number),
       this._rewardsFetcher.fetchMarketsRewardsDistribution(),
     ]);
     return this;
@@ -546,15 +496,13 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
     if (fetch) {
       promises.push(
         this._userFetcher.fetchUserETHBalance(user, blockTag),
-        this._rewardsFetcher
-          .fetchRewardsData(user, this._globalData!.currRoot)
-          .then(
-            (data) =>
-              data && {
-                claimable: data.balances.claimable,
-                current: data.balances.currentEpoch,
-              }
-          )
+        this._rewardsFetcher.fetchRewardsData(user, this._globalData!.currRoot).then(
+          (data) =>
+            data && {
+              claimable: data.balances.claimable,
+              current: data.balances.currentEpoch,
+            }
+        )
       );
     }
     promises.push(
@@ -571,14 +519,13 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
       })
     );
 
-    const [ethBalanceOrVoid, morphoRewardsOrVoid] = (await Promise.all(
-      promises
-    )) as [BigNumber, UserData["morphoRewards"] | null];
+    const [ethBalanceOrVoid, morphoRewardsOrVoid] = (await Promise.all(promises)) as [
+      BigNumber,
+      UserData["morphoRewards"] | null
+    ];
 
     const ethBalance = fetch ? ethBalanceOrVoid : this._userData!.ethBalance;
-    const morphoRewards = fetch
-      ? morphoRewardsOrVoid
-      : this._userData!.morphoRewards;
+    const morphoRewards = fetch ? morphoRewardsOrVoid : this._userData!.morphoRewards;
 
     this.userData = {
       ethBalance,
@@ -592,12 +539,7 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
   private _updateUserMarketData(underlyingAddress: Address) {
     if (!this._user || !this._marketsData[underlyingAddress]) return;
     const {
-      indexes: {
-        poolBorrowIndex,
-        poolSupplyIndex,
-        p2pBorrowIndex,
-        p2pSupplyIndex,
-      },
+      indexes: { poolBorrowIndex, poolSupplyIndex, p2pBorrowIndex, p2pSupplyIndex },
       poolBorrowAPY,
       poolSupplyAPY,
       p2pBorrowAPY,
@@ -617,29 +559,14 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
       scaledCollateral,
     } = scaledData;
 
-    const supplyInP2P = this.__MATH__.indexMul(
-      scaledSupplyInP2P,
-      p2pSupplyIndex
-    );
-    const supplyOnPool = this.__MATH__.indexMul(
-      scaledSupplyOnPool,
-      poolSupplyIndex
-    );
-    const borrowInP2P = this.__MATH__.indexMul(
-      scaledBorrowInP2P,
-      p2pBorrowIndex
-    );
-    const borrowOnPool = this.__MATH__.indexMul(
-      scaledBorrowOnPool,
-      poolBorrowIndex
-    );
+    const supplyInP2P = this.__MATH__.indexMul(scaledSupplyInP2P, p2pSupplyIndex);
+    const supplyOnPool = this.__MATH__.indexMul(scaledSupplyOnPool, poolSupplyIndex);
+    const borrowInP2P = this.__MATH__.indexMul(scaledBorrowInP2P, p2pBorrowIndex);
+    const borrowOnPool = this.__MATH__.indexMul(scaledBorrowOnPool, poolBorrowIndex);
 
     const totalSupply = supplyInP2P.add(supplyOnPool);
     const totalBorrow = borrowInP2P.add(borrowOnPool);
-    const totalCollateral = this.__MATH__.indexMul(
-      scaledCollateral,
-      poolSupplyIndex
-    );
+    const totalCollateral = this.__MATH__.indexMul(scaledCollateral, poolSupplyIndex);
 
     this.userMarketsData = {
       ...this._userMarketsData,
@@ -660,19 +587,14 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
           : this.__MATH__.percentDiv(borrowInP2P, totalBorrow),
         matchingRatio: totalBorrow.add(totalSupply).isZero()
           ? constants.Zero
-          : this.__MATH__.percentDiv(
-              borrowInP2P.add(supplyInP2P),
-              totalBorrow.add(totalSupply)
-            ),
+          : this.__MATH__.percentDiv(borrowInP2P.add(supplyInP2P), totalBorrow.add(totalSupply)),
         experiencedBorrowAPY: this.__MATH__.percentDiv(
           this.__MATH__
             .percentMul(borrowInP2P, p2pBorrowAPY)
             .add(this.__MATH__.percentMul(borrowOnPool, poolBorrowAPY)),
           totalBorrow
         ),
-        experiencedCollateralAPY: totalCollateral.isZero()
-          ? constants.Zero
-          : poolSupplyAPY,
+        experiencedCollateralAPY: totalCollateral.isZero() ? constants.Zero : poolSupplyAPY,
         experiencedSupplyAPY: this.__MATH__.percentDiv(
           this.__MATH__
             .percentMul(supplyInP2P, p2pSupplyAPY)
@@ -681,16 +603,10 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
         ),
         experiencedBorrowMorphoEmission: totalMorphoBorrow.isZero()
           ? constants.Zero
-          : totalBorrow
-              .mul(borrowMorphoRewardsRate)
-              .mul(SECONDS_PER_YEAR)
-              .div(totalMorphoBorrow),
+          : totalBorrow.mul(borrowMorphoRewardsRate).mul(SECONDS_PER_YEAR).div(totalMorphoBorrow),
         experiencedSupplyMorphoEmission: totalMorphoSupply.isZero()
           ? constants.Zero
-          : totalSupply
-              .mul(supplyMorphoRewardsRate)
-              .mul(SECONDS_PER_YEAR)
-              .div(totalMorphoSupply),
+          : totalSupply.mul(supplyMorphoRewardsRate).mul(SECONDS_PER_YEAR).div(totalMorphoSupply),
       },
     };
   }
@@ -708,8 +624,7 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
         } = this._globalData!;
 
         const isEmode =
-          eModeId.eq(marketConfig.eModeCategoryId) &&
-          !marketConfig.eModeCategoryId.isZero();
+          eModeId.eq(marketConfig.eModeCategoryId) && !marketConfig.eModeCategoryId.isZero();
 
         if (fetch) {
           await Promise.all([
@@ -723,18 +638,9 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
               },
               blockTag
             ),
-            this._marketSupplyFetcher.fetchMarketSupply(
-              underlyingAddress,
-              blockTag
-            ),
+            this._marketSupplyFetcher.fetchMarketSupply(underlyingAddress, blockTag),
           ]).then(([marketData, marketSupplyData]) => {
-            if (
-              !validateMarketSupplyData(
-                marketSupplyData,
-                marketData,
-                marketConfig
-              )
-            ) {
+            if (!validateMarketSupplyData(marketSupplyData, marketData, marketConfig)) {
               marketSupplyData = {
                 scaledMorphoCollateral: constants.Zero,
                 scaledMorphoSupplyOnPool: constants.Zero,
@@ -757,11 +663,8 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
   private _updateMarketData(underlyingAddress: Address) {
     const marketData = this._scaledMarketsData[underlyingAddress];
     const marketConfig = this._marketsConfigs[underlyingAddress];
-    const currentTimestamp = BigNumber.from(
-      this._globalData?.currentBlock.timestamp ?? 0
-    );
-    const marketRewardsData =
-      this._rewardsDistribution?.markets[underlyingAddress.toLowerCase()];
+    const currentTimestamp = BigNumber.from(this._globalData?.currentBlock.timestamp ?? 0);
+    const marketRewardsData = this._rewardsDistribution?.markets[underlyingAddress.toLowerCase()];
 
     if (!marketData || !marketConfig || currentTimestamp.isZero()) return;
     const {
@@ -786,15 +689,14 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
 
     const { p2pReserveFactor, p2pIndexCursor } = marketConfig;
 
-    const { newPoolSupplyIndex, newPoolBorrowIndex } =
-      this.__POOL_IRM__.computePoolIndexes({
-        lastPoolSupplyIndex: aaveIndexes.liquidityIndex,
-        lastPoolBorrowIndex: aaveIndexes.variableBorrowIndex,
-        lastUpdateTimestamp: aaveIndexes.lastUpdateTimestamp,
-        poolBorrowRatePerYear: aaveIndexes.variableBorrowRate,
-        poolSupplyRatePerYear: aaveIndexes.liquidityRate,
-        currentTimestamp,
-      });
+    const { newPoolSupplyIndex, newPoolBorrowIndex } = this.__POOL_IRM__.computePoolIndexes({
+      lastPoolSupplyIndex: aaveIndexes.liquidityIndex,
+      lastPoolBorrowIndex: aaveIndexes.variableBorrowIndex,
+      lastUpdateTimestamp: aaveIndexes.lastUpdateTimestamp,
+      poolBorrowRatePerYear: aaveIndexes.variableBorrowRate,
+      poolSupplyRatePerYear: aaveIndexes.liquidityRate,
+      currentTimestamp,
+    });
 
     const proportionIdle = idleSupply.isZero()
       ? constants.Zero
@@ -813,10 +715,7 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
           // To avoid proportionIdle + supplyProportionDelta > 1 with rounding errors
           this.__MATH__.INDEX_ONE.sub(proportionIdle),
           this.__MATH__.indexDiv(
-            this.__MATH__.indexMul(
-              deltas.supply.scaledDelta,
-              newPoolSupplyIndex
-            ),
+            this.__MATH__.indexMul(deltas.supply.scaledDelta, newPoolSupplyIndex),
             this.__MATH__.indexMul(deltas.supply.scaledP2PTotal, p2pSupplyIndex)
           )
         );
@@ -827,48 +726,32 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
           // To avoid borrowProportionDelta > 1 with rounding errors
           this.__MATH__.INDEX_ONE,
           this.__MATH__.indexDiv(
-            this.__MATH__.indexMul(
-              deltas.borrow.scaledDelta,
-              newPoolBorrowIndex
-            ),
+            this.__MATH__.indexMul(deltas.borrow.scaledDelta, newPoolBorrowIndex),
             this.__MATH__.indexMul(deltas.borrow.scaledP2PTotal, p2pBorrowIndex)
           )
         );
 
-    const { newP2PSupplyIndex, newP2PBorrowIndex } =
-      this.__P2P_IRM__.computeP2PIndexes({
-        p2pIndexCursor,
-        lastBorrowIndexes: {
-          p2pIndex: p2pBorrowIndex,
-          poolIndex: lastPoolBorrowIndex,
-        },
-        lastSupplyIndexes: {
-          p2pIndex: p2pSupplyIndex,
-          poolIndex: lastPoolSupplyIndex,
-        },
-        poolSupplyIndex: newPoolSupplyIndex,
-        poolBorrowIndex: newPoolBorrowIndex,
-        deltas,
-        reserveFactor: p2pReserveFactor,
-        proportionIdle,
-      });
+    const { newP2PSupplyIndex, newP2PBorrowIndex } = this.__P2P_IRM__.computeP2PIndexes({
+      p2pIndexCursor,
+      lastBorrowIndexes: {
+        p2pIndex: p2pBorrowIndex,
+        poolIndex: lastPoolBorrowIndex,
+      },
+      lastSupplyIndexes: {
+        p2pIndex: p2pSupplyIndex,
+        poolIndex: lastPoolSupplyIndex,
+      },
+      poolSupplyIndex: newPoolSupplyIndex,
+      poolBorrowIndex: newPoolBorrowIndex,
+      deltas,
+      reserveFactor: p2pReserveFactor,
+      proportionIdle,
+    });
 
-    const morphoBorrowInP2P = this.__MATH__.indexMul(
-      scaledMorphoBorrowInP2P,
-      newP2PBorrowIndex
-    );
-    const morphoBorrowOnPool = this.__MATH__.indexMul(
-      scaledMorphoBorrowOnPool,
-      newPoolBorrowIndex
-    );
-    const morphoSupplyInP2P = this.__MATH__.indexMul(
-      scaledMorphoSupplyInP2P,
-      newP2PSupplyIndex
-    );
-    const morphoSupplyOnPool = this.__MATH__.indexMul(
-      scaledMorphoSupplyOnPool,
-      newPoolSupplyIndex
-    );
+    const morphoBorrowInP2P = this.__MATH__.indexMul(scaledMorphoBorrowInP2P, newP2PBorrowIndex);
+    const morphoBorrowOnPool = this.__MATH__.indexMul(scaledMorphoBorrowOnPool, newPoolBorrowIndex);
+    const morphoSupplyInP2P = this.__MATH__.indexMul(scaledMorphoSupplyInP2P, newP2PSupplyIndex);
+    const morphoSupplyOnPool = this.__MATH__.indexMul(scaledMorphoSupplyOnPool, newPoolSupplyIndex);
     const morphoGlobalSupplyOnPool = this.__MATH__.indexMul(
       scaledMorphoGlobalPoolSupply,
       newPoolSupplyIndex
@@ -896,14 +779,8 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
           p2pSupplyIndex: newP2PSupplyIndex,
           lastUpdateTimestamp: currentTimestamp,
         },
-        poolBorrow: this.__MATH__.indexMul(
-          scaledPoolBorrow,
-          newPoolBorrowIndex
-        ),
-        poolSupply: this.__MATH__.indexMul(
-          scaledPoolSupply,
-          newPoolSupplyIndex
-        ),
+        poolBorrow: this.__MATH__.indexMul(scaledPoolBorrow, newPoolBorrowIndex),
+        poolSupply: this.__MATH__.indexMul(scaledPoolSupply, newPoolSupplyIndex),
         morphoBorrowInP2P,
         morphoBorrowOnPool,
         morphoSupplyInP2P,
@@ -943,15 +820,10 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
     };
   }
 
-  private _validateInput(
-    underlyingAddress: Address,
-    amount: BigNumber,
-    user: Address
-  ): void {
+  private _validateInput(underlyingAddress: Address, amount: BigNumber, user: Address): void {
     //TODO use custom error structure
     if (user === constants.AddressZero) throw new Error("Address is Zero");
     if (amount.isZero()) throw new Error("Amount is zero");
-    if (!this._marketsConfigs[underlyingAddress])
-      throw new Error("Market not Created");
+    if (!this._marketsConfigs[underlyingAddress]) throw new Error("Market not Created");
   }
 }
