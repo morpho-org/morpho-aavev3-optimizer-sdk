@@ -1,19 +1,13 @@
 import { BigNumber } from "ethers";
 
-import {
-  TransactionType,
-  Token,
-  TransactionOptions,
-  ClaimTransaction,
-  PromiseOrValue,
-} from "../types";
+import { Token, TransactionOptions } from "../types";
 
 import { ApprovalHandlerOptions } from "./ApprovalHandler.interface";
-import { ITransactionHandler } from "./TransactionHandler.interface";
+import { IBaseTxHandler } from "./TxHandler.interface";
 import CompositeNotifier from "./notifiers/Composite.notifier";
 import { ITransactionNotifier } from "./notifiers/TransactionNotifier.interface";
 
-export default abstract class BaseTxHandler implements ITransactionHandler {
+export abstract class BaseTxHandler implements IBaseTxHandler {
   private _notifiers: ITransactionNotifier[] = [];
   private _compositeNotifier?: ITransactionNotifier;
 
@@ -37,25 +31,12 @@ export default abstract class BaseTxHandler implements ITransactionHandler {
     return oldNotifiers;
   }
 
-  abstract handleMorphoTransaction(
-    operation: TransactionType,
-    market: Token,
-    amount: BigNumber,
-    displayedAmount: BigNumber,
-    options?: TransactionOptions
-  ): Promise<any>;
-  abstract handleClaimMorpho(
-    user: string,
-    transaction: PromiseOrValue<ClaimTransaction | undefined>,
-    displayedAmount: BigNumber,
-    options?: TransactionOptions | undefined
-  ): Promise<any>;
-  abstract handleWrapEth(amount: BigNumber): Promise<void>;
   abstract handleApproval(
     token: Token,
     amount: BigNumber,
     options?: ApprovalHandlerOptions | undefined
   ): Promise<any>;
+
   abstract handlePermit2Approval(
     token: Token,
     amount: BigNumber,
