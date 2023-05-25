@@ -40,8 +40,5 @@ export interface IOneTxHandler extends IBaseTxHandler {
 }
 
 export interface IBatchTxHandler extends IBaseTxHandler {
-  handleBatchTransaction: (
-    operations: { type: TransactionType; params: any }[],
-    options?: TransactionOptions
-  ) => Promise<any>;
+  handleBatchTransaction: (operations: any[], options?: TransactionOptions) => Promise<any>;
 }
