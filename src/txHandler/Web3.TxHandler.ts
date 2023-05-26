@@ -1,14 +1,7 @@
-import {
-  BigNumber,
-  constants,
-  PopulatedTransaction,
-  Signer,
-  utils,
-} from "ethers";
+import { BigNumber, constants, PopulatedTransaction, Signer, utils } from "ethers";
 import { getAddress, splitSignature } from "ethers/lib/utils";
 
 import { JsonRpcSigner } from "@ethersproject/providers";
-
 import { PercentMath } from "@morpho-labs/ethers-utils/lib/maths";
 import { minBN } from "@morpho-labs/ethers-utils/lib/utils";
 import {
@@ -33,11 +26,12 @@ import {
 import { getPermit2Message } from "../utils/permit2";
 
 import { ApprovalHandlerOptions } from "./ApprovalHandler.interface";
-import BaseTxHandler from "./Base.TxHandler";
+import { NotifierManager } from "./NotifierManager";
+import { ISimpleTxHandler } from "./TxHandler.interface";
 import { waitTransaction } from "./helpers/waitTransaction";
 import { ITransactionNotifier } from "./notifiers/TransactionNotifier.interface";
 
-export default class Web3TxHandler extends BaseTxHandler {
+export default class Web3TxHandler extends NotifierManager implements ISimpleTxHandler {
   private _isWeb3TxHandler = true;
   static isWeb3TxHandler(txHandler: any): txHandler is Web3TxHandler {
     return !!(txHandler && txHandler._isWeb3TxHandler);
@@ -76,25 +70,16 @@ export default class Web3TxHandler extends BaseTxHandler {
 
       const user = await this._signer.getAddress();
 
-      await notifier?.onStart?.(
-        id,
-        user,
-        txType,
-        symbol,
-        displayedAmount,
-        decimals
-      );
+      await notifier?.onStart?.(id, user, txType, symbol, displayedAmount, decimals);
 
       let signature = options?.permit2Approval?.signature;
       // TODO: check the signature validity
       if (
         !signature &&
         options?.usePermit &&
-        [
-          TransactionType.supply,
-          TransactionType.supplyCollateral,
-          TransactionType.repay,
-        ].includes(txType)
+        [TransactionType.supply, TransactionType.supplyCollateral, TransactionType.repay].includes(
+          txType
+        )
       ) {
         await notifier?.onApprovalSignatureWaiting?.(id, user, token.symbol);
         // we need to handle the permit2 approval
@@ -117,8 +102,7 @@ export default class Web3TxHandler extends BaseTxHandler {
               underlying,
               amount,
               user,
-              options?.maxIterations ??
-                sdk.configuration.defaultMaxIterations.supply,
+              options?.maxIterations ?? sdk.configuration.defaultMaxIterations.supply,
               options.permit2Approval!.deadline,
               splitSignature(signature!)
             );
@@ -134,14 +118,13 @@ export default class Web3TxHandler extends BaseTxHandler {
           break;
         case TransactionType.supplyCollateral:
           if (options?.usePermit) {
-            tx =
-              await morphoAaveV3.populateTransaction.supplyCollateralWithPermit(
-                underlying,
-                amount,
-                user,
-                options.permit2Approval!.deadline,
-                splitSignature(signature!)
-              );
+            tx = await morphoAaveV3.populateTransaction.supplyCollateralWithPermit(
+              underlying,
+              amount,
+              user,
+              options.permit2Approval!.deadline,
+              splitSignature(signature!)
+            );
           } else {
             tx = await morphoAaveV3.populateTransaction.supplyCollateral(
               underlying,
@@ -157,8 +140,7 @@ export default class Web3TxHandler extends BaseTxHandler {
             amount,
             user,
             user,
-            options?.maxIterations ??
-              sdk.configuration.defaultMaxIterations.borrow,
+            options?.maxIterations ?? sdk.configuration.defaultMaxIterations.borrow,
             options?.overrides ?? {}
           );
           break;
@@ -202,14 +184,7 @@ export default class Web3TxHandler extends BaseTxHandler {
       }
       tx.data = this._addMetaData(tx.data!);
 
-      await notifier?.onConfirmWaiting?.(
-        id,
-        user,
-        txType,
-        symbol,
-        displayedAmount,
-        decimals
-      );
+      await notifier?.onConfirmWaiting?.(id, user, txType, symbol, displayedAmount, decimals);
 
       const success = await this._handleTransaction(tx, id, notifier);
       await notifier?.close?.(id, success);
@@ -235,14 +210,7 @@ export default class Web3TxHandler extends BaseTxHandler {
     await notifier?.onStart?.(id, user, "Claim", "MORPHO", displayedAmount, 18);
 
     try {
-      await notifier?.onConfirmWaiting?.(
-        id,
-        user,
-        "Claim",
-        "MORPHO",
-        displayedAmount,
-        18
-      );
+      await notifier?.onConfirmWaiting?.(id, user, "Claim", "MORPHO", displayedAmount, 18);
 
       const claimData = await transaction;
 
@@ -271,11 +239,7 @@ export default class Web3TxHandler extends BaseTxHandler {
     }
   }
 
-  public async handleApproval(
-    token: Token,
-    amount: BigNumber,
-    options?: ApprovalHandlerOptions
-  ) {
+  public async handleApproval(token: Token, amount: BigNumber, options?: ApprovalHandlerOptions) {
     //TODO fix notification events firing
     if (!this._signer) return;
     const notifier = this.notifier;
@@ -286,19 +250,11 @@ export default class Web3TxHandler extends BaseTxHandler {
 
       if (
         options?.spender &&
-        getAddress(options.spender) !==
-          getAddress(CONTRACT_ADDRESSES.morphoAaveV3)
+        getAddress(options.spender) !== getAddress(CONTRACT_ADDRESSES.morphoAaveV3)
       )
         throw Error("You can only approve Morpho AaveV3 Contract");
 
-      await notifier?.onStart?.(
-        id,
-        user,
-        "Approval",
-        token.symbol,
-        amount,
-        token.decimals
-      );
+      await notifier?.onStart?.(id, user, "Approval", token.symbol, amount, token.decimals);
 
       const erc20 = ERC20__factory.connect(token.address, this._signer);
 
@@ -359,10 +315,7 @@ export default class Web3TxHandler extends BaseTxHandler {
 
       const gasLimit = await signer.estimateGas(tx);
 
-      tx.gasLimit = PercentMath.percentMul(
-        gasLimit,
-        sdk.configuration.gasLimitPercent
-      );
+      tx.gasLimit = PercentMath.percentMul(gasLimit, sdk.configuration.gasLimitPercent);
 
       await notifier?.onConfirmWaiting?.(
         id,
@@ -402,19 +355,9 @@ export default class Web3TxHandler extends BaseTxHandler {
     nonce: BigNumber,
     deadline: BigNumber
   ) {
-    const { data, hash } = getPermit2Message(
-      token.address,
-      amount,
-      nonce,
-      deadline
-    );
+    const { data, hash } = getPermit2Message(token.address, amount, nonce, deadline);
 
-    const signature = await safeSignTypedData(
-      signer,
-      data.domain,
-      data.types,
-      data.message
-    );
+    const signature = await safeSignTypedData(signer, data.domain, data.types, data.message);
 
     return { hash, data, signature };
   }
@@ -427,10 +370,7 @@ export default class Web3TxHandler extends BaseTxHandler {
     if (!this._signer) return false;
     const gasLimit = await this._signer.estimateGas(tx);
 
-    tx.gasLimit = PercentMath.percentMul(
-      gasLimit,
-      sdk.configuration.gasLimitPercent
-    );
+    tx.gasLimit = PercentMath.percentMul(gasLimit, sdk.configuration.gasLimitPercent);
 
     const txResp = await this._signer.sendTransaction(tx).catch((error) => {
       notifier?.onError?.(id, error);
@@ -454,10 +394,7 @@ export default class Web3TxHandler extends BaseTxHandler {
       data,
       // add a submission date to debug reverts.
       utils.hexZeroPad(utils.hexlify(Date.now()), 32),
-      utils.hexZeroPad(
-        utils.hexlify(this._txSignature, { allowMissingPrefix: true }),
-        32
-      ),
+      utils.hexZeroPad(utils.hexlify(this._txSignature, { allowMissingPrefix: true }), 32),
     ]);
   }
 
@@ -471,10 +408,7 @@ export default class Web3TxHandler extends BaseTxHandler {
 
       await notifier?.onStart?.(id, user, "Wrap", "ETH", amount, 18);
 
-      const wethContract = Weth__factory.connect(
-        CONTRACT_ADDRESSES.weth,
-        this._signer
-      );
+      const wethContract = Weth__factory.connect(CONTRACT_ADDRESSES.weth, this._signer);
 
       const tx = await wethContract.populateTransaction.deposit({
         ...(options?.overrides ?? {}),
