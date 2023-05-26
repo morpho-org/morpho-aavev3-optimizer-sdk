@@ -36,7 +36,7 @@ import { ADAPTER_MOCK_1 } from "./mocks/mock1";
 import { MorphoAaveV3Simulator } from "./simulation/MorphoAaveV3Simulator";
 import { ApprovalHandlerOptions } from "./txHandler/ApprovalHandler.interface";
 import MockTxHandler from "./txHandler/Mock.TxHandler";
-import { IOneTxHandler } from "./txHandler/TxHandler.interface";
+import { ISimpleTxHandler } from "./txHandler/TxHandler.interface";
 import Web3TxHandler from "./txHandler/Web3.TxHandler";
 import { ITransactionNotifier } from "./txHandler/notifiers/TransactionNotifier.interface";
 import {
@@ -120,7 +120,7 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
     private _globalDataFetcher: GlobalDataFetcher,
     private _marketSupplyFetcher: MarketSupplyFetcher,
     private _rewardsFetcher: RewardsFetcher,
-    private _txHandler: IOneTxHandler | null = null
+    private _txHandler: ISimpleTxHandler | null = null
   ) {
     super();
     this.marketsData$.next({});

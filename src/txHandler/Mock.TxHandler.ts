@@ -14,9 +14,9 @@ import { getPermit2Message } from "../utils/permit2";
 
 import { ApprovalHandlerOptions } from "./ApprovalHandler.interface";
 import { BaseTxHandler } from "./TxHandler";
-import { IOneTxHandler } from "./TxHandler.interface";
+import { ISimpleTxHandler } from "./TxHandler.interface";
 
-export default class MockTxHandler extends BaseTxHandler implements IOneTxHandler {
+export default class MockTxHandler extends BaseTxHandler implements ISimpleTxHandler {
   private _isMockTxHandler = true;
   static isMockTxHandler(txHandler: any): txHandler is MockTxHandler {
     return !!(txHandler && txHandler._isMockTxHandler);
