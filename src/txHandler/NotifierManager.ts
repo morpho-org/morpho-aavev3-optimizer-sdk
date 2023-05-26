@@ -1,13 +1,8 @@
-import { BigNumber } from "ethers";
-
-import { Token, TransactionOptions } from "../types";
-
-import { ApprovalHandlerOptions } from "./ApprovalHandler.interface";
-import { IBaseTxHandler } from "./TxHandler.interface";
+import { INotifierManager } from "./TxHandler.interface";
 import CompositeNotifier from "./notifiers/Composite.notifier";
 import { ITransactionNotifier } from "./notifiers/TransactionNotifier.interface";
 
-export abstract class BaseTxHandler implements IBaseTxHandler {
+export abstract class NotifierManager implements INotifierManager {
   private _notifiers: ITransactionNotifier[] = [];
   private _compositeNotifier?: ITransactionNotifier;
 
@@ -30,18 +25,4 @@ export abstract class BaseTxHandler implements IBaseTxHandler {
     this._compositeNotifier = undefined;
     return oldNotifiers;
   }
-
-  abstract handleApproval(
-    token: Token,
-    amount: BigNumber,
-    options?: ApprovalHandlerOptions | undefined
-  ): Promise<any>;
-
-  abstract handlePermit2Approval(
-    token: Token,
-    amount: BigNumber,
-    deadline: BigNumber,
-    nonce: BigNumber,
-    options?: TransactionOptions | undefined
-  ): Promise<any>;
 }

@@ -26,12 +26,12 @@ import {
 import { getPermit2Message } from "../utils/permit2";
 
 import { ApprovalHandlerOptions } from "./ApprovalHandler.interface";
-import { BaseTxHandler } from "./TxHandler";
+import { NotifierManager } from "./NotifierManager";
 import { ISimpleTxHandler } from "./TxHandler.interface";
 import { waitTransaction } from "./helpers/waitTransaction";
 import { ITransactionNotifier } from "./notifiers/TransactionNotifier.interface";
 
-export default class Web3TxHandler extends BaseTxHandler implements ISimpleTxHandler {
+export default class Web3TxHandler extends NotifierManager implements ISimpleTxHandler {
   private _isWeb3TxHandler = true;
   static isWeb3TxHandler(txHandler: any): txHandler is Web3TxHandler {
     return !!(txHandler && txHandler._isWeb3TxHandler);
