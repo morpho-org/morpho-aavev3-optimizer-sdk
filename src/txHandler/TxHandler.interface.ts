@@ -1,4 +1,5 @@
 import { BigNumber } from "ethers";
+import { Operation } from "src/simulation/simulation.types";
 
 import {
   Address,
@@ -40,5 +41,5 @@ export interface ISimpleTxHandler extends IBaseTxHandler {
 }
 
 export interface IBatchTxHandler extends IBaseTxHandler {
-  handleBatchTransaction: (operations: any[], options?: TransactionOptions) => Promise<any>;
+  handleBatchTransaction: (operations: Operation[], options?: TransactionOptions) => Promise<any>;
 }
