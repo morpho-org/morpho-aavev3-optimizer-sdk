@@ -20,16 +20,19 @@ export namespace Bulker {
     skim = "Skim",
     claimRewards = "ClaimRewards",
   }
+
   export interface Approve2Transaction {
     type: TransactionType.approve2;
     asset: Address;
     amount: BigNumber;
   }
+
   export interface TransferFrom2Transaction {
     type: TransactionType.transferFrom2;
     asset: Address;
     amount: BigNumber;
   }
+
   export interface ApproveManagerTransaction {
     type: TransactionType.approveManager;
     isAllowed: boolean;

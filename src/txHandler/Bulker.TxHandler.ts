@@ -1,15 +1,15 @@
 import { BigNumber } from "ethers";
+import { Operation } from "src/simulation/simulation.types";
 
-import { Token, TransactionOptions, TransactionType } from "../types";
+import { Token, TransactionOptions } from "../types";
 
 import { ApprovalHandlerOptions } from "./ApprovalHandler.interface";
-import { Bulker } from "./Bulker.TxHandler.interface";
 import { BaseTxHandler } from "./TxHandler";
 import { IBatchTxHandler } from "./TxHandler.interface";
 
 export default class BulkerTxHandler extends BaseTxHandler implements IBatchTxHandler {
   public handleBatchTransaction(
-    operations: Bulker.TransactionType[],
+    operations: Operation[],
     options?: TransactionOptions | undefined
   ): Promise<any> {
     return Promise.reject("TODO: to implement");
