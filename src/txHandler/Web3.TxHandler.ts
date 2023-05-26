@@ -27,11 +27,11 @@ import { getPermit2Message } from "../utils/permit2";
 
 import { ApprovalHandlerOptions } from "./ApprovalHandler.interface";
 import { BaseTxHandler } from "./TxHandler";
-import { IOneTxHandler } from "./TxHandler.interface";
+import { ISimpleTxHandler } from "./TxHandler.interface";
 import { waitTransaction } from "./helpers/waitTransaction";
 import { ITransactionNotifier } from "./notifiers/TransactionNotifier.interface";
 
-export default class Web3TxHandler extends BaseTxHandler implements IOneTxHandler {
+export default class Web3TxHandler extends BaseTxHandler implements ISimpleTxHandler {
   private _isWeb3TxHandler = true;
   static isWeb3TxHandler(txHandler: any): txHandler is Web3TxHandler {
     return !!(txHandler && txHandler._isWeb3TxHandler);

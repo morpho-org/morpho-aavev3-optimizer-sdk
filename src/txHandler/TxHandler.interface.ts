@@ -20,7 +20,7 @@ export interface INotifierManager {
 
 export interface IBaseTxHandler extends INotifierManager, ApprovalHandlerInterface {}
 
-export interface IOneTxHandler extends IBaseTxHandler {
+export interface ISimpleTxHandler extends IBaseTxHandler {
   handleMorphoTransaction: (
     operation: TransactionType,
     market: Token,
