@@ -8,7 +8,6 @@ import {
 } from "ethers/lib/utils";
 
 import { BlockTag, Provider } from "@ethersproject/abstract-provider";
-
 import { PercentMath } from "@morpho-labs/ethers-utils/lib/maths";
 import { minBN } from "@morpho-labs/ethers-utils/lib/utils";
 
@@ -17,10 +16,10 @@ import { ScaledMarketsData, ScaledUserMarketsData } from "./adapter.types";
 import sdk from "./configuration";
 import { MAX_UINT_160 } from "./constants";
 import { SECONDS_PER_YEAR } from "./constants/date";
+import addresses from "./contracts/addresses";
 import {
   GlobalDataFetcher,
   MarketFetcher,
-  MarketSupplyFetcher,
   RewardsFetcher,
   UserFetcher,
 } from "./fetchers";
@@ -35,14 +34,12 @@ import {
   StaticMarketFetcher,
   StaticUserFetcher,
 } from "./fetchers/Static";
-import { StaticMarketSupplyFetcher } from "./fetchers/Static/StaticMarketSupplyFetcher";
 import { StaticRewardsFetcher } from "./fetchers/Static/StaticRewardsFetcher";
 import {
   ExtraFetchersConfig,
   getExtraFetchers,
 } from "./fetchers/getExtraFetchers";
 import { MorphoEpochDistribution } from "./helpers/rewards/rewards.types";
-import { validateMarketSupplyData } from "./helpers/validators/supplyData";
 import P2PInterestRates from "./maths/P2PInterestRates";
 import PoolInterestRates from "./maths/PoolInterestRates";
 import { AdapterMock } from "./mocks";
@@ -72,19 +69,19 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
     extraFetchersConfig?: Partial<ExtraFetchersConfig>;
     provider?: Provider;
   }) {
-    const { txSignature, extraFetchersConfig, provider: _provider } = params ?? {};
-    const { marketSupplyFetcher, rewardsFetcher } =
-      getExtraFetchers(extraFetchersConfig);
+    const {
+      txSignature,
+      extraFetchersConfig,
+      provider: _provider,
+    } = params ?? {};
+    const { rewardsFetcher } = getExtraFetchers(extraFetchersConfig);
 
-    const provider = _provider
-      ? _provider
-      : sdk.configuration.defaultProvider;
+    const provider = _provider ? _provider : sdk.configuration.defaultProvider;
 
     return new MorphoAaveV3Adapter(
       new ChainMarketFetcher(provider),
       new ChainUserFetcher(provider),
       new ChainGlobalDataFetcher(provider),
-      marketSupplyFetcher,
       rewardsFetcher,
       new Web3TxHandler(txSignature ?? sdk.configuration.txSignature)
     );
@@ -109,11 +106,6 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
       new StaticGlobalDataFetcher(
         ADAPTER_MOCK.globalData,
         longDelay,
-        shortDelay
-      ),
-      new StaticMarketSupplyFetcher(
-        ADAPTER_MOCK.marketsSupply,
-        longDelay ?? 0,
         shortDelay
       ),
       new StaticRewardsFetcher(
@@ -143,7 +135,6 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
     private _marketFetcher: MarketFetcher,
     private _userFetcher: UserFetcher,
     private _globalDataFetcher: GlobalDataFetcher,
-    private _marketSupplyFetcher: MarketSupplyFetcher,
     private _rewardsFetcher: RewardsFetcher,
     private _txHandler: ITransactionHandler | null = null
   ) {
@@ -713,43 +704,43 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
 
         if (fetch) {
           await Promise.all([
-            this._marketFetcher.fetchMarketData(
-              underlyingAddress,
-              {
-                priceSource:
-                  isEmode && priceSource !== constants.AddressZero
-                    ? priceSource
-                    : underlyingAddress,
-              },
-              blockTag
-            ),
-            this._marketSupplyFetcher.fetchMarketSupply(
-              underlyingAddress,
-              blockTag
-            ),
-          ]).then(([marketData, marketSupplyData]) => {
-            if (
-              !validateMarketSupplyData(
-                marketSupplyData,
-                marketData,
-                marketConfig
+            this._marketFetcher
+              .fetchMarketData(
+                underlyingAddress,
+                {
+                  priceSource:
+                    isEmode && priceSource !== constants.AddressZero
+                      ? priceSource
+                      : underlyingAddress,
+                },
+                blockTag
               )
-            ) {
-              marketSupplyData = {
-                scaledMorphoCollateral: constants.Zero,
-                scaledMorphoSupplyOnPool: constants.Zero,
-              };
-            }
+              .then((marketData) => {
+                const isCollateralOnPool =
+                  getAddress(underlyingAddress) !== getAddress(addresses.weth);
 
-            // We first add the scaled balances
-            this._scaledMarketsData[underlyingAddress] = {
-              ...marketData,
-              ...marketSupplyData,
-            };
-          });
+                // For the eth emode instance, the pool balance is not used as collateral on the weth market.
+                // So instead of using the subgraph data for the distinction between collateral and supply,
+                // We can consider that the pool balance of weth is a supply, waiting to be matched.
+                // For other markets, all pooll balance is considered as collateral.
+
+                this._scaledMarketsData[underlyingAddress] = {
+                  ...marketData,
+                  scaledMorphoCollateral: isCollateralOnPool
+                    ? marketData.scaledMorphoGlobalPoolSupply
+                    : constants.Zero,
+                  scaledMorphoSupplyOnPool: isCollateralOnPool
+                    ? constants.Zero
+                    : marketData.scaledMorphoGlobalPoolSupply,
+                };
+                // Compute the most up to date indexes & balances
+                this._updateMarketData(underlyingAddress);
+              }),
+          ]);
+        } else {
+          // just update the indexes & balances with the current block timestamp
+          this._marketsList!.forEach(this._updateMarketData.bind(this));
         }
-        // Compute the more up to date indexes & balances
-        this._updateMarketData(underlyingAddress);
       })
     ).catch();
   }
@@ -927,10 +918,10 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
               morphoBorrowInP2P.add(morphoSupplyInP2P),
               totalMorphoBorrow.add(totalMorphoSupply)
             ),
-        supplyMatchingRatio: totalMorphoBorrow.isZero()
+        supplyMatchingRatio: totalMorphoSupply.isZero()
           ? constants.Zero
           : this.__MATH__.percentDiv(morphoSupplyInP2P, totalMorphoSupply),
-        borrowMatchingRatio: totalMorphoSupply.isZero()
+        borrowMatchingRatio: totalMorphoBorrow.isZero()
           ? constants.Zero
           : this.__MATH__.percentDiv(morphoBorrowInP2P, totalMorphoBorrow),
         borrowMorphoRewardsRate: marketRewardsData

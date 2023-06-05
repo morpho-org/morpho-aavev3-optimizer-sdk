@@ -1,19 +1,9 @@
-/* eslint-disable no-console */
 import { expect } from "chai";
 import * as dotenv from "dotenv";
 import { utils, constants } from "ethers";
-import hre, { ethers } from "hardhat";
+import { getAddress } from "ethers/lib/utils";
+import { ethers } from "hardhat";
 import { deal } from "hardhat-deal";
-
-import {
-  impersonateAccount,
-  time,
-  takeSnapshot,
-  SnapshotRestorer,
-  stopImpersonatingAccount,
-  setBalance,
-} from "@nomicfoundation/hardhat-network-helpers";
-import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 
 import { WadRayMath } from "@morpho-labs/ethers-utils/lib/maths";
 import {
@@ -24,6 +14,15 @@ import {
   MorphoAaveV3,
   MorphoAaveV3__factory,
 } from "@morpho-labs/morpho-ethers-contract";
+import {
+  impersonateAccount,
+  time,
+  takeSnapshot,
+  SnapshotRestorer,
+  stopImpersonatingAccount,
+  setBalance,
+} from "@nomicfoundation/hardhat-network-helpers";
+import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 
 import { MorphoAaveV3Adapter } from "../../src";
 import CONTRACT_ADDRESSES from "../../src/contracts/addresses";
@@ -48,7 +47,10 @@ describe("MorphoAaveV3", () => {
     [morphoUser] = await ethers.getSigners();
     weth = Weth__factory.connect(Underlying.weth, morphoUser);
     dai = ERC20__factory.connect(Underlying.dai, morphoUser);
-    morphoAaveV3 = MorphoAaveV3__factory.connect(CONTRACT_ADDRESSES.morphoAaveV3, morphoUser);
+    morphoAaveV3 = MorphoAaveV3__factory.connect(
+      CONTRACT_ADDRESSES.morphoAaveV3,
+      morphoUser
+    );
     owner = await morphoAaveV3.owner();
 
     // set user WETH and DAI balance, give impersonated user max allowance on tokens
@@ -83,7 +85,8 @@ describe("MorphoAaveV3", () => {
     expect(morphoAaveV3).not.to.be.undefined;
     expect(morphoAdapter).not.to.be.undefined;
 
-    const walletBalance = morphoAdapter.getUserMarketsData()[Underlying.weth]!.walletBalance;
+    const walletBalance =
+      morphoAdapter.getUserMarketsData()[Underlying.weth]!.walletBalance;
 
     expect(walletBalance).to.be.equal(
       initialWethBalance,
@@ -93,7 +96,9 @@ describe("MorphoAaveV3", () => {
       initialWethBalance,
       `weth balance is not ${initialWethBalance}`
     );
-    expect(await weth.allowance(morphoUser.address, morphoAaveV3.address)).to.equal(
+    expect(
+      await weth.allowance(morphoUser.address, morphoAaveV3.address)
+    ).to.equal(
       constants.MaxUint256,
       "impersonated user weth allowance is not maxUint256"
     );
@@ -101,7 +106,9 @@ describe("MorphoAaveV3", () => {
       initialDaiBalance,
       `dai balance is not ${initialDaiBalance}`
     );
-    expect(await dai.allowance(morphoUser.address, morphoAaveV3.address)).to.equal(
+    expect(
+      await dai.allowance(morphoUser.address, morphoAaveV3.address)
+    ).to.equal(
       constants.MaxUint256,
       "impersonated user dai allowance is not maxUint256"
     );
@@ -114,7 +121,9 @@ describe("MorphoAaveV3", () => {
         TransactionType.supply
       )!;
 
-      expect(maxWethCapacity.limiter).to.equal(MaxCapacityLimiter.walletBalance);
+      expect(maxWethCapacity.limiter).to.equal(
+        MaxCapacityLimiter.walletBalance
+      );
       expect(maxWethCapacity.amount).to.be.equal(initialWethBalance);
 
       await morphoAdapter.handleMorphoTransaction(
@@ -124,7 +133,10 @@ describe("MorphoAaveV3", () => {
       );
 
       const wethBalanceLeft = await weth.balanceOf(morphoUser.address);
-      expect(wethBalanceLeft).to.be.equal(constants.Zero, "weth balance is not 0");
+      expect(wethBalanceLeft).to.be.equal(
+        constants.Zero,
+        "weth balance is not 0"
+      );
     });
   });
 
@@ -135,7 +147,10 @@ describe("MorphoAaveV3", () => {
         TransactionType.borrow
       )!;
 
-      expect(borrowCapacity.amount).to.be.equal(constants.Zero, "borrowCapacity is not 0");
+      expect(borrowCapacity.amount).to.be.equal(
+        constants.Zero,
+        "borrowCapacity is not 0"
+      );
 
       let supplyCapacity = morphoAdapter.getUserMaxCapacity(
         Underlying.dai,
@@ -153,7 +168,10 @@ describe("MorphoAaveV3", () => {
       );
 
       // refresh borrow capacity
-      borrowCapacity = morphoAdapter.getUserMaxCapacity(Underlying.weth, TransactionType.borrow)!;
+      borrowCapacity = morphoAdapter.getUserMaxCapacity(
+        Underlying.weth,
+        TransactionType.borrow
+      )!;
 
       expect(borrowCapacity.amount).to.be.gt(
         constants.Zero,
@@ -213,7 +231,10 @@ describe("MorphoAaveV3", () => {
       )!;
 
       // user has not locked funds on ma3 yet
-      expect(borrowCapacity.amount).to.be.equal(constants.Zero, "borrowCapacity is not 0");
+      expect(borrowCapacity.amount).to.be.equal(
+        constants.Zero,
+        "borrowCapacity is not 0"
+      );
       expect(borrowCapacity.limiter).to.be.equal(
         MaxCapacityLimiter.borrowCapacity,
         "limiter is not borrowCapacity"
@@ -231,7 +252,10 @@ describe("MorphoAaveV3", () => {
       );
 
       // refresh borrow Capacity
-      borrowCapacity = morphoAdapter.getUserMaxCapacity(Underlying.weth, TransactionType.borrow)!;
+      borrowCapacity = morphoAdapter.getUserMaxCapacity(
+        Underlying.weth,
+        TransactionType.borrow
+      )!;
 
       // TODO: compute the exact value (more precise)
       // user has now some collateral, borrow capacity is greater than 0
@@ -246,7 +270,8 @@ describe("MorphoAaveV3", () => {
         borrowCapacity.amount.div(10)
       );
 
-      const intermediaryHealthFactor = morphoAdapter.computeUserData().healthFactor;
+      const intermediaryHealthFactor =
+        morphoAdapter.computeUserData().healthFactor;
 
       // now health factor has a real value (not max uint256)
       expect(intermediaryHealthFactor).to.be.lt(
@@ -255,7 +280,10 @@ describe("MorphoAaveV3", () => {
       );
 
       // refresh borrow Capacity
-      borrowCapacity = morphoAdapter.getUserMaxCapacity(Underlying.weth, TransactionType.borrow)!;
+      borrowCapacity = morphoAdapter.getUserMaxCapacity(
+        Underlying.weth,
+        TransactionType.borrow
+      )!;
 
       // Let's now borrow all the liquidity we can
       await morphoAdapter.handleMorphoTransaction(
@@ -302,7 +330,10 @@ describe("MorphoAaveV3", () => {
         borrowCapacity.amount
       );
 
-      let repayCapacity = morphoAdapter.getUserMaxCapacity(Underlying.weth, TransactionType.repay)!;
+      let repayCapacity = morphoAdapter.getUserMaxCapacity(
+        Underlying.weth,
+        TransactionType.repay
+      )!;
 
       expect(repayCapacity.limiter).to.be.equal(
         MaxCapacityLimiter.balance,
@@ -313,7 +344,10 @@ describe("MorphoAaveV3", () => {
       await deal(Underlying.weth, morphoUser.address, constants.Zero);
 
       await morphoAdapter.refreshAll(await ethers.provider.getBlockNumber());
-      repayCapacity = morphoAdapter.getUserMaxCapacity(Underlying.weth, TransactionType.repay)!;
+      repayCapacity = morphoAdapter.getUserMaxCapacity(
+        Underlying.weth,
+        TransactionType.repay
+      )!;
 
       expect(repayCapacity.limiter).to.be.equal(
         MaxCapacityLimiter.walletBalance,
@@ -325,7 +359,8 @@ describe("MorphoAaveV3", () => {
   describe("Chain indexes", () => {
     it("should be equal to adapter indexes", async () => {
       const indexes = await morphoAaveV3.updatedIndexes(Underlying.weth);
-      const adapterIndexes = morphoAdapter.getMarketsData()[Underlying.weth]!.indexes;
+      const adapterIndexes =
+        morphoAdapter.getMarketsData()[Underlying.weth]!.indexes;
 
       expect(adapterIndexes.poolSupplyIndex).to.be.equal(
         indexes.supply.poolIndex,
@@ -349,11 +384,13 @@ describe("MorphoAaveV3", () => {
   describe("During market paused", () => {
     it("the adapter should have isSupplyPaused to true", async () => {
       const market = await morphoAaveV3.market(Underlying.weth);
-      expect(market.pauseStatuses.isSupplyPaused).to.be.equal(false, "supply is paused");
-      expect(morphoAdapter.getMarketsConfigs()[Underlying.weth]!.isSupplyPaused).to.be.equal(
+      expect(market.pauseStatuses.isSupplyPaused).to.be.equal(
         false,
-        "adapter supply is paused"
+        "supply is paused"
       );
+      expect(
+        morphoAdapter.getMarketsConfigs()[Underlying.weth]!.isSupplyPaused
+      ).to.be.equal(false, "adapter supply is paused");
     });
 
     it("the supply limiter should be operationPaused", async () => {
@@ -367,16 +404,24 @@ describe("MorphoAaveV3", () => {
       );
 
       // connect with owner
-      const owner = await ethers.getImpersonatedSigner(await morphoAaveV3.owner());
+      const owner = await ethers.getImpersonatedSigner(
+        await morphoAaveV3.owner()
+      );
 
-      const newMorphoAaveV3 = MorphoAaveV3__factory.connect(CONTRACT_ADDRESSES.morphoAaveV3, owner);
+      const newMorphoAaveV3 = MorphoAaveV3__factory.connect(
+        CONTRACT_ADDRESSES.morphoAaveV3,
+        owner
+      );
 
       // fill the owner account with eth
       await setBalance(owner.address, ethers.utils.parseEther("1"));
 
       await newMorphoAaveV3.setIsPaused(Underlying.weth, true);
       const market = await newMorphoAaveV3.market(Underlying.weth);
-      expect(market.pauseStatuses.isSupplyPaused).to.be.equal(true, "supply is not paused");
+      expect(market.pauseStatuses.isSupplyPaused).to.be.equal(
+        true,
+        "supply is not paused"
+      );
 
       // stop impersonating owner
       await stopImpersonatingAccount(owner.address);
@@ -385,7 +430,10 @@ describe("MorphoAaveV3", () => {
       await impersonateAccount(morphoUser.address);
       await morphoAdapter.refreshAll(await ethers.provider.getBlockNumber());
 
-      supplyCapacity = morphoAdapter.getUserMaxCapacity(Underlying.weth, TransactionType.supply);
+      supplyCapacity = morphoAdapter.getUserMaxCapacity(
+        Underlying.weth,
+        TransactionType.supply
+      );
       expect(supplyCapacity!.limiter).to.be.equal(
         MaxCapacityLimiter.operationPaused,
         "limiter is not operationPaused"
@@ -393,17 +441,73 @@ describe("MorphoAaveV3", () => {
     });
   });
 
+  describe("Collateral vs supply on pool", () => {
+    it("should collateral be zero for the weth market", async () => {
+      const wethMarket = morphoAdapter.getMarketsData()[Underlying.weth]!;
+
+      expect(wethMarket.totalMorphoCollateral).to.be.equal(
+        constants.Zero,
+        "totalMorphoCollateral is not zero for weth market"
+      );
+
+      expect(wethMarket.morphoSupplyOnPool).to.be.lt(
+        wethMarket.totalMorphoSupply,
+        `morphoSupplyOnPool is not less than totalMorphoSupply for weth market`
+      );
+    });
+
+    it("should supply on pool an in p2p be zero for non weth market", () => {
+      Object.entries(morphoAdapter.getMarketsData()).forEach(
+        ([underlying, market]) => {
+          if (getAddress(underlying) !== getAddress(Underlying.weth)) {
+            expect(market!.morphoSupplyOnPool).to.be.equal(
+              constants.Zero,
+              `morphoSupplyOnPool: non zero value for market ${underlying}`
+            );
+            expect(market!.morphoSupplyInP2P).to.be.equal(
+              constants.Zero,
+              `morphoSupplyInP2P: non zero value for market ${underlying}`
+            );
+            expect(market!.matchingRatio).to.be.equal(
+              constants.Zero,
+              `matchingRatio: non zero value for market ${underlying}`
+            );
+            expect(market!.borrowMatchingRatio).to.be.equal(
+              constants.Zero,
+              `borrowMatchingRatio: non zero value for market ${underlying}`
+            );
+            expect(market!.supplyMatchingRatio).to.be.equal(
+              constants.Zero,
+              `supplyMatchingRatio: non zero value for market ${underlying}`
+            );
+            expect(market!.totalMorphoSupply).to.be.equal(
+              constants.Zero,
+              `totalMorphoSupply: non zero value for market ${underlying}`
+            );
+          }
+        }
+      );
+    });
+  });
+
   describe("Health factor on chain", () => {
     it("should be consistent with the adapter health factor when no borrow", async () => {
-      expect(morphoAdapter.getUserData()!.totalBorrow).to.be.equal(constants.Zero);
-      const { maxDebt, debt } = await morphoAaveV3.liquidityData(morphoUser.address);
+      expect(morphoAdapter.getUserData()!.totalBorrow).to.be.equal(
+        constants.Zero
+      );
+      const { maxDebt, debt } = await morphoAaveV3.liquidityData(
+        morphoUser.address
+      );
       const expectedHealthFactor = debt.gt(constants.Zero)
         ? WadRayMath.wadDiv(maxDebt, debt)
         : constants.MaxUint256;
 
       const healthFactor = morphoAdapter.computeUserData().healthFactor;
 
-      expect(healthFactor).to.be.equal(expectedHealthFactor, "health factor in inconsistent");
+      expect(healthFactor).to.be.equal(
+        expectedHealthFactor,
+        "health factor in inconsistent"
+      );
     });
 
     it("should be consistent with the adapter health factor when borrow amount != 0", async () => {
@@ -420,7 +524,10 @@ describe("MorphoAaveV3", () => {
       );
 
       // refresh borrow Capacity
-      borrowCapacity = morphoAdapter.getUserMaxCapacity(Underlying.weth, TransactionType.borrow)!;
+      borrowCapacity = morphoAdapter.getUserMaxCapacity(
+        Underlying.weth,
+        TransactionType.borrow
+      )!;
 
       expect(borrowCapacity.amount).to.be.gt(
         constants.Zero,
@@ -433,7 +540,9 @@ describe("MorphoAaveV3", () => {
         borrowCapacity.amount.div(10)
       );
 
-      const { maxDebt, debt } = await morphoAaveV3.liquidityData(morphoUser.address);
+      const { maxDebt, debt } = await morphoAaveV3.liquidityData(
+        morphoUser.address
+      );
 
       const expectedHealthFactor = debt.gt(constants.Zero)
         ? WadRayMath.wadDiv(maxDebt, debt)
@@ -441,7 +550,10 @@ describe("MorphoAaveV3", () => {
 
       const healthFactor = morphoAdapter.computeUserData().healthFactor;
 
-      expect(healthFactor).to.be.equal(expectedHealthFactor, "health factor in inconsistent");
+      expect(healthFactor).to.be.equal(
+        expectedHealthFactor,
+        "health factor in inconsistent"
+      );
     });
   });
 });
