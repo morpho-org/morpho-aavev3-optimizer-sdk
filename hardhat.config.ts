@@ -17,7 +17,7 @@ const config: HardhatUserConfig = {
       chainId: 1,
       forking: {
         url: rpcUrl,
-        blockNumber: 17171989, // maave-v3 is deployed and configured prior to this block
+        blockNumber: 17413610,
         enabled: true,
       },
     },
