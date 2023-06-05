@@ -1,7 +1,6 @@
 import { BigNumber, ethers } from "ethers";
 
 import { BlockTag } from "@ethersproject/providers";
-
 import { pow10 } from "@morpho-labs/ethers-utils/lib/utils";
 import {
   AaveV3AddressesProvider__factory,
@@ -172,8 +171,8 @@ export class ChainMarketFetcher extends ChainFetcher implements MarketFetcher {
       variableDebtToken.scaledTotalSupply(),
       stableDebtToken.totalSupply(), // TODO: scale this with the stable index
       aToken.scaledTotalSupply(),
-      variableDebtToken.balanceOf(this._morpho!.address),
-      aToken.balanceOf(this._morpho!.address),
+      variableDebtToken.scaledBalanceOf(this._morpho!.address),
+      aToken.scaledBalanceOf(this._morpho!.address),
       underlying.balanceOf(aTokenAddress),
       underlying.decimals(),
       this._poolDataProvider!.getReserveCaps(underlyingAddress),
