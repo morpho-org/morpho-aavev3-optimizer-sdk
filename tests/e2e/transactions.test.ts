@@ -10,6 +10,8 @@ import {
   time,
   takeSnapshot,
   SnapshotRestorer,
+  stopImpersonatingAccount,
+  setBalance,
 } from "@nomicfoundation/hardhat-network-helpers";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 
@@ -365,20 +367,19 @@ describe("MorphoAaveV3", () => {
       );
 
       // connect with owner
-      const owner = await morphoAaveV3.owner();
-      await impersonateAccount(owner);
+      const owner = await ethers.getImpersonatedSigner(await morphoAaveV3.owner());
 
-      const newMorphoAaveV3 = MorphoAaveV3__factory.connect(
-        CONTRACT_ADDRESSES.morphoAaveV3,
-        await ethers.getImpersonatedSigner(owner)
-      );
+      const newMorphoAaveV3 = MorphoAaveV3__factory.connect(CONTRACT_ADDRESSES.morphoAaveV3, owner);
+
+      // fill the owner account with eth
+      await setBalance(owner.address, ethers.utils.parseEther("1"));
 
       await newMorphoAaveV3.setIsPaused(Underlying.weth, true);
       const market = await newMorphoAaveV3.market(Underlying.weth);
       expect(market.pauseStatuses.isSupplyPaused).to.be.equal(true, "supply is not paused");
 
       // stop impersonating owner
-      await ethers.provider.send("hardhat_stopImpersonatingAccount", [owner]);
+      await stopImpersonatingAccount(owner.address);
 
       // reset state
       await impersonateAccount(morphoUser.address);
