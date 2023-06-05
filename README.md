@@ -71,7 +71,7 @@ To create an adapter, you must provide _fetchers_. These are special entities th
 | [MarketFetcher](src/fetchers/fetchers.interfaces.ts#L20)       | `marketsConfigs`, `marketsList`, `scaledMarketsData`                                     | [chain](src/fetchers/Chain/ChainMarketFetcher.ts), [static](src/fetchers/Static/StaticMarketFetcher.ts)             |
 | [UserFetcher](src/fetchers/fetchers.interfaces.ts#L35)         | `scaledUserMarketsData`, `userData.ethBalance`                                           | [chain](src/fetchers/Chain/ChainUserFetcher.ts), [static](src/fetchers/Static/StaticUserFetcher.ts)                 |
 | [GlobalDataFetcher](src/fetchers/fetchers.interfaces.ts#L48)   | `globalData`                                                                             | [chain](src/fetchers/Chain/ChainGlobalDataFetcher.ts), [static](src/fetchers/Static/StaticGlobalDataFetcher.ts)     |
-| [RewardsFetcher](src/fetchers/fetchers.interfaces.ts#L59)      | `rewardsDistribution`                                                                    | [api](src/fetchers/Api/ApiRewardsFetcher.ts), [static](src/fetchers/Static/StaticRewardsFetcher.ts)                 |
+| [RewardsFetcher](src/fetchers/fetchers.interfaces.ts#L62)      | `rewardsDistribution`                                                                    | [api](src/fetchers/Api/ApiRewardsFetcher.ts), [static](src/fetchers/Static/StaticRewardsFetcher.ts)                 |
 
 #### From chain
 

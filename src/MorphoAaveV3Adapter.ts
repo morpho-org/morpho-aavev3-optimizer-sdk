@@ -722,7 +722,7 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
                 // For the eth emode instance, the pool balance is not used as collateral on the weth market.
                 // So instead of using the subgraph data for the distinction between collateral and supply,
                 // We can consider that the pool balance of weth is a supply, waiting to be matched.
-                // For other markets, all pooll balance is considered as collateral.
+                // For other markets, all pool balance is considered as collateral.
 
                 this._scaledMarketsData[underlyingAddress] = {
                   ...marketData,

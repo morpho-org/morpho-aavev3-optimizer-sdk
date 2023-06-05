@@ -456,7 +456,7 @@ describe("MorphoAaveV3", () => {
       );
     });
 
-    it("should supply on pool an in p2p be zero for non weth market", () => {
+    it("should supply on pool and in p2p be zero for non weth market", () => {
       Object.entries(morphoAdapter.getMarketsData()).forEach(
         ([underlying, market]) => {
           if (getAddress(underlying) !== getAddress(Underlying.weth)) {
