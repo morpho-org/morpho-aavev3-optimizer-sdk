@@ -1,5 +1,4 @@
 import { expect } from "chai";
-import * as dotenv from "dotenv";
 import { utils, constants } from "ethers";
 import { getAddress } from "ethers/lib/utils";
 import { ethers } from "hardhat";
@@ -28,8 +27,6 @@ import { MorphoAaveV3Adapter } from "../../src";
 import CONTRACT_ADDRESSES from "../../src/contracts/addresses";
 import { MaxCapacityLimiter, TransactionType } from "../../src/types";
 import { Underlying } from "../mocks/markets";
-
-dotenv.config();
 
 describe("MorphoAaveV3", () => {
   let snapshot: SnapshotRestorer;

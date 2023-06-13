@@ -1,6 +1,7 @@
+import { Subscription } from "rxjs";
+
 import { MorphoAaveV3Adapter } from "../../src/MorphoAaveV3Adapter";
 import { ADAPTER_MOCK } from "../mocks/mock";
-import { Subscription } from "rxjs";
 
 describe("Adapter subjects", () => {
   const userAddress = "0x1c7E6fb5C73e36Eb5C77a7c167c57b552B8c4E1C";
@@ -20,7 +21,7 @@ describe("Adapter subjects", () => {
     it("userMarketData", async () => {
       const spy = jest.fn();
 
-      subscription = adapter.userMarketsData$.subscribe(data => {
+      subscription = adapter.userMarketsData$.subscribe((data) => {
         spy(data);
       });
 
@@ -36,10 +37,10 @@ describe("Adapter subjects", () => {
         )
       );
     });
-    it.only("marketsData", async () => {
+    it("marketsData", async () => {
       const spy = jest.fn();
 
-      subscription = adapter.marketsData$.subscribe(data => {
+      subscription = adapter.marketsData$.subscribe((data) => {
         spy(data);
       });
 
@@ -49,7 +50,7 @@ describe("Adapter subjects", () => {
     it("userData", async () => {
       const spy = jest.fn();
 
-      subscription = adapter.userData$.subscribe(data => {
+      subscription = adapter.userData$.subscribe((data) => {
         spy(data);
       });
 
@@ -60,39 +61,45 @@ describe("Adapter subjects", () => {
     it("globalData", async () => {
       const spy = jest.fn();
 
-      subscription = adapter.globalData$.subscribe(data => {
+      subscription = adapter.globalData$.subscribe((data) => {
         spy(data);
       });
 
       await adapter.refreshData("latest");
-      expect(spy).toHaveBeenLastCalledWith(expect.objectContaining(ADAPTER_MOCK.globalData));
+      expect(spy).toHaveBeenLastCalledWith(
+        expect.objectContaining(ADAPTER_MOCK.globalData)
+      );
     });
   });
   describe("are updated on .refreshAll()", () => {
     it("marketList", async () => {
       const spy = jest.fn();
 
-      subscription = adapter.marketsList$.subscribe(data => {
+      subscription = adapter.marketsList$.subscribe((data) => {
         spy(data);
       });
 
       await adapter.refreshAll();
-      expect(spy).toHaveBeenLastCalledWith(expect.objectContaining(ADAPTER_MOCK.marketsList));
+      expect(spy).toHaveBeenLastCalledWith(
+        expect.objectContaining(ADAPTER_MOCK.marketsList)
+      );
     });
     it("marketsConfigs", async () => {
       const spy = jest.fn();
 
-      subscription = adapter.marketsConfigs$.subscribe(data => {
+      subscription = adapter.marketsConfigs$.subscribe((data) => {
         spy(data);
       });
 
       await adapter.refreshAll();
-      expect(spy).toHaveBeenLastCalledWith(expect.objectContaining(ADAPTER_MOCK.marketsConfigs));
+      expect(spy).toHaveBeenLastCalledWith(
+        expect.objectContaining(ADAPTER_MOCK.marketsConfigs)
+      );
     });
     it("marketsData", async () => {
       const spy = jest.fn();
 
-      subscription = adapter.marketsData$.subscribe(data => {
+      subscription = adapter.marketsData$.subscribe((data) => {
         spy(data);
       });
 
