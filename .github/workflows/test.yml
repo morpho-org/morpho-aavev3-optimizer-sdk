@@ -13,6 +13,24 @@ on:
         required: true
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+          cache: yarn
+
+      - name: Install dependencies
+        run: yarn --frozen-lockfile
+
+      - name: Run linting
+        run: yarn lint
+
   test-units:
     runs-on: ubuntu-latest
     steps:
@@ -52,4 +70,3 @@ jobs:
         run: yarn test:e2e
         env:
           RPC_URL: ${{ secrets.RPC_URL }}
-
