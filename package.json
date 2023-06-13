@@ -160,7 +160,7 @@
       "^.+\\.tsx?$": [
         "ts-jest",
         {
-          "tsConfig": "tsconfig.test.json"
+          "tsconfig": "tsconfig.test.json"
         }
       ]
     },
@@ -170,7 +170,6 @@
       "ts"
     ],
     "setupFilesAfterEnv": [
-      "./tests/units/setup.ts",
       "./tests/units/jest.matchers.ts"
     ],
     "preset": "ts-jest"
