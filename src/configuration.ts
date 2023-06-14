@@ -56,7 +56,7 @@ class MorphoAaveV3Sdk {
   } as const;
 
   public get configuration() {
-    return deepCopy(this.__configuration);
+    return { ...this.__configuration };
   }
 
   public setConfiguration = (newConfig: Partial<Configuration>) => {
