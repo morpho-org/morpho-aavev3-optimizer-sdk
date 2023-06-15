@@ -12,6 +12,7 @@ export interface TxOperation {
   type: TransactionType;
   amount: BigNumber;
   underlyingAddress: string;
+  signature?: string;
 }
 
 export interface ClaimMorphoOperation {

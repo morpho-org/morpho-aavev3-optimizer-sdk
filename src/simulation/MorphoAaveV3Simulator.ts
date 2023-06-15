@@ -13,7 +13,6 @@ import {
 
 import { minBN } from "@morpho-labs/ethers-utils/lib/utils";
 
-import { MorphoAaveV3Adapter } from "../MorphoAaveV3Adapter";
 import { MorphoAaveV3DataEmitter } from "../MorphoAaveV3DataEmitter";
 import { MorphoAaveV3DataHolder } from "../MorphoAaveV3DataHolder";
 import { SECONDS_PER_YEAR } from "../constants/date";
@@ -43,7 +42,7 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
    * @param parentAdapter adapter on which the simulator is based
    * @param _timeout [Optional] Minimum delay between two refresh. Explicitly set to `O` to prevent it from refreshing
    */
-  constructor(parentAdapter: MorphoAaveV3Adapter, private _timeout: number = 1000) {
+  constructor(parentAdapter: MorphoAaveV3DataEmitter, private _timeout: number = 1000) {
     super();
 
     /* Initialize simulator values to the one of the adapter */

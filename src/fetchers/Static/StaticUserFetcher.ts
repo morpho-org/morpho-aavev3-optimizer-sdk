@@ -1,4 +1,7 @@
-import { BigNumber } from "ethers";
+import { BigNumber, constants } from "ethers";
+
+import { BlockTag } from "@ethersproject/abstract-provider";
+import { WadRayMath } from "@morpho-labs/ethers-utils/lib/maths";
 
 import { Address, MarketMapping, ScaledUserMarketData } from "../../types";
 import { delay } from "../../utils/promises";
@@ -28,5 +31,12 @@ export class StaticUserFetcher extends StaticFetcher implements UserFetcher {
   }
   async fetchStethBalance(userAddress: Address) {
     return delay(BigNumber.from(0), this._longDelay);
+  }
+
+  fetchStethData(
+    userAddress: Address,
+    blockTag?: BlockTag
+  ): [Promise<BigNumber>, Promise<BigNumber>] {
+    return [Promise.resolve(constants.Zero), Promise.resolve(WadRayMath.WAD)];
   }
 }

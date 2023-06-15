@@ -10,12 +10,7 @@ import {
 } from "../../src/types";
 
 import { GLOBAL_DATA, MARKETS_REWARDS_DISTRIBUTION } from "./global";
-import {
-  MARKETS_CONFIGS,
-  MARKETS_DATA,
-  MARKETS_SUPPLY_DATA,
-  Underlying,
-} from "./markets";
+import { MARKETS_CONFIGS, MARKETS_DATA, MARKETS_SUPPLY_DATA, Underlying } from "./markets";
 
 const USER_MARKETS_DATA: MarketMapping<ScaledUserMarketData> = {
   [Underlying.dai]: {
@@ -26,6 +21,7 @@ const USER_MARKETS_DATA: MarketMapping<ScaledUserMarketData> = {
     scaledSupplyInP2P: parseUnits("654", 18),
     scaledSupplyOnPool: parseUnits("3567", 18),
     walletBalance: parseUnits("7356756", 18),
+    bulkerApproval: parseUnits("7356756", 18),
     approval: constants.Zero,
     permit2Approval: constants.MaxUint256,
     nonce: BigNumber.from(0),
@@ -38,6 +34,7 @@ const USER_MARKETS_DATA: MarketMapping<ScaledUserMarketData> = {
     scaledSupplyInP2P: parseUnits("0", 6),
     scaledSupplyOnPool: parseUnits("0", 6),
     walletBalance: parseUnits("42134241", 6),
+    bulkerApproval: constants.Zero,
     approval: constants.MaxUint256,
     permit2Approval: constants.Zero,
     nonce: BigNumber.from(0),
@@ -50,6 +47,7 @@ const USER_MARKETS_DATA: MarketMapping<ScaledUserMarketData> = {
     scaledSupplyInP2P: parseUnits("1.2", 8),
     scaledSupplyOnPool: parseUnits("2", 8),
     walletBalance: parseUnits("123", 8),
+    bulkerApproval: constants.Zero,
     approval: constants.MaxUint256,
     permit2Approval: constants.Zero,
     nonce: BigNumber.from(0),
@@ -62,6 +60,7 @@ const USER_MARKETS_DATA: MarketMapping<ScaledUserMarketData> = {
     scaledSupplyInP2P: parseUnits("576", 18),
     scaledSupplyOnPool: parseUnits("0", 18),
     walletBalance: parseUnits("12686743", 18),
+    bulkerApproval: constants.Zero,
     approval: constants.MaxUint256,
     permit2Approval: constants.Zero,
     nonce: BigNumber.from(0),
@@ -75,6 +74,7 @@ const USER_MARKETS_DATA: MarketMapping<ScaledUserMarketData> = {
     scaledSupplyOnPool: parseUnits("0", 6),
     walletBalance: parseUnits("12350435", 6),
     approval: constants.MaxUint256,
+    bulkerApproval: constants.Zero,
     permit2Approval: constants.Zero,
     nonce: BigNumber.from(0),
   },
@@ -87,6 +87,7 @@ const USER_MARKETS_DATA: MarketMapping<ScaledUserMarketData> = {
     scaledSupplyOnPool: parseUnits("0", 18),
     walletBalance: parseUnits("0", 18),
     approval: constants.Zero,
+    bulkerApproval: constants.Zero,
     permit2Approval: constants.Zero,
     nonce: BigNumber.from(0),
   },
