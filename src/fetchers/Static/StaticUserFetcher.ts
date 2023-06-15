@@ -3,7 +3,12 @@ import { BigNumber, constants } from "ethers";
 import { BlockTag } from "@ethersproject/abstract-provider";
 import { WadRayMath } from "@morpho-labs/ethers-utils/lib/maths";
 
-import { Address, MarketMapping, ScaledUserMarketData, StEthData } from "../../types";
+import {
+  Address,
+  MarketMapping,
+  ScaledUserMarketData,
+  StEthData,
+} from "../../types";
 import { delay } from "../../utils/promises";
 import { UserFetcher } from "../fetchers.interfaces";
 

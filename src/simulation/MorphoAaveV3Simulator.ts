@@ -42,7 +42,10 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
    * @param parentAdapter adapter on which the simulator is based
    * @param _timeout [Optional] Minimum delay between two refresh. Explicitly set to `O` to prevent it from refreshing
    */
-  constructor(parentAdapter: MorphoAaveV3DataEmitter, private _timeout: number = 1000) {
+  constructor(
+    parentAdapter: MorphoAaveV3DataEmitter,
+    private _timeout: number = 1000
+  ) {
     super();
 
     /* Initialize simulator values to the one of the adapter */
@@ -66,7 +69,14 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
       }).pipe(
         map(deepCopy),
         map(
-          ({ marketsConfigs, marketsData, marketsList, userMarketsData, globalData, userData }) =>
+          ({
+            marketsConfigs,
+            marketsData,
+            marketsList,
+            userMarketsData,
+            globalData,
+            userData,
+          }) =>
             new MorphoAaveV3DataHolder(
               marketsConfigs,
               marketsData,
@@ -81,13 +91,17 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
 
     /* Force the simulation reexecution when operations change */
     this._subscriptions.push(
-      this._dataState$.pipe(sample(this._operations$)).subscribe(this._applyOperations.bind(this))
+      this._dataState$
+        .pipe(sample(this._operations$))
+        .subscribe(this._applyOperations.bind(this))
     );
 
     if (this._timeout > 0) {
       /* Prevent the simulation from being recomputed several time within `_timeout` miliseconds  */
       this._subscriptions.push(
-        this._dataState$.pipe(sampleTime(this._timeout)).subscribe(this._applyOperations.bind(this))
+        this._dataState$
+          .pipe(sampleTime(this._timeout))
+          .subscribe(this._applyOperations.bind(this))
       );
     }
   }
@@ -113,7 +127,10 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
   }): void {
     this.error$.next(null);
 
-    const simulatedData = operations.reduce(this._applyOperation.bind(this), data);
+    const simulatedData = operations.reduce(
+      this._applyOperation.bind(this),
+      data
+    );
 
     if (!simulatedData) return;
 
@@ -138,7 +155,10 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
     };
 
     if (newUserData?.healthFactor.lt(HF_THRESHOLD)) {
-      this._raiseError(operations.length - 1, ErrorCode.collateralCapacityReached); // Error is not blocking the simulation
+      this._raiseError(
+        operations.length - 1,
+        ErrorCode.collateralCapacityReached
+      ); // Error is not blocking the simulation
     }
     this.userData = newUserData;
   }
@@ -160,7 +180,11 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
         simulatedState = this._applySupplyOperation(data, operation, index);
         break;
       case TransactionType.supplyCollateral:
-        simulatedState = this._applySupplyCollateralOperation(data, operation, index);
+        simulatedState = this._applySupplyCollateralOperation(
+          data,
+          operation,
+          index
+        );
         break;
       case TransactionType.repay:
         simulatedState = this._applyRepayOperation(data, operation, index);
@@ -169,7 +193,11 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
         simulatedState = this._applyWithdrawOperation(data, operation, index);
         break;
       case TransactionType.withdrawCollateral:
-        simulatedState = this._applyWithdrawCollateralOperation(data, operation, index);
+        simulatedState = this._applyWithdrawCollateralOperation(
+          data,
+          operation,
+          index
+        );
         break;
 
       case OperationType.claimMorpho:
@@ -199,7 +227,10 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
     const marketConfig = data.getMarketsConfigs()[operation.underlyingAddress];
 
     /* Market is unknown */
-    if (!data.getMarketsList()?.includes(operation.underlyingAddress) || !marketConfig) {
+    if (
+      !data.getMarketsList()?.includes(operation.underlyingAddress) ||
+      !marketConfig
+    ) {
       return this._raiseError(index, ErrorCode.unknownMarket, operation);
     }
 
@@ -208,10 +239,14 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
       return this._raiseError(index, ErrorCode.operationDisabled, operation);
 
     const marketData = data.getMarketsData()[operation.underlyingAddress];
-    const userMarketData = data.getUserMarketsData()[operation.underlyingAddress];
+    const userMarketData =
+      data.getUserMarketsData()[operation.underlyingAddress];
 
     const amount = operation.amount.eq(constants.MaxUint256)
-      ? data.getUserMaxCapacity(operation.underlyingAddress, TransactionType.supply)?.amount
+      ? data.getUserMaxCapacity(
+          operation.underlyingAddress,
+          TransactionType.supply
+        )?.amount
       : operation.amount;
 
     /* Market- or User data can't be found */
@@ -239,7 +274,10 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
     const totalMorphoSupply = marketData.totalMorphoSupply.add(amount);
     const poolLiquidity = marketData.poolLiquidity.add(amount); // pool supply + matching of the borrower
 
-    if (marketConfig.supplyCap.gt(0) && poolLiquidity.gt(marketConfig.supplyCap)) {
+    if (
+      marketConfig.supplyCap.gt(0) &&
+      poolLiquidity.gt(marketConfig.supplyCap)
+    ) {
       this._raiseError(index, ErrorCode.supplyCapReached, operation);
     }
 
@@ -252,7 +290,9 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
       poolBorrow,
       poolLiquidity,
       totalMorphoSupply,
-      matchingRatio: marketData.totalMorphoBorrow.add(totalMorphoSupply).isZero()
+      matchingRatio: marketData.totalMorphoBorrow
+        .add(totalMorphoSupply)
+        .isZero()
         ? constants.Zero
         : this.__MATH__.percentDiv(
             morphoBorrowInP2P.add(morphoSupplyInP2P),
@@ -263,7 +303,10 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
         : this.__MATH__.percentDiv(morphoSupplyInP2P, totalMorphoSupply),
       borrowMatchingRatio: totalMorphoSupply.isZero()
         ? constants.Zero
-        : this.__MATH__.percentDiv(morphoBorrowInP2P, marketData.totalMorphoBorrow),
+        : this.__MATH__.percentDiv(
+            morphoBorrowInP2P,
+            marketData.totalMorphoBorrow
+          ),
     };
 
     /* Update user market data */
@@ -290,7 +333,9 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
       experiencedSupplyAPY: this.__MATH__.percentDiv(
         this.__MATH__
           .percentMul(supplyInP2P, marketData.p2pSupplyAPY)
-          .add(this.__MATH__.percentMul(supplyOnPool, marketData.poolSupplyAPY)),
+          .add(
+            this.__MATH__.percentMul(supplyOnPool, marketData.poolSupplyAPY)
+          ),
         totalSupply
       ),
       experiencedSupplyMorphoEmission: totalMorphoSupply.isZero()
@@ -328,7 +373,10 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
     const marketConfig = data.getMarketsConfigs()[operation.underlyingAddress];
 
     /* Market is unknown */
-    if (!data.getMarketsList()?.includes(operation.underlyingAddress) || !marketConfig) {
+    if (
+      !data.getMarketsList()?.includes(operation.underlyingAddress) ||
+      !marketConfig
+    ) {
       return this._raiseError(index, ErrorCode.unknownMarket, operation);
     }
 
@@ -336,17 +384,23 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
     if (marketConfig.isBorrowPaused)
       return this._raiseError(index, ErrorCode.operationDisabled, operation);
 
-    const isEmode = this._globalData!.eModeCategoryData.eModeId.eq(marketConfig.eModeCategoryId);
+    const isEmode = this._globalData!.eModeCategoryData.eModeId.eq(
+      marketConfig.eModeCategoryId
+    );
 
     /* The market is not in emode */
     if (!this._globalData!.eModeCategoryData.eModeId.isZero() && !isEmode)
       return this._raiseError(index, ErrorCode.noBorrowableEmode, operation);
 
     const marketData = data.getMarketsData()[operation.underlyingAddress];
-    const userMarketData = data.getUserMarketsData()[operation.underlyingAddress];
+    const userMarketData =
+      data.getUserMarketsData()[operation.underlyingAddress];
 
     const amount = operation.amount.eq(constants.MaxUint256)
-      ? data.getUserMaxCapacity(operation.underlyingAddress, TransactionType.borrow)?.amount
+      ? data.getUserMaxCapacity(
+          operation.underlyingAddress,
+          TransactionType.borrow
+        )?.amount
       : operation.amount;
 
     /* Market- or User data can't be found */
@@ -387,7 +441,9 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
       poolBorrow,
       poolLiquidity,
       totalMorphoBorrow,
-      matchingRatio: totalMorphoBorrow.add(marketData.totalMorphoSupply).isZero()
+      matchingRatio: totalMorphoBorrow
+        .add(marketData.totalMorphoSupply)
+        .isZero()
         ? constants.Zero
         : this.__MATH__.percentDiv(
             morphoBorrowInP2P.add(morphoSupplyInP2P),
@@ -395,7 +451,10 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
           ),
       supplyMatchingRatio: totalMorphoBorrow.isZero()
         ? constants.Zero
-        : this.__MATH__.percentDiv(morphoSupplyInP2P, marketData.totalMorphoSupply),
+        : this.__MATH__.percentDiv(
+            morphoSupplyInP2P,
+            marketData.totalMorphoSupply
+          ),
       borrowMatchingRatio: marketData.totalMorphoSupply.isZero()
         ? constants.Zero
         : this.__MATH__.percentDiv(morphoBorrowInP2P, totalMorphoBorrow),
@@ -425,7 +484,9 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
       experiencedBorrowAPY: this.__MATH__.percentDiv(
         this.__MATH__
           .percentMul(borrowInP2P, marketData.p2pBorrowAPY)
-          .add(this.__MATH__.percentMul(borrowOnPool, marketData.poolBorrowAPY)),
+          .add(
+            this.__MATH__.percentMul(borrowOnPool, marketData.poolBorrowAPY)
+          ),
         totalBorrow
       ),
       experiencedBorrowMorphoEmission: totalMorphoBorrow.isZero()
@@ -463,7 +524,10 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
     const marketConfig = data.getMarketsConfigs()[operation.underlyingAddress];
 
     /* Market is unknown */
-    if (!data.getMarketsList()?.includes(operation.underlyingAddress) || !marketConfig) {
+    if (
+      !data.getMarketsList()?.includes(operation.underlyingAddress) ||
+      !marketConfig
+    ) {
       return this._raiseError(index, ErrorCode.unknownMarket, operation);
     }
 
@@ -472,11 +536,14 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
       return this._raiseError(index, ErrorCode.operationDisabled, operation);
 
     const marketData = data.getMarketsData()[operation.underlyingAddress];
-    const userMarketData = data.getUserMarketsData()[operation.underlyingAddress];
+    const userMarketData =
+      data.getUserMarketsData()[operation.underlyingAddress];
 
     const amount = operation.amount.eq(constants.MaxUint256)
-      ? data.getUserMaxCapacity(operation.underlyingAddress, TransactionType.supplyCollateral)
-          ?.amount
+      ? data.getUserMaxCapacity(
+          operation.underlyingAddress,
+          TransactionType.supplyCollateral
+        )?.amount
       : operation.amount;
 
     /* Market- or User data can't be found */
@@ -496,7 +563,10 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
     const totalMorphoCollateral = marketData.totalMorphoCollateral.add(amount);
     const poolLiquidity = marketData.poolLiquidity.add(amount);
 
-    if (marketConfig.supplyCap.gt(0) && poolLiquidity.gt(marketConfig.supplyCap)) {
+    if (
+      marketConfig.supplyCap.gt(0) &&
+      poolLiquidity.gt(marketConfig.supplyCap)
+    ) {
       this._raiseError(index, ErrorCode.supplyCapReached, operation);
     }
 
@@ -546,7 +616,10 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
     const marketConfig = data.getMarketsConfigs()[operation.underlyingAddress];
 
     /* Market is unknown */
-    if (!data.getMarketsList()?.includes(operation.underlyingAddress) || !marketConfig) {
+    if (
+      !data.getMarketsList()?.includes(operation.underlyingAddress) ||
+      !marketConfig
+    ) {
       return this._raiseError(index, ErrorCode.unknownMarket, operation);
     }
 
@@ -555,10 +628,14 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
       return this._raiseError(index, ErrorCode.operationDisabled, operation);
 
     const marketData = data.getMarketsData()[operation.underlyingAddress];
-    const userMarketData = data.getUserMarketsData()[operation.underlyingAddress];
+    const userMarketData =
+      data.getUserMarketsData()[operation.underlyingAddress];
 
     const amount = operation.amount.eq(constants.MaxUint256)
-      ? data.getUserMaxCapacity(operation.underlyingAddress, TransactionType.withdraw)?.amount
+      ? data.getUserMaxCapacity(
+          operation.underlyingAddress,
+          TransactionType.withdraw
+        )?.amount
       : operation.amount;
 
     /* Market- or User data can't be found */
@@ -604,7 +681,9 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
       poolBorrow,
       poolLiquidity,
       totalMorphoSupply,
-      matchingRatio: marketData.totalMorphoBorrow.add(totalMorphoSupply).isZero()
+      matchingRatio: marketData.totalMorphoBorrow
+        .add(totalMorphoSupply)
+        .isZero()
         ? constants.Zero
         : this.__MATH__.percentDiv(
             morphoBorrowInP2P.add(morphoSupplyInP2P),
@@ -615,7 +694,10 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
         : this.__MATH__.percentDiv(morphoSupplyInP2P, totalMorphoSupply),
       borrowMatchingRatio: totalMorphoSupply.isZero()
         ? constants.Zero
-        : this.__MATH__.percentDiv(morphoBorrowInP2P, marketData.totalMorphoBorrow),
+        : this.__MATH__.percentDiv(
+            morphoBorrowInP2P,
+            marketData.totalMorphoBorrow
+          ),
     };
 
     /* Update user market data */
@@ -642,7 +724,9 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
       experiencedSupplyAPY: this.__MATH__.percentDiv(
         this.__MATH__
           .percentMul(supplyInP2P, marketData.p2pSupplyAPY)
-          .add(this.__MATH__.percentMul(supplyOnPool, marketData.poolSupplyAPY)),
+          .add(
+            this.__MATH__.percentMul(supplyOnPool, marketData.poolSupplyAPY)
+          ),
         totalSupply
       ),
       experiencedSupplyMorphoEmission: totalMorphoSupply.isZero()
@@ -680,7 +764,10 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
     const marketConfig = data.getMarketsConfigs()[operation.underlyingAddress];
 
     /* Market is unknown */
-    if (!data.getMarketsList()?.includes(operation.underlyingAddress) || !marketConfig) {
+    if (
+      !data.getMarketsList()?.includes(operation.underlyingAddress) ||
+      !marketConfig
+    ) {
       return this._raiseError(index, ErrorCode.unknownMarket, operation);
     }
 
@@ -689,10 +776,14 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
       return this._raiseError(index, ErrorCode.operationDisabled, operation);
 
     const marketData = data.getMarketsData()[operation.underlyingAddress];
-    const userMarketData = data.getUserMarketsData()[operation.underlyingAddress];
+    const userMarketData =
+      data.getUserMarketsData()[operation.underlyingAddress];
 
     const amount = operation.amount.eq(constants.MaxUint256)
-      ? data.getUserMaxCapacity(operation.underlyingAddress, TransactionType.repay)?.amount
+      ? data.getUserMaxCapacity(
+          operation.underlyingAddress,
+          TransactionType.repay
+        )?.amount
       : operation.amount;
 
     /* Market- or User data can't be found */
@@ -732,7 +823,9 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
       poolBorrow,
       poolLiquidity,
       totalMorphoBorrow,
-      matchingRatio: totalMorphoBorrow.add(marketData.totalMorphoSupply).isZero()
+      matchingRatio: totalMorphoBorrow
+        .add(marketData.totalMorphoSupply)
+        .isZero()
         ? constants.Zero
         : this.__MATH__.percentDiv(
             morphoBorrowInP2P.add(morphoSupplyInP2P),
@@ -740,7 +833,10 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
           ),
       supplyMatchingRatio: totalMorphoBorrow.isZero()
         ? constants.Zero
-        : this.__MATH__.percentDiv(morphoSupplyInP2P, marketData.totalMorphoSupply),
+        : this.__MATH__.percentDiv(
+            morphoSupplyInP2P,
+            marketData.totalMorphoSupply
+          ),
       borrowMatchingRatio: marketData.totalMorphoSupply.isZero()
         ? constants.Zero
         : this.__MATH__.percentDiv(morphoBorrowInP2P, totalMorphoBorrow),
@@ -770,7 +866,9 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
       experiencedBorrowAPY: this.__MATH__.percentDiv(
         this.__MATH__
           .percentMul(borrowInP2P, marketData.p2pBorrowAPY)
-          .add(this.__MATH__.percentMul(borrowOnPool, marketData.poolBorrowAPY)),
+          .add(
+            this.__MATH__.percentMul(borrowOnPool, marketData.poolBorrowAPY)
+          ),
         totalBorrow
       ),
       experiencedBorrowMorphoEmission: totalMorphoBorrow.isZero()
@@ -808,7 +906,10 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
     const marketConfig = data.getMarketsConfigs()[operation.underlyingAddress];
 
     /* Market is unknown */
-    if (!data.getMarketsList()?.includes(operation.underlyingAddress) || !marketConfig) {
+    if (
+      !data.getMarketsList()?.includes(operation.underlyingAddress) ||
+      !marketConfig
+    ) {
       return this._raiseError(index, ErrorCode.unknownMarket, operation);
     }
 
@@ -817,11 +918,14 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
       return this._raiseError(index, ErrorCode.operationDisabled, operation);
 
     const marketData = data.getMarketsData()[operation.underlyingAddress];
-    const userMarketData = data.getUserMarketsData()[operation.underlyingAddress];
+    const userMarketData =
+      data.getUserMarketsData()[operation.underlyingAddress];
 
     const amount = operation.amount.eq(constants.MaxUint256)
-      ? data.getUserMaxCapacity(operation.underlyingAddress, TransactionType.withdrawCollateral)
-          ?.amount
+      ? data.getUserMaxCapacity(
+          operation.underlyingAddress,
+          TransactionType.withdrawCollateral
+        )?.amount
       : operation.amount;
 
     /* Market- or User data can't be found */

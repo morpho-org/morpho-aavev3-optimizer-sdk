@@ -1,7 +1,6 @@
 import { providers } from "ethers";
 
 import { Provider } from "@ethersproject/providers";
-
 import { ChainlinkPriceFeed__factory } from "@morpho-labs/morpho-ethers-contract";
 
 const CHAINLINK_ETH_USD_PRICE_FEED_ADDRESS =

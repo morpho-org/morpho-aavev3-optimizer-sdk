@@ -143,14 +143,16 @@ export class ChainUserFetcher extends ChainFetcher implements UserFetcher {
   }
   async fetchStethData(userAddress: Address, blockTag: BlockTag = "latest") {
     const stEth = StEth__factory.connect(addresses.steth, this._provider);
-    const [balance, stethPerWsteth, permit2Approval, bulkerApproval] = await Promise.all([
-      stEth.balanceOf(userAddress, {
-        blockTag,
-      }),
-      stEth.getPooledEthByShares(WadRayMath.WAD, { blockTag }),
-      stEth.allowance(userAddress, CONTRACT_ADDRESSES.permit2),
-      stEth.allowance(userAddress, CONTRACT_ADDRESSES.bulker),
-    ]);
+    const [balance, stethPerWsteth, permit2Approval, bulkerApproval] =
+      await Promise.all([
+        stEth.balanceOf(userAddress, {
+          blockTag,
+        }),
+        stEth.getPooledEthByShares(WadRayMath.WAD, { blockTag }),
+        stEth.allowance(userAddress, CONTRACT_ADDRESSES.permit2),
+        stEth.allowance(userAddress, CONTRACT_ADDRESSES.bulker),
+      ]);
+
     return {
       balance,
       stethPerWsteth,

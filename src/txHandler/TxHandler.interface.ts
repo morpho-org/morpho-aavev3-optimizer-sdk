@@ -19,7 +19,9 @@ export interface INotifierManager {
   resetNotifiers: () => ITransactionNotifier[];
 }
 
-export interface ISimpleTxHandler extends INotifierManager, ApprovalHandlerInterface {
+export interface ISimpleTxHandler
+  extends INotifierManager,
+    ApprovalHandlerInterface {
   handleMorphoTransaction: (
     operation: TransactionType,
     market: Token,
@@ -35,7 +37,10 @@ export interface ISimpleTxHandler extends INotifierManager, ApprovalHandlerInter
     options?: TransactionOptions
   ) => Promise<any>;
 
-  handleWrapEth: (amount: BigNumber, options?: TransactionOptions) => Promise<void>;
+  handleWrapEth: (
+    amount: BigNumber,
+    options?: TransactionOptions
+  ) => Promise<void>;
 }
 
 export interface IBatchTxHandler extends INotifierManager {

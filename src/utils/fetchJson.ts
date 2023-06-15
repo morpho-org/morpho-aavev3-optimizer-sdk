@@ -7,9 +7,13 @@ export const fetchJson = async <T>(url: string, options?: RequestInit) =>
       ...(options?.headers ?? {}),
       "Content-Type": "application/json",
     },
-  }).then(r => r.json() as T);
+  }).then((r) => r.json() as T);
 
-export const fetchSubgraph = async <T>(url: string, query: string, variables?: any) =>
+export const fetchSubgraph = async <T>(
+  url: string,
+  query: string,
+  variables?: any
+) =>
   fetchJson<GraphResult<T>>(url, {
     method: "POST",
     body: JSON.stringify({
