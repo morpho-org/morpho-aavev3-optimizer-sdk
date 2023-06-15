@@ -1,16 +1,12 @@
 import { BigNumber, constants } from "ethers";
 import { parseUnits } from "ethers/lib/utils";
 
-import {
-  GlobalData,
-  MarketConfig,
-  MarketMapping,
-  ScaledMarketData,
-  ScaledUserMarketData,
-} from "../../src/types";
+import { AdapterMock } from "../../src/mocks";
+import { Underlying } from "../../src/mocks/markets";
+import { MarketMapping, ScaledUserMarketData } from "../../src/types";
 
 import { GLOBAL_DATA, MARKETS_REWARDS_DISTRIBUTION } from "./global";
-import { MARKETS_CONFIGS, MARKETS_DATA, MARKETS_SUPPLY_DATA, Underlying } from "./markets";
+import { MARKETS_CONFIGS, MARKETS_DATA } from "./markets";
 
 const USER_MARKETS_DATA: MarketMapping<ScaledUserMarketData> = {
   [Underlying.dai]: {
@@ -91,6 +87,19 @@ const USER_MARKETS_DATA: MarketMapping<ScaledUserMarketData> = {
     permit2Approval: constants.Zero,
     nonce: BigNumber.from(0),
   },
+  [Underlying.wsteth]: {
+    underlyingAddress: Underlying.wsteth,
+    scaledBorrowInP2P: parseUnits("0", 18),
+    scaledBorrowOnPool: parseUnits("0", 18),
+    scaledCollateral: parseUnits("0", 18),
+    scaledSupplyInP2P: parseUnits("0", 18),
+    scaledSupplyOnPool: parseUnits("0", 18),
+    walletBalance: parseUnits("0", 18),
+    approval: constants.Zero,
+    bulkerApproval: constants.Zero,
+    permit2Approval: constants.Zero,
+    nonce: BigNumber.from(0),
+  },
 };
 
 const ONE_WEEK = 24 * 3600 * 7; // in s
@@ -122,16 +131,7 @@ export const USER_REWARDS_DATA = {
   },
 };
 
-export interface AdapterMock {
-  marketsList: Underlying[];
-  marketsConfigs: MarketMapping<MarketConfig>;
-  marketsData: MarketMapping<ScaledMarketData>;
-  ethBalance: BigNumber;
-  userMarketsData: MarketMapping<ScaledUserMarketData>;
-  globalData: Omit<GlobalData, "lastFetchTimestamp" | "currentBlock">;
-}
-
-export const ADAPTER_MOCK = {
+export const ADAPTER_MOCK: AdapterMock = {
   marketsList: [
     Underlying.dai,
     Underlying.usdc,
@@ -139,11 +139,19 @@ export const ADAPTER_MOCK = {
     Underlying.uni,
     Underlying.usdt,
     Underlying.weth,
+    Underlying.wsteth,
   ],
   marketsConfigs: MARKETS_CONFIGS,
   marketsData: MARKETS_DATA,
-  marketsSupply: MARKETS_SUPPLY_DATA,
-  ethBalance: parseUnits("1023.423", 18),
+  userData: {
+    ethBalance: parseUnits("1023.423", 18),
+    stEthData: {
+      bulkerApproval: constants.Zero,
+      stethPerWsteth: constants.WeiPerEther,
+      permit2Approval: constants.MaxUint256,
+      balance: parseUnits("50"),
+    },
+  },
   userMarketsData: USER_MARKETS_DATA,
   globalData: GLOBAL_DATA,
   userRewardsData: USER_REWARDS_DATA,

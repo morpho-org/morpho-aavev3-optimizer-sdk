@@ -8,6 +8,7 @@ import { maxBN } from "@morpho-labs/ethers-utils/lib/utils";
 
 import { MorphoAaveV3DataHolder } from "../MorphoAaveV3DataHolder";
 import addresses from "../contracts/addresses";
+import CONTRACT_ADDRESSES from "../contracts/addresses";
 import { TransactionOptions } from "../types";
 
 import { Bulker } from "./Bulker.TxHandler.interface";
@@ -16,10 +17,12 @@ import { IBatchTxHandler, ISimpleTxHandler } from "./TxHandler.interface";
 
 import TransactionType = Bulker.TransactionType;
 
-export default class BulkerTxHandler extends NotifierManager implements IBatchTxHandler {
+export default class BulkerTxHandler
+  extends NotifierManager
+  implements IBatchTxHandler
+{
   _operations: TxOperation[] = [];
   _bulkerTransactions: Bulker.Transactions[] = [];
-  _skims: string[] = [];
   _value = constants.Zero;
 
   public readonly operations$ = new Subject<TxOperation[]>();
@@ -32,6 +35,13 @@ export default class BulkerTxHandler extends NotifierManager implements IBatchTx
   public getOperations(): TxOperation[] {
     return deepCopy(this._operations);
   }
+  public getValues(): BigNumber {
+    return BigNumber.from(this._value);
+  }
+
+  public getBulkerTransactions(): Bulker.Transactions[] {
+    return deepCopy(this._bulkerTransactions);
+  }
 
   constructor(protected _dataHolder: MorphoAaveV3DataHolder) {
     super();
@@ -41,7 +51,10 @@ export default class BulkerTxHandler extends NotifierManager implements IBatchTx
     switch (operation.type) {
       case TransactionType.supply:
       case TransactionType.supplyCollateral:
-        const { batch, value } = this.validateSupply(operation.underlyingAddress, operation.amount);
+        const { batch, value } = this.validateSupply(
+          operation.underlyingAddress,
+          operation.amount
+        );
         this._value = this._value.add(value);
         this._bulkerTransactions = [...this._bulkerTransactions, ...batch];
         this.operations = [...this._operations, operation];
@@ -69,17 +82,19 @@ export default class BulkerTxHandler extends NotifierManager implements IBatchTx
     underlyingAddress: string,
     amount: BigNumber
   ): { value: BigNumber; batch: Bulker.Transactions[] } {
+    if (amount.isZero()) throw Error("Amount is zero");
     const batch: Bulker.Transactions[] = [];
     let deferSkimWsteth = false;
     let value = constants.Zero;
 
     const userMarketsData = this._dataHolder.getUserMarketsData();
     const userData = this._dataHolder.getUserData();
-    if (!userData || !userMarketsData) throw Error("User data or user markets data is undefined");
+    if (!userData || !userMarketsData)
+      throw Error("User data or user markets data is undefined");
     let toTransfer = amount;
     if (getAddress(underlyingAddress) === addresses.wsteth) {
       const wstethMissing = maxBN(
-        userMarketsData[underlyingAddress]!.walletBalance.sub(amount),
+        amount.sub(userMarketsData[underlyingAddress]!.walletBalance),
         constants.Zero
       );
       if (wstethMissing.gt(0)) {
@@ -121,13 +136,14 @@ export default class BulkerTxHandler extends NotifierManager implements IBatchTx
       }
     } else if (getAddress(underlyingAddress) === addresses.weth) {
       const wethMissing = maxBN(
-        userMarketsData[underlyingAddress]!.walletBalance.sub(amount),
+        amount.sub(userMarketsData[underlyingAddress]!.walletBalance),
         constants.Zero
       );
       const wethMarket = userMarketsData[addresses.weth];
       if (!wethMarket) throw Error("Weth market is undefined");
       if (wethMissing.gt(0)) {
-        if (userData.ethBalance.lt(wethMissing)) throw Error("Not enough ETH to wrap"); // TODO: use a buffer to keep an amount for the gas
+        if (userData.ethBalance.lt(wethMissing))
+          throw Error("Not enough ETH to wrap"); // TODO: use a buffer to keep an amount for the gas
         value = value.add(wethMissing); // Add value to the tx
         batch.push({
           type: TransactionType.wrapEth,
@@ -160,7 +176,10 @@ export default class BulkerTxHandler extends NotifierManager implements IBatchTx
       });
     }
     batch.push({
-      type: TransactionType.supply,
+      type:
+        underlyingAddress === CONTRACT_ADDRESSES.weth
+          ? TransactionType.supply
+          : TransactionType.supplyCollateral,
       asset: underlyingAddress,
       amount: amount,
     });

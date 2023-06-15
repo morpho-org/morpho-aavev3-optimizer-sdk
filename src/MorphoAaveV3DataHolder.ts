@@ -68,82 +68,107 @@ export class MorphoAaveV3DataHolder {
       p2pImprovement: constants.Zero,
       nMorpho: constants.Zero,
     };
-    Object.entries(this._userMarketsData).forEach(([underlyingAddress, userMarketData]) => {
-      const marketConfig = this._marketsConfigs[underlyingAddress];
-      const marketData = this._marketsData[underlyingAddress];
-      if (!marketConfig || !marketData || !userMarketData) return;
+    Object.entries(this._userMarketsData).forEach(
+      ([underlyingAddress, userMarketData]) => {
+        const marketConfig = this._marketsConfigs[underlyingAddress];
+        const marketData = this._marketsData[underlyingAddress];
+        if (!marketConfig || !marketData || !userMarketData) return;
 
-      const underlyingUnit = pow10(marketConfig.decimals);
-      const collateralUsd = this.__MATH__.mulDown(
-        userMarketData.totalCollateral,
-        marketData.usdPrice
-      );
-
-      // Morpho has a slightly different method of health factor calculation from the underlying pool.
-      // This method is used to account for a potential rounding error in calculateUserAccountData,
-      // see https://github.com/aave/aave-v3-core/blob/94e571f3a7465201881a59555314cd550ccfda57/contracts/protocol/libraries/logic/GenericLogic.sol#L64-L196
-      // To resolve this, Morpho reduces the collateral value by a small amount.
-
-      const collateralReduced = collateralUsd.mul(LT_LOWER_BOUND.sub(1)).div(LT_LOWER_BOUND);
-
-      liquidationValue = liquidationValue.add(
-        this.__MATH__.percentMulDown(collateralReduced, marketConfig.collateralFactor)
-      );
-
-      borrowCapacity = borrowCapacity.add(
-        PercentMath.percentMul(collateralReduced, marketConfig.borrowableFactor)
-      );
-
-      const supplyInP2PUsd = this.__MATH__.mulDown(userMarketData.supplyInP2P, marketData.usdPrice);
-      const supplyOnPoolUsd = this.__MATH__.mulDown(
-        userMarketData.supplyOnPool,
-        marketData.usdPrice
-      );
-      const borrowInP2PUsd = this.__MATH__.divUp(
-        userMarketData.borrowInP2P.mul(marketData.chainUsdPrice),
-        underlyingUnit
-      );
-      const borrowOnPoolUsd = this.__MATH__.divUp(
-        userMarketData.borrowOnPool.mul(marketData.chainUsdPrice),
-        underlyingUnit
-      );
-
-      totalSupplyInP2P = totalSupplyInP2P.add(supplyInP2PUsd);
-      totalSupplyOnPool = totalSupplyOnPool.add(supplyOnPoolUsd);
-      totalBorrowInP2P = totalBorrowInP2P.add(borrowInP2PUsd);
-      totalBorrowOnPool = totalBorrowOnPool.add(borrowOnPoolUsd);
-      totalCollateral = totalCollateral.add(collateralUsd);
-
-      projectedYearlyInterests.virtualPoolSupply = projectedYearlyInterests.virtualPoolSupply.add(
-        this.__MATH__.percentMul(supplyOnPoolUsd.add(supplyInP2PUsd), marketData.poolSupplyAPY)
-      );
-
-      projectedYearlyInterests.poolCollateralInterests =
-        projectedYearlyInterests.poolCollateralInterests.add(
-          this.__MATH__.percentMul(collateralUsd, marketData.poolSupplyAPY)
+        const underlyingUnit = pow10(marketConfig.decimals);
+        const collateralUsd = this.__MATH__.mulDown(
+          userMarketData.totalCollateral,
+          marketData.usdPrice
         );
 
-      projectedYearlyInterests.virtualPoolBorrow = projectedYearlyInterests.virtualPoolBorrow.add(
-        this.__MATH__.percentMul(borrowOnPoolUsd.add(borrowInP2PUsd), marketData.poolBorrowAPY)
-      );
+        // Morpho has a slightly different method of health factor calculation from the underlying pool.
+        // This method is used to account for a potential rounding error in calculateUserAccountData,
+        // see https://github.com/aave/aave-v3-core/blob/94e571f3a7465201881a59555314cd550ccfda57/contracts/protocol/libraries/logic/GenericLogic.sol#L64-L196
+        // To resolve this, Morpho reduces the collateral value by a small amount.
 
-      projectedYearlyInterests.p2pImprovement = projectedYearlyInterests.p2pImprovement.add(
-        this.__MATH__
-          .percentMul(borrowInP2PUsd, marketData.poolBorrowAPY.sub(marketData.p2pBorrowAPY))
-          .add(
-            this.__MATH__.percentMul(
-              supplyInP2PUsd,
-              marketData.p2pSupplyAPY.sub(marketData.poolSupplyAPY)
-            )
+        const collateralReduced = collateralUsd
+          .mul(LT_LOWER_BOUND.sub(1))
+          .div(LT_LOWER_BOUND);
+
+        liquidationValue = liquidationValue.add(
+          this.__MATH__.percentMulDown(
+            collateralReduced,
+            marketConfig.collateralFactor
           )
-      );
+        );
 
-      projectedYearlyInterests.nMorpho = projectedYearlyInterests.nMorpho.add(
-        userMarketData.experiencedSupplyMorphoEmission.add(
-          userMarketData.experiencedBorrowMorphoEmission
-        )
-      );
-    });
+        borrowCapacity = borrowCapacity.add(
+          PercentMath.percentMul(
+            collateralReduced,
+            marketConfig.borrowableFactor
+          )
+        );
+
+        const supplyInP2PUsd = this.__MATH__.mulDown(
+          userMarketData.supplyInP2P,
+          marketData.usdPrice
+        );
+        const supplyOnPoolUsd = this.__MATH__.mulDown(
+          userMarketData.supplyOnPool,
+          marketData.usdPrice
+        );
+        const borrowInP2PUsd = this.__MATH__.divUp(
+          userMarketData.borrowInP2P.mul(marketData.chainUsdPrice),
+          underlyingUnit
+        );
+        const borrowOnPoolUsd = this.__MATH__.divUp(
+          userMarketData.borrowOnPool.mul(marketData.chainUsdPrice),
+          underlyingUnit
+        );
+
+        totalSupplyInP2P = totalSupplyInP2P.add(supplyInP2PUsd);
+        totalSupplyOnPool = totalSupplyOnPool.add(supplyOnPoolUsd);
+        totalBorrowInP2P = totalBorrowInP2P.add(borrowInP2PUsd);
+        totalBorrowOnPool = totalBorrowOnPool.add(borrowOnPoolUsd);
+        totalCollateral = totalCollateral.add(collateralUsd);
+
+        projectedYearlyInterests.virtualPoolSupply =
+          projectedYearlyInterests.virtualPoolSupply.add(
+            this.__MATH__.percentMul(
+              supplyOnPoolUsd.add(supplyInP2PUsd),
+              marketData.poolSupplyAPY
+            )
+          );
+
+        projectedYearlyInterests.poolCollateralInterests =
+          projectedYearlyInterests.poolCollateralInterests.add(
+            this.__MATH__.percentMul(collateralUsd, marketData.poolSupplyAPY)
+          );
+
+        projectedYearlyInterests.virtualPoolBorrow =
+          projectedYearlyInterests.virtualPoolBorrow.add(
+            this.__MATH__.percentMul(
+              borrowOnPoolUsd.add(borrowInP2PUsd),
+              marketData.poolBorrowAPY
+            )
+          );
+
+        projectedYearlyInterests.p2pImprovement =
+          projectedYearlyInterests.p2pImprovement.add(
+            this.__MATH__
+              .percentMul(
+                borrowInP2PUsd,
+                marketData.poolBorrowAPY.sub(marketData.p2pBorrowAPY)
+              )
+              .add(
+                this.__MATH__.percentMul(
+                  supplyInP2PUsd,
+                  marketData.p2pSupplyAPY.sub(marketData.poolSupplyAPY)
+                )
+              )
+          );
+
+        projectedYearlyInterests.nMorpho = projectedYearlyInterests.nMorpho.add(
+          userMarketData.experiencedSupplyMorphoEmission.add(
+            userMarketData.experiencedBorrowMorphoEmission
+          )
+        );
+      }
+    );
 
     const totalBorrow = totalBorrowInP2P.add(totalBorrowOnPool);
     const totalSupply = totalSupplyInP2P.add(totalSupplyOnPool);
@@ -236,7 +261,8 @@ export class MorphoAaveV3DataHolder {
     const marketData = this._marketsData[underlyingAddress];
     const marketConfig = this._marketsConfigs[underlyingAddress];
 
-    if (!userMarketData || !marketData || !this._userData || !marketConfig) return null;
+    if (!userMarketData || !marketData || !this._userData || !marketConfig)
+      return null;
 
     if (marketData.usdPrice.isZero())
       return { amount: constants.Zero, limiter: MaxCapacityLimiter.zeroPrice };
@@ -246,7 +272,8 @@ export class MorphoAaveV3DataHolder {
       case TransactionType.supply: {
         if (
           (txType === TransactionType.supply && marketConfig.isSupplyPaused) ||
-          (txType === TransactionType.supplyCollateral && marketConfig.isSupplyCollateralPaused)
+          (txType === TransactionType.supplyCollateral &&
+            marketConfig.isSupplyCollateralPaused)
         )
           return {
             amount: constants.Zero,
@@ -256,7 +283,10 @@ export class MorphoAaveV3DataHolder {
         const maxSupplyFromWallet = userMarketData.walletBalance;
         const maxSupplyFromSupplyCap = marketConfig.supplyCap.isZero()
           ? constants.MaxUint256
-          : maxBN(marketConfig.supplyCap.sub(marketData.poolSupply), constants.Zero);
+          : maxBN(
+              marketConfig.supplyCap.sub(marketData.poolSupply),
+              constants.Zero
+            );
 
         const maxSupply = minBNS(maxSupplyFromWallet, maxSupplyFromSupplyCap);
 
@@ -293,7 +323,9 @@ export class MorphoAaveV3DataHolder {
         const maxBorrowFromBorrowCap = marketConfig.borrowCap.isZero()
           ? constants.MaxUint256
           : maxBN(
-              marketConfig.borrowCap.sub(marketData.poolBorrow.add(marketData.poolStableBorrow)),
+              marketConfig.borrowCap.sub(
+                marketData.poolBorrow.add(marketData.poolStableBorrow)
+              ),
               constants.Zero
             );
 
@@ -364,7 +396,9 @@ export class MorphoAaveV3DataHolder {
           ? constants.MaxUint256
           : userMarketData.supplyOnPool.add(
               maxBN(
-                marketConfig.borrowCap.sub(marketData.poolBorrow.add(marketData.poolStableBorrow)),
+                marketConfig.borrowCap.sub(
+                  marketData.poolBorrow.add(marketData.poolStableBorrow)
+                ),
                 constants.Zero
               )
             );
@@ -403,12 +437,15 @@ export class MorphoAaveV3DataHolder {
           };
 
         const maxWithdrawFromBC =
-          marketConfig.collateralFactor.isZero() || this._userData.totalBorrow.isZero()
+          marketConfig.collateralFactor.isZero() ||
+          this._userData.totalBorrow.isZero()
             ? constants.MaxUint256
             : this.__MATH__.divDown(
                 this.__MATH__
                   .percentDiv(
-                    this._userData.liquidationValue.sub(this._userData.totalBorrow),
+                    this._userData.liquidationValue.sub(
+                      this._userData.totalBorrow
+                    ),
                     marketConfig.collateralFactor
                   )
                   .mul(LT_LOWER_BOUND.sub(1))
