@@ -49,6 +49,9 @@ export interface GlobalDataFetcher extends Fetcher {
   fetchGlobalData: (blockTag?: BlockTag) => Promise<GlobalData>;
 }
 
+/**
+ * @deprecated We are not using a static market supply anymore. We consider that one of collateral or poolSupply is equal to zero.
+ */
 export interface MarketSupplyFetcher extends Fetcher {
   fetchMarketSupply: (
     underlyingAddress: Address,

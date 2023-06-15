@@ -81,7 +81,7 @@ describe("P2PInterestRates", () => {
         // crossing different values
         ["10000", "7000", "5000", "0"].forEach((p2pIndexCursor) => {
           ["10000", "7345", "5000", "0"].forEach((reserveFactor) => {
-            var { newP2PSupplyIndex, newP2PBorrowIndex } =
+            const { newP2PSupplyIndex, newP2PBorrowIndex } =
               p2pInterestRates.computeP2PIndexes({
                 ...indexesParams,
                 p2pIndexCursor: BigNumber.from(p2pIndexCursor),
@@ -114,7 +114,7 @@ describe("P2PInterestRates", () => {
             ),
           };
 
-          var { newP2PSupplyIndex, newP2PBorrowIndex } =
+          const { newP2PSupplyIndex, newP2PBorrowIndex } =
             p2pInterestRates.computeP2PIndexes(indexesParams);
 
           expect(newP2PSupplyIndex).toBnEq(expectedNewP2PSupplyIndex);
@@ -143,7 +143,7 @@ describe("P2PInterestRates", () => {
               "1050000000000000000000000000"
             ),
           };
-          var { newP2PSupplyIndex, newP2PBorrowIndex } =
+          const { newP2PSupplyIndex, newP2PBorrowIndex } =
             p2pInterestRates.computeP2PIndexes(indexesParams);
 
           expect(newP2PSupplyIndex).toBnEq(expectedNewP2PSupplyIndex);
@@ -185,7 +185,7 @@ describe("P2PInterestRates", () => {
               "1160266000000000000000000000"
             ),
           };
-          var { newP2PSupplyIndex, newP2PBorrowIndex } =
+          const { newP2PSupplyIndex, newP2PBorrowIndex } =
             p2pInterestRates.computeP2PIndexes(indexesParams);
 
           expect(newP2PSupplyIndex).toBnEq(expectedNewP2PSupplyIndex);
@@ -208,7 +208,7 @@ describe("P2PInterestRates", () => {
               "1750000000000000000000000000"
             ),
           };
-          var { newP2PSupplyIndex, newP2PBorrowIndex } =
+          const { newP2PSupplyIndex, newP2PBorrowIndex } =
             p2pInterestRates.computeP2PIndexes(indexesParams);
 
           expect(newP2PSupplyIndex).toBnEq(expectedNewP2PSupplyIndex);
@@ -253,7 +253,7 @@ describe("P2PInterestRates", () => {
               "1750277469478357380688124307"
             ),
           };
-          var { newP2PSupplyIndex, newP2PBorrowIndex } =
+          const { newP2PSupplyIndex, newP2PBorrowIndex } =
             p2pInterestRates.computeP2PIndexes(indexesParams);
 
           expect(newP2PSupplyIndex).toBnEq(expectedNewP2PSupplyIndex);
@@ -277,7 +277,7 @@ describe("P2PInterestRates", () => {
             ),
           };
 
-          var { newP2PSupplyIndex, newP2PBorrowIndex } =
+          const { newP2PSupplyIndex, newP2PBorrowIndex } =
             p2pInterestRates.computeP2PIndexes(indexesParams);
 
           expect(newP2PSupplyIndex).toBnEq(expectedNewP2PSupplyIndex);

@@ -8,11 +8,11 @@
   ],
   "scripts": {
     "build": "tsc --build ./tsconfig.build.json",
-    "lint": "eslint ./src --fix",
+    "lint": "eslint ./src ./tests",
     "prepare": "husky install",
     "test:watch": "jest --watch",
     "test": "jest --coverage --detectOpenHandles",
-    "test:e2e": "yarn hardhat test --tsconfig ./tsconfig.test.e2e.json --v",
+    "test:e2e": "hardhat test --tsconfig ./tsconfig.test.e2e.json --v",
     "typecheck": "tsc --noEmit"
   },
   "repository": {
@@ -160,7 +160,7 @@
       "^.+\\.tsx?$": [
         "ts-jest",
         {
-          "tsConfig": "tsconfig.test.json"
+          "tsconfig": "tsconfig.test.json"
         }
       ]
     },
@@ -170,7 +170,6 @@
       "ts"
     ],
     "setupFilesAfterEnv": [
-      "./tests/units/setup.ts",
       "./tests/units/jest.matchers.ts"
     ],
     "preset": "ts-jest"
