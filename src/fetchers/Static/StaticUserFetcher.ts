@@ -3,7 +3,7 @@ import { BigNumber, constants } from "ethers";
 import { BlockTag } from "@ethersproject/abstract-provider";
 import { WadRayMath } from "@morpho-labs/ethers-utils/lib/maths";
 
-import { Address, MarketMapping, ScaledUserMarketData } from "../../types";
+import { Address, MarketMapping, ScaledUserMarketData, StEthData } from "../../types";
 import { delay } from "../../utils/promises";
 import { UserFetcher } from "../fetchers.interfaces";
 
@@ -11,7 +11,10 @@ import { StaticFetcher } from "./StaticFetcher";
 
 export class StaticUserFetcher extends StaticFetcher implements UserFetcher {
   constructor(
-    private _ethBalance: BigNumber,
+    private _userData: {
+      ethBalance: BigNumber;
+      stEthData: StEthData;
+    },
     private _userMarketsData: MarketMapping<ScaledUserMarketData>,
     _longDelay: number,
     _shortDelay?: number
@@ -24,24 +27,13 @@ export class StaticUserFetcher extends StaticFetcher implements UserFetcher {
   }
 
   async fetchUserETHBalance() {
-    return delay(this._ethBalance, this._longDelay);
+    return delay(this._userData.ethBalance, this._longDelay);
   }
   async fetchManagerApproval(userAddress: Address, managerAddress: Address) {
     return delay(true, this._longDelay);
   }
-  async fetchStethBalance(userAddress: Address) {
-    return delay(BigNumber.from(0), this._longDelay);
-  }
 
   fetchStethData(userAddress: Address, blockTag?: BlockTag) {
-    return delay(
-      {
-        stethPerWsteth: WadRayMath.WAD,
-        balance: constants.Zero,
-        permit2Approval: constants.Zero,
-        bulkerApproval: constants.Zero,
-      },
-      this._shortDelay
-    );
+    return delay(this._userData.stEthData, this._shortDelay);
   }
 }

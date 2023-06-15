@@ -2,6 +2,7 @@ import { BigNumber, constants, Wallet } from "ethers";
 import { Subscription } from "rxjs";
 
 import { MorphoAaveV3Adapter } from "../../src/MorphoAaveV3Adapter";
+import { Underlying } from "../../src/mocks/markets";
 import { MorphoAaveV3Simulator } from "../../src/simulation/MorphoAaveV3Simulator";
 import {
   ErrorCode,
@@ -9,7 +10,6 @@ import {
 } from "../../src/simulation/SimulationError";
 import { Operation } from "../../src/simulation/simulation.types";
 import { TransactionType } from "../../src/types";
-import { Underlying } from "../mocks/markets";
 import { ADAPTER_MOCK } from "../mocks/mock";
 
 describe("Simulator", () => {

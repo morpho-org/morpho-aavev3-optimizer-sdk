@@ -8,7 +8,6 @@ import {
 } from "ethers/lib/utils";
 
 import { BlockTag, Provider } from "@ethersproject/abstract-provider";
-
 import { PercentMath } from "@morpho-labs/ethers-utils/lib/maths";
 import { minBN } from "@morpho-labs/ethers-utils/lib/utils";
 
@@ -21,7 +20,6 @@ import addresses from "./contracts/addresses";
 import {
   GlobalDataFetcher,
   MarketFetcher,
-  MarketSupplyFetcher,
   RewardsFetcher,
   UserFetcher,
 } from "./fetchers";
@@ -42,7 +40,6 @@ import {
   getExtraFetchers,
 } from "./fetchers/getExtraFetchers";
 import { MorphoEpochDistribution } from "./helpers/rewards/rewards.types";
-import { validateMarketSupplyData } from "./helpers/validators/supplyData";
 import P2PInterestRates from "./maths/P2PInterestRates";
 import PoolInterestRates from "./maths/PoolInterestRates";
 import { AdapterMock } from "./mocks";
@@ -102,7 +99,7 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
         shortDelay
       ),
       new StaticUserFetcher(
-        ADAPTER_MOCK.ethBalance,
+        ADAPTER_MOCK.userData,
         deepCopy(ADAPTER_MOCK.userMarketsData),
         longDelay,
         shortDelay
@@ -487,6 +484,7 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
       underlyingAddress,
       blockTag
     );
+
     if (
       !marketConfig.eModeCategoryId.isZero() &&
       this._globalData!.eModeCategoryData.eModeId.eq(
@@ -550,8 +548,12 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
                 current: data.balances.currentEpoch,
               }
           ),
-          this._userFetcher.fetchManagerApproval(user, addresses.bulker, blockTag),
-          this._userFetcher.fetchStethData(user, blockTag)
+        this._userFetcher.fetchManagerApproval(
+          user,
+          addresses.bulker,
+          blockTag
+        ),
+        this._userFetcher.fetchStethData(user, blockTag)
       );
     }
     promises.push(
@@ -568,17 +570,25 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
       })
     );
 
-    const [ethBalanceOrVoid, morphoRewardsOrVoid, managerApprovalOrVoid, stEthBalanceOrVoid] =
-      (await Promise.all(promises)) as [
-        BigNumber,
-        UserData["morphoRewards"] | null,
-        boolean | null,
-        StEthData | null
-      ];
+    const [
+      ethBalanceOrVoid,
+      morphoRewardsOrVoid,
+      managerApprovalOrVoid,
+      stEthBalanceOrVoid,
+    ] = (await Promise.all(promises)) as [
+      BigNumber,
+      UserData["morphoRewards"] | null,
+      boolean | null,
+      StEthData | null
+    ];
 
     const ethBalance = fetch ? ethBalanceOrVoid : this._userData!.ethBalance;
-    const morphoRewards = fetch ? morphoRewardsOrVoid : this._userData!.morphoRewards;
-    const isBulkerManaging = fetch ? managerApprovalOrVoid! : this._userData!.isBulkerManaging;
+    const morphoRewards = fetch
+      ? morphoRewardsOrVoid
+      : this._userData!.morphoRewards;
+    const isBulkerManaging = fetch
+      ? managerApprovalOrVoid!
+      : this._userData!.isBulkerManaging;
     const stEthData = fetch ? stEthBalanceOrVoid! : this._userData!.stEthData;
 
     this.userData = {

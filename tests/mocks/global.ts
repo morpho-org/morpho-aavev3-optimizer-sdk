@@ -2,9 +2,8 @@ import { constants } from "ethers";
 import { parseUnits } from "ethers/lib/utils";
 
 import { MorphoEpochDistribution } from "../../src/helpers/rewards/rewards.types";
+import { Underlying } from "../../src/mocks/markets";
 import { GlobalData } from "../../src/types";
-
-import { Underlying } from "./markets";
 
 const SECONDS_PER_WEEK = 24 * 3600 * 7; // in s
 
@@ -69,7 +68,7 @@ export const MARKETS_REWARDS_DISTRIBUTION: MorphoEpochDistribution = {
       morphoRatePerSecondSupplySide: "0.037948737095378422",
       morphoRatePerSecondBorrowSide: "0.01354303245194668",
     },
-    [Underlying.stEth]: {
+    [Underlying.wsteth]: {
       morphoRatePerSecondSupplySide: "0.041615226337448559",
       morphoRatePerSecondBorrowSide: "0.0",
     },

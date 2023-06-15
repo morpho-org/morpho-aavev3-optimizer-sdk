@@ -51,7 +51,6 @@ export namespace Bulker {
     type: TransactionType.supplyCollateral;
     asset: Address;
     amount: BigNumber;
-    onBehalf: Address;
   }
 
   export interface BorrowTransaction {

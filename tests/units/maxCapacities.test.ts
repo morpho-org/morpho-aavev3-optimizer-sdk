@@ -5,8 +5,8 @@ import { pow10 } from "@morpho-labs/ethers-utils/lib/utils";
 
 import { MorphoAaveV3Adapter } from "../../src";
 import { LT_LOWER_BOUND } from "../../src/constants";
+import { Underlying } from "../../src/mocks/markets";
 import { MaxCapacityLimiter, TransactionType } from "../../src/types";
-import { Underlying } from "../mocks/markets";
 import { ADAPTER_MOCK } from "../mocks/mock";
 
 describe("getUserMaxCapacity", () => {
