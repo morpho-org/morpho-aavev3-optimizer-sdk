@@ -33,10 +33,15 @@ export class StaticUserFetcher extends StaticFetcher implements UserFetcher {
     return delay(BigNumber.from(0), this._longDelay);
   }
 
-  fetchStethData(
-    userAddress: Address,
-    blockTag?: BlockTag
-  ): [Promise<BigNumber>, Promise<BigNumber>] {
-    return [Promise.resolve(constants.Zero), Promise.resolve(WadRayMath.WAD)];
+  fetchStethData(userAddress: Address, blockTag?: BlockTag) {
+    return delay(
+      {
+        stethPerWsteth: WadRayMath.WAD,
+        balance: constants.Zero,
+        permit2Approval: constants.Zero,
+        bulkerApproval: constants.Zero,
+      },
+      this._shortDelay
+    );
   }
 }

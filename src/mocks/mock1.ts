@@ -5,12 +5,7 @@ import { MarketMapping, ScaledUserMarketData } from "../types";
 
 import { AdapterMock } from ".";
 import { GLOBAL_DATA, MARKETS_REWARDS_DISTRIBUTION } from "./global";
-import {
-  MARKETS_CONFIGS,
-  MARKETS_DATA,
-  MARKETS_SUPPLY_DATA,
-  Underlying,
-} from "./markets";
+import { MARKETS_CONFIGS, MARKETS_DATA, MARKETS_SUPPLY_DATA, Underlying } from "./markets";
 
 const USER_MARKETS_DATA: MarketMapping<ScaledUserMarketData> = {
   [Underlying.dai]: {
@@ -24,6 +19,7 @@ const USER_MARKETS_DATA: MarketMapping<ScaledUserMarketData> = {
     approval: constants.Zero,
     permit2Approval: constants.MaxUint256,
     nonce: BigNumber.from(0),
+    bulkerApproval: constants.Zero,
   },
   [Underlying.usdc]: {
     underlyingAddress: Underlying.usdc,
@@ -36,6 +32,7 @@ const USER_MARKETS_DATA: MarketMapping<ScaledUserMarketData> = {
     approval: constants.MaxUint256,
     permit2Approval: constants.Zero,
     nonce: BigNumber.from(0),
+    bulkerApproval: constants.Zero,
   },
   [Underlying.wbtc]: {
     underlyingAddress: Underlying.wbtc,
@@ -48,6 +45,7 @@ const USER_MARKETS_DATA: MarketMapping<ScaledUserMarketData> = {
     approval: constants.MaxUint256,
     permit2Approval: constants.Zero,
     nonce: BigNumber.from(0),
+    bulkerApproval: constants.Zero,
   },
   [Underlying.uni]: {
     underlyingAddress: Underlying.uni,
@@ -60,6 +58,7 @@ const USER_MARKETS_DATA: MarketMapping<ScaledUserMarketData> = {
     approval: constants.MaxUint256,
     permit2Approval: constants.Zero,
     nonce: BigNumber.from(0),
+    bulkerApproval: constants.Zero,
   },
   [Underlying.usdt]: {
     underlyingAddress: Underlying.usdt,
@@ -72,6 +71,7 @@ const USER_MARKETS_DATA: MarketMapping<ScaledUserMarketData> = {
     approval: constants.MaxUint256,
     permit2Approval: constants.Zero,
     nonce: BigNumber.from(0),
+    bulkerApproval: constants.Zero,
   },
   [Underlying.weth]: {
     underlyingAddress: Underlying.weth,
@@ -84,6 +84,7 @@ const USER_MARKETS_DATA: MarketMapping<ScaledUserMarketData> = {
     approval: constants.Zero,
     permit2Approval: constants.Zero,
     nonce: BigNumber.from(0),
+    bulkerApproval: constants.Zero,
   },
 };
 

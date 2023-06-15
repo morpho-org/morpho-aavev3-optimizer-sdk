@@ -104,13 +104,21 @@ export class ChainUserFetcher extends ChainFetcher implements UserFetcher {
   ) {
     return this._morpho!.isManagedBy(userAddress, managerAddress, { blockTag });
   }
-  fetchStethData(userAddress: Address, blockTag: BlockTag = "latest") {
+  async fetchStethData(userAddress: Address, blockTag: BlockTag = "latest") {
     const stEth = StEth__factory.connect(addresses.steth, this._provider);
-    return [
+    const [balance, stethPerWsteth, permit2Approval, bulkerApproval] = await Promise.all([
       stEth.balanceOf(userAddress, {
         blockTag,
       }),
       stEth.getPooledEthByShares(WadRayMath.WAD, { blockTag }),
-    ] as [Promise<BigNumber>, Promise<BigNumber>];
+      stEth.allowance(userAddress, CONTRACT_ADDRESSES.permit2),
+      stEth.allowance(userAddress, CONTRACT_ADDRESSES.bulker),
+    ]);
+    return {
+      balance,
+      stethPerWsteth,
+      permit2Approval,
+      bulkerApproval,
+    };
   }
 }

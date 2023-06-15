@@ -10,6 +10,7 @@ import {
   ScaledMarketData,
   ScaledUserMarketData,
   ScaledMarketSupply,
+  StEthData,
 } from "../types";
 
 import { Fetcher } from "./Fetcher";
@@ -41,10 +42,7 @@ export interface UserFetcher extends Fetcher {
     blockTag?: BlockTag
   ) => Promise<boolean>;
 
-  fetchStethData: (
-    userAddress: Address,
-    blockTag?: BlockTag
-  ) => [Promise<BigNumber>, Promise<BigNumber>];
+  fetchStethData: (userAddress: Address, blockTag?: BlockTag) => Promise<StEthData>;
 }
 
 export interface GlobalDataFetcher extends Fetcher {
