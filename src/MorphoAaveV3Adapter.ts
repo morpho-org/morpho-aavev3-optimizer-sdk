@@ -549,6 +549,7 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
                 current: data.balances.currentEpoch,
               }
           ),
+          this._userFetcher.fetchManagerApproval(user, addresses.bulker, blockTag),
           this._userFetcher.fetchManagerApproval(user, addresses.bulker, blockTag)
       );
     }
@@ -566,18 +567,24 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
       })
     );
 
-    const [ethBalanceOrVoid, morphoRewardsOrVoid, managerApprovalOrVoid] = (await Promise.all(
-      promises
-    )) as [BigNumber, UserData["morphoRewards"] | null, boolean | null];
+    const [ethBalanceOrVoid, morphoRewardsOrVoid, managerApprovalOrVoid, stEthBalanceOrVoid] =
+      (await Promise.all(promises)) as [
+        BigNumber,
+        UserData["morphoRewards"] | null,
+        boolean | null,
+        BigNumber
+      ];
 
     const ethBalance = fetch ? ethBalanceOrVoid : this._userData!.ethBalance;
     const morphoRewards = fetch ? morphoRewardsOrVoid : this._userData!.morphoRewards;
     const isBulkerManaging = fetch ? managerApprovalOrVoid : this._userData!.isBulkerManaging;
+    const stethBalance = fetch ? stEthBalanceOrVoid : this._userData!.stethBalance;
 
     this.userData = {
       ethBalance,
       morphoRewards,
       isBulkerManaging,
+      stethBalance,
       ...this.computeUserData(),
     };
 

@@ -7,9 +7,11 @@ import {
   MorphoAaveV3__factory,
   Permit2,
   Permit2__factory,
+  StEth__factory,
 } from "@morpho-labs/morpho-ethers-contract";
 
 import CONTRACT_ADDRESSES from "../../contracts/addresses";
+import addresses from "../../contracts/addresses";
 import { Address } from "../../types";
 import { UserFetcher } from "../fetchers.interfaces";
 
@@ -97,5 +99,10 @@ export class ChainUserFetcher extends ChainFetcher implements UserFetcher {
     blockTag: BlockTag = "latest"
   ) {
     return this._morpho!.isManagedBy(userAddress, managerAddress, { blockTag });
+  }
+  async fetchStethBalance(userAddress: Address, blockTag: BlockTag = "latest") {
+    return StEth__factory.connect(addresses.steth, this._provider).balanceOf(userAddress, {
+      blockTag,
+    });
   }
 }

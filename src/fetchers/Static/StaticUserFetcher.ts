@@ -26,4 +26,7 @@ export class StaticUserFetcher extends StaticFetcher implements UserFetcher {
   async fetchManagerApproval(userAddress: Address, managerAddress: Address) {
     return delay(true, this._longDelay);
   }
+  async fetchStethBalance(userAddress: Address) {
+    return delay(BigNumber.from(0), this._longDelay);
+  }
 }
