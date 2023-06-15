@@ -319,7 +319,7 @@ export interface MarketData
   /** Borrow APY on Pool
    *
    * Number of decimals:
-   * `18` _(WEI)_
+   * `4` _(BASE_UNITS)_
    */
   readonly poolBorrowAPY: BigNumber;
 
