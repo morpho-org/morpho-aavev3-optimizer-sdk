@@ -29,4 +29,8 @@ export interface WrapStEthOperation {
   amount: BigNumber;
 }
 
-export type Operation = TxOperation | ClaimMorphoOperation | WrapEthOperation | WrapStEthOperation;
+export type Operation =
+  | TxOperation
+  | ClaimMorphoOperation
+  | WrapEthOperation
+  | WrapStEthOperation;

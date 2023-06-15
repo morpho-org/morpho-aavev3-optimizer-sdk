@@ -4,11 +4,11 @@ import { BlockTag } from "@ethersproject/abstract-provider";
 
 import CONTRACT_ADDRESSES from "../../contracts/addresses";
 import { Address, MarketMapping, ScaledMarketSupply } from "../../types";
+import { fetchSubgraph } from "../../utils/fetchJson";
 import { MarketSupplyFetcher } from "../fetchers.interfaces";
 
 import { GraphFetcher } from "./GraphFetcher";
 import { GRAPH_URL } from "./graph.constants";
-import { fetchSubgraph } from "../../utils/fetchJson";
 
 const getMarketsSupplyQuery = (blockNumber?: number) => `query AllMarkets{
   markets(where: {protocol: "${CONTRACT_ADDRESSES.morphoAaveV3}"}${
@@ -35,12 +35,18 @@ interface GraphMarket {
   _scaledSupplyOnPool: string;
 }
 
-export class GraphMarketSupplyFetcher extends GraphFetcher implements MarketSupplyFetcher {
-  private _marketsSupply: Promise<MarketMapping<ScaledMarketSupply>> | undefined;
+export class GraphMarketSupplyFetcher
+  extends GraphFetcher
+  implements MarketSupplyFetcher
+{
+  private _marketsSupply:
+    | Promise<MarketMapping<ScaledMarketSupply>>
+    | undefined;
   private _lastUpdate?: number;
 
   async fetchMarketSupply(underlyingAddress: Address, _blockTag?: BlockTag) {
-    const lastIndexedBlock = await GraphMarketSupplyFetcher.getLastIndexedBlock();
+    const lastIndexedBlock =
+      await GraphMarketSupplyFetcher.getLastIndexedBlock();
 
     const blockTag = typeof _blockTag === "string" ? undefined : _blockTag;
 
@@ -55,14 +61,19 @@ export class GraphMarketSupplyFetcher extends GraphFetcher implements MarketSupp
       this._marketsSupply = fetchSubgraph<{ markets: GraphMarket[] }>(
         GRAPH_URL,
         getMarketsSupplyQuery(blockTag && Math.min(blockTag, lastIndexedBlock))
-      ).then(res => {
+      ).then((res) => {
         if (!res.data) {
           // eslint-disable-next-line no-console
-          console.error(`Error while fetching graph: ${JSON.stringify(res.errors)}`); //Silently fail if graph error
+          console.error(
+            `Error while fetching graph: ${JSON.stringify(res.errors)}`
+          ); //Silently fail if graph error
           return {};
         }
         return res.data.markets.reduce(
-          (acc, { inputToken, _scaledPoolCollateral, _scaledSupplyOnPool }) => ({
+          (
+            acc,
+            { inputToken, _scaledPoolCollateral, _scaledSupplyOnPool }
+          ) => ({
             ...acc,
             [inputToken.id]: {
               scaledMorphoSupplyOnPool: BigNumber.from(_scaledSupplyOnPool),

@@ -2,16 +2,22 @@ import { BigNumber } from "ethers";
 import { parseUnits } from "ethers/lib/utils";
 
 import { fetchUserRewards } from "../../helpers/rewards/fetchUserRewards";
-import { MorphoEpochDistribution, RewardsData } from "../../helpers/rewards/rewards.types";
+import {
+  MorphoEpochDistribution,
+  RewardsData,
+} from "../../helpers/rewards/rewards.types";
 import { Address } from "../../types";
+import { fetchJson } from "../../utils/fetchJson";
 import { Fetcher } from "../Fetcher";
 import { RewardsFetcher } from "../fetchers.interfaces";
 
 import { API_URL } from "./api.constants";
-import { fetchJson } from "../../utils/fetchJson";
 
 export class ApiRewardsFetcher extends Fetcher implements RewardsFetcher {
-  async fetchRewardsData(userAddress: Address, root: string): Promise<RewardsData | null> {
+  async fetchRewardsData(
+    userAddress: Address,
+    root: string
+  ): Promise<RewardsData | null> {
     try {
       const userRewards = await fetchUserRewards(userAddress);
 
