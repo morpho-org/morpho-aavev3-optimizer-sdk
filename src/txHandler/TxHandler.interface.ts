@@ -1,5 +1,5 @@
 import { BigNumber } from "ethers";
-import { Operation } from "src/simulation/simulation.types";
+import { TxOperation } from "src/simulation/simulation.types";
 
 import {
   Address,
@@ -39,5 +39,7 @@ export interface ISimpleTxHandler extends INotifierManager, ApprovalHandlerInter
 }
 
 export interface IBatchTxHandler extends INotifierManager {
-  handleBatchTransaction: (operations: Operation[], options?: TransactionOptions) => Promise<any>;
+  addOperation: (operation: TxOperation) => void;
+  removeOperation: (index: number) => void;
+  executeBatch: (options?: TransactionOptions) => Promise<any>;
 }

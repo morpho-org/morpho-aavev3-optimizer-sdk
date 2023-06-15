@@ -1135,10 +1135,10 @@
   dependencies:
     ethers "^5.7.0"
 
-"@morpho-labs/morpho-ethers-contract@^1.17.1":
-  version "1.17.1"
-  resolved "https://registry.yarnpkg.com/@morpho-labs/morpho-ethers-contract/-/morpho-ethers-contract-1.17.1.tgz#748251850d4edbd39486d4a2f080ffd48df4be3a"
-  integrity sha512-LgrF2JZp9FqjDgaGb6mD6JMwrrFeoMiUKjxOnEsp7FGBnpToNrGlxUMHHf9wzo9UizvI/Bs600l/jAWTiK3AxA==
+"@morpho-labs/morpho-ethers-contract@^1.19.0":
+  version "1.19.0"
+  resolved "https://registry.yarnpkg.com/@morpho-labs/morpho-ethers-contract/-/morpho-ethers-contract-1.19.0.tgz#4a3207c0b310bb86fbe2d96619566942b5d7f9cd"
+  integrity sha512-NbO2vYerlgCEj3IYGnygThobH+PI6oculUXRKWUeYf4frxv//+Sd2cZg+a492tdUEaF7Szd/JCs3P1OIs5Dnpw==
   dependencies:
     "@ethersproject/abi" "^5.7.0"
     "@ethersproject/providers" "^5.7.2"

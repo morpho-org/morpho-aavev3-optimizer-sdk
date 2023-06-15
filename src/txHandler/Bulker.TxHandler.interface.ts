@@ -45,8 +45,6 @@ export namespace Bulker {
     type: TransactionType.supply;
     asset: Address;
     amount: BigNumber;
-    onBehalf: Address;
-    maxIterations: BigNumber;
   }
 
   export interface SupplyCollateralTransaction {
@@ -111,13 +109,11 @@ export namespace Bulker {
   export interface SkimTransaction {
     type: TransactionType.skim;
     asset: Address;
-    receiver: Address;
   }
 
   export interface ClaimRewardsTransaction {
     type: TransactionType.claimRewards;
     assets: Address[];
-    onBehalf: Address;
   }
 
   export type Transactions =
