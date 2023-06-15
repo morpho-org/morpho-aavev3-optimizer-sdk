@@ -2,10 +2,7 @@ import { BigNumber } from "ethers";
 
 import { BlockTag } from "@ethersproject/providers";
 
-import {
-  MorphoEpochDistribution,
-  RewardsData,
-} from "../helpers/rewards/rewards.types";
+import { MorphoEpochDistribution, RewardsData } from "../helpers/rewards/rewards.types";
 import {
   Address,
   GlobalData,
@@ -18,10 +15,7 @@ import {
 import { Fetcher } from "./Fetcher";
 
 export interface MarketFetcher extends Fetcher {
-  fetchMarketConfig: (
-    underlyingAddress: Address,
-    blockTag?: BlockTag
-  ) => Promise<MarketConfig>;
+  fetchMarketConfig: (underlyingAddress: Address, blockTag?: BlockTag) => Promise<MarketConfig>;
 
   fetchMarketData: (
     underlyingAddress: Address,
@@ -39,10 +33,13 @@ export interface UserFetcher extends Fetcher {
     blockTag?: BlockTag
   ) => Promise<ScaledUserMarketData>;
 
-  fetchUserETHBalance: (
+  fetchUserETHBalance: (userAddress: Address, blockTag?: BlockTag) => Promise<BigNumber>;
+
+  fetchManagerApproval: (
     userAddress: Address,
+    managerAddress: Address,
     blockTag?: BlockTag
-  ) => Promise<BigNumber>;
+  ) => Promise<boolean>;
 }
 
 export interface GlobalDataFetcher extends Fetcher {
@@ -60,12 +57,7 @@ export interface MarketSupplyFetcher extends Fetcher {
 }
 
 export interface RewardsFetcher extends Fetcher {
-  fetchRewardsData: (
-    userAddress: Address,
-    root: string
-  ) => Promise<RewardsData | null>;
+  fetchRewardsData: (userAddress: Address, root: string) => Promise<RewardsData | null>;
 
-  fetchMarketsRewardsDistribution: () => Promise<
-    MorphoEpochDistribution | undefined
-  >;
+  fetchMarketsRewardsDistribution: () => Promise<MorphoEpochDistribution | undefined>;
 }

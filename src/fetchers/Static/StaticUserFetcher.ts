@@ -23,4 +23,7 @@ export class StaticUserFetcher extends StaticFetcher implements UserFetcher {
   async fetchUserETHBalance() {
     return delay(this._ethBalance, this._longDelay);
   }
+  async fetchManagerApproval(userAddress: Address, managerAddress: Address) {
+    return delay(true, this._longDelay);
+  }
 }

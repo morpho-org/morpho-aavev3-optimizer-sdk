@@ -11,6 +11,11 @@ export interface UserData {
    */
   readonly ethBalance: BigNumber;
 
+  /**
+   * Wether the user has approved the bulker as manager or not
+   */
+  readonly isBulkerManaging: boolean;
+
   /** Liquidation value of the user
    *
    * Number of decimals:

@@ -127,4 +127,12 @@ export class ChainUserFetcher extends ChainFetcher implements UserFetcher {
   ) {
     return this._provider.getBalance(userAddress, blockTag);
   }
+
+  async fetchManagerApproval(
+    userAddress: Address,
+    managerAddress: Address,
+    blockTag: BlockTag = "latest"
+  ) {
+    return this._morpho!.isManagedBy(userAddress, managerAddress, { blockTag });
+  }
 }
