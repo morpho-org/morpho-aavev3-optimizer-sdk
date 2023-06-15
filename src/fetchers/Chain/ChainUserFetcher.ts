@@ -1,6 +1,7 @@
 import { BigNumber, ethers } from "ethers";
 
 import { BlockTag } from "@ethersproject/providers";
+import { WadRayMath } from "@morpho-labs/ethers-utils/lib/maths";
 import {
   ERC20__factory,
   MorphoAaveV3,
@@ -65,6 +66,7 @@ export class ChainUserFetcher extends ChainFetcher implements UserFetcher {
     const [
       walletBalance,
       approval,
+      bulkerApproval,
       scaledCollateral,
       scaledSupplyInP2P,
       scaledSupplyOnPool,
@@ -75,6 +77,7 @@ export class ChainUserFetcher extends ChainFetcher implements UserFetcher {
     ] = await Promise.all([
       erc20.balanceOf(userAddress, overrides),
       erc20.allowance(userAddress, CONTRACT_ADDRESSES.morphoAaveV3, overrides),
+      erc20.allowance(userAddress, CONTRACT_ADDRESSES.bulker),
       this._morpho!.scaledCollateralBalance(
         underlyingAddress,
         userAddress,
@@ -119,6 +122,7 @@ export class ChainUserFetcher extends ChainFetcher implements UserFetcher {
       walletBalance,
       approval,
       nonce: BigNumber.from(nonce),
+      bulkerApproval,
       permit2Approval,
     };
   }
@@ -137,9 +141,13 @@ export class ChainUserFetcher extends ChainFetcher implements UserFetcher {
   ) {
     return this._morpho!.isManagedBy(userAddress, managerAddress, { blockTag });
   }
-  async fetchStethBalance(userAddress: Address, blockTag: BlockTag = "latest") {
-    return StEth__factory.connect(addresses.steth, this._provider).balanceOf(userAddress, {
-      blockTag,
-    });
+  fetchStethData(userAddress: Address, blockTag: BlockTag = "latest") {
+    const stEth = StEth__factory.connect(addresses.steth, this._provider);
+    return [
+      stEth.balanceOf(userAddress, {
+        blockTag,
+      }),
+      stEth.getPooledEthByShares(WadRayMath.WAD, { blockTag }),
+    ] as [Promise<BigNumber>, Promise<BigNumber>];
   }
 }

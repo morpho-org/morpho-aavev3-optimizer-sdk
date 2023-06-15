@@ -41,7 +41,10 @@ export interface UserFetcher extends Fetcher {
     blockTag?: BlockTag
   ) => Promise<boolean>;
 
-  fetchStethBalance: (userAddress: Address, blockTag?: BlockTag) => Promise<BigNumber>;
+  fetchStethData: (
+    userAddress: Address,
+    blockTag?: BlockTag
+  ) => [Promise<BigNumber>, Promise<BigNumber>];
 }
 
 export interface GlobalDataFetcher extends Fetcher {
