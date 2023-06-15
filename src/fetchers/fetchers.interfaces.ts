@@ -40,6 +40,8 @@ export interface UserFetcher extends Fetcher {
     managerAddress: Address,
     blockTag?: BlockTag
   ) => Promise<boolean>;
+
+  fetchStethBalance: (userAddress: Address, blockTag?: BlockTag) => Promise<BigNumber>;
 }
 
 export interface GlobalDataFetcher extends Fetcher {
