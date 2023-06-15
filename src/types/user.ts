@@ -16,20 +16,7 @@ export interface UserData {
    */
   readonly isBulkerManaging: boolean;
 
-  /**
-   * The amount of stETH for a one wstETH
-   *
-   * Number of decimals:
-   * `18` _(WEI)_
-   */
-  readonly stethPerWsteth: BigNumber;
-
-  /** StEth balance of the user
-   *
-   * Number of decimals:
-   * `18` _(WEI)_
-   */
-  readonly stethBalance: BigNumber;
+  stEthData: StEthData;
 
   /** Liquidation value of the user
    *
@@ -412,4 +399,35 @@ export interface UserMarketData
    * `MarketConfig.decimals`
    */
   readonly borrowInP2P: BigNumber;
+}
+
+export interface StEthData {
+  /**
+   * The amount of stETH for a one wstETH
+   *
+   * Number of decimals:
+   * `18` _(WEI)_
+   */
+  readonly stethPerWsteth: BigNumber;
+
+  /** StEth balance of the user
+   *
+   * Number of decimals:
+   * `18` _(WEI)_
+   */
+  readonly balance: BigNumber;
+
+  /** The amount of stETH that the user has  approved to the permit2
+   *
+   * Number of decimals:
+   * `18` _(WEI)_
+   */
+  readonly permit2Approval: BigNumber;
+
+  /** The amount of stETH that the user has  approved to the bulker
+   *
+   * Number of decimals:
+   * `18` _(WEI)_
+   */
+  readonly bulkerApproval: BigNumber;
 }
