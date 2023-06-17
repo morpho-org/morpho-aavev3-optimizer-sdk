@@ -106,16 +106,15 @@ export default class BulkerTxHandler
           userData.stEthData.stethPerWsteth
         );
 
-        const stEthAmountToWrapWithBuffer = amountToWrap.add(WRAP_BUFFER);
-        if (userData.stEthData.balance.lt(stEthAmountToWrapWithBuffer))
+        if (userData.stEthData.balance.lt(amountToWrap))
           throw Error("Not enough stETH to wrap");
 
         //  check the approval to the bulker
-        if (userData.stEthData.bulkerApproval.lt(stEthAmountToWrapWithBuffer)) {
+        if (userData.stEthData.bulkerApproval.lt(amountToWrap)) {
           batch.push({
             type: TransactionType.approve2,
             asset: addresses.steth,
-            amount: stEthAmountToWrapWithBuffer,
+            amount: amountToWrap,
           });
           //  TODO: retrieve signature
         }
@@ -123,11 +122,11 @@ export default class BulkerTxHandler
           {
             type: TransactionType.transferFrom2,
             asset: addresses.steth,
-            amount: stEthAmountToWrapWithBuffer,
+            amount: amountToWrap,
           },
           {
             type: TransactionType.wrapStEth,
-            amount: stEthAmountToWrapWithBuffer,
+            amount: amountToWrap,
           }
         );
         //  defer the skim to the end of the batch
