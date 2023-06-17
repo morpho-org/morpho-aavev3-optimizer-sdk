@@ -12,7 +12,7 @@ export interface UserData {
   readonly ethBalance: BigNumber;
 
   /**
-   * Wether the user has approved the bulker as manager or not
+   * Whether the user has approved the bulker as manager or not
    */
   readonly isBulkerManaging: boolean;
 

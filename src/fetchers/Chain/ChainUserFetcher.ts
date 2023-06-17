@@ -141,6 +141,7 @@ export class ChainUserFetcher extends ChainFetcher implements UserFetcher {
   ) {
     return this._morpho!.isManagedBy(userAddress, managerAddress, { blockTag });
   }
+
   async fetchStethData(userAddress: Address, blockTag: BlockTag = "latest") {
     const stEth = StEth__factory.connect(addresses.steth, this._provider);
     const [balance, stethPerWsteth, permit2Approval, bulkerApproval] =
