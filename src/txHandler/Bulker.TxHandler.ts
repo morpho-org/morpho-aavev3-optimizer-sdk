@@ -9,7 +9,7 @@ import { maxBN } from "@morpho-labs/ethers-utils/lib/utils";
 import { MorphoAaveV3DataHolder } from "../MorphoAaveV3DataHolder";
 import addresses from "../contracts/addresses";
 import CONTRACT_ADDRESSES from "../contracts/addresses";
-import { TransactionOptions } from "../types";
+import { Address, TransactionOptions } from "../types";
 
 import { Bulker } from "./Bulker.TxHandler.interface";
 import { NotifierManager } from "./NotifierManager";
@@ -54,25 +54,33 @@ export default class BulkerTxHandler
   addOperation(
     operation: Omit<TxOperation<Bulker.Transactions>, "actions">
   ): void {
+    let batch: Bulker.Transactions[] = [];
+    let value: BigNumber = constants.Zero;
     switch (operation.type) {
       case TransactionType.supply:
       case TransactionType.supplyCollateral:
-        const { batch, value } = this.validateSupply(
+        ({ batch, value } = this.validateSupply(
           operation.underlyingAddress,
           operation.amount
-        );
-        this._value = this._value.add(value);
-        this.operations = [
-          ...this.getOperations(),
-          {
-            ...operation,
-            actions: batch,
-          },
-        ];
+        ));
+        break;
+      case TransactionType.repay:
+        ({ batch, value } = this.validateRepay(
+          operation.underlyingAddress,
+          operation.amount
+        ));
         break;
       default:
         throw Error("Not implemented");
     }
+    this._value = this._value.add(value);
+    this.operations = [
+      ...this.getOperations(),
+      {
+        ...operation,
+        actions: batch,
+      },
+    ];
   }
 
   executeBatch(options: TransactionOptions | undefined): Promise<any> {
@@ -104,6 +112,29 @@ export default class BulkerTxHandler
       asset: underlyingAddress,
       amount: amount,
     });
+    if (defers.length > 0) batch.push(...defers);
+    return { value, batch };
+  }
+
+  validateRepay(
+    underlyingAddress: Address,
+    amount: BigNumber
+  ): { value: BigNumber; batch: Bulker.Transactions[] } {
+    if (amount.isZero()) throw Error("Amount is zero");
+
+    const {
+      batch: transferBatch,
+      defers,
+      value,
+    } = this.#transferToBulker(underlyingAddress, amount);
+    const batch: Bulker.Transactions[] = transferBatch;
+
+    batch.push({
+      type: TransactionType.repay,
+      amount,
+      asset: underlyingAddress,
+    });
+
     if (defers.length > 0) batch.push(...defers);
     return { value, batch };
   }
