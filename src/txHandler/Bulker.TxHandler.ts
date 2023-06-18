@@ -42,7 +42,7 @@ export default class BulkerTxHandler
     return deepCopy(
       this.operations$
         .getValue()
-        .map((op) => op.actions!)
+        .map((op) => op.actions ?? [])
         .flat()
     );
   }
@@ -71,7 +71,7 @@ export default class BulkerTxHandler
         ));
         break;
       default:
-        throw Error("Not implemented");
+        throw Error(Errors.UNKNOWN_OPERATION);
     }
     this._value = this._value.add(value);
     this.operations = [
@@ -95,7 +95,7 @@ export default class BulkerTxHandler
     underlyingAddress: string,
     amount: BigNumber
   ): { value: BigNumber; batch: Bulker.Transactions[] } {
-    if (amount.isZero()) throw Error("Amount is zero");
+    if (amount.isZero()) throw Error(Errors.AMOUNT_IS_ZERO);
 
     const {
       batch: transferBatch,
@@ -120,7 +120,7 @@ export default class BulkerTxHandler
     underlyingAddress: Address,
     amount: BigNumber
   ): { value: BigNumber; batch: Bulker.Transactions[] } {
-    if (amount.isZero()) throw Error("Amount is zero");
+    if (amount.isZero()) throw Error(Errors.AMOUNT_IS_ZERO);
 
     const {
       batch: transferBatch,
@@ -153,8 +153,7 @@ export default class BulkerTxHandler
 
     const userMarketsData = this._dataHolder.getUserMarketsData();
     const userData = this._dataHolder.getUserData();
-    if (!userData || !userMarketsData)
-      throw Error("User data or user markets data is undefined");
+    if (!userData || !userMarketsData) throw Error(Errors.INCONSISTENT_DATA);
     let toTransfer = amount;
     if (getAddress(underlyingAddress) === addresses.wsteth) {
       const wstethMissing = maxBN(
@@ -171,7 +170,7 @@ export default class BulkerTxHandler
         );
 
         if (userData.stEthData.balance.lt(amountToWrap))
-          throw Error("Not enough stETH to wrap");
+          throw Error(Errors.NOT_ENOUGH_BALANCE);
 
         //  check the approval to the bulker
         if (userData.stEthData.bulkerApproval.lt(amountToWrap)) {
@@ -206,10 +205,10 @@ export default class BulkerTxHandler
         constants.Zero
       );
       const wethMarket = userMarketsData[addresses.weth];
-      if (!wethMarket) throw Error("Weth market is undefined");
+      if (!wethMarket) throw Error(Errors.UNKNOWN_MARKET);
       if (wethMissing.gt(0)) {
         if (userData.ethBalance.lt(wethMissing))
-          throw Error("Not enough ETH to wrap"); // TODO: use a buffer to keep an amount for the gas
+          throw Error(Errors.NOT_ENOUGH_ETH); // TODO: use a buffer to keep an amount for the gas
         value = value.add(wethMissing); // Add value to the tx
         batch.push({
           type: TransactionType.wrapEth,
@@ -223,7 +222,7 @@ export default class BulkerTxHandler
     if (toTransfer.gt(0)) {
       // check  user  balance
       if (userMarketsData[underlyingAddress]!.walletBalance.lt(toTransfer))
-        throw Error("Not enough balance");
+        throw Error(Errors.NOT_ENOUGH_BALANCE);
 
       //  check approval
       if (userMarketsData[underlyingAddress]!.bulkerApproval.lt(toTransfer)) {
@@ -243,4 +242,13 @@ export default class BulkerTxHandler
     }
     return { value, batch, defers };
   }
+}
+
+export enum Errors {
+  NOT_ENOUGH_BALANCE = "Not enough balance",
+  INCONSISTENT_DATA = "Inconsistent data",
+  UNKNOWN_MARKET = "Unknown market",
+  NOT_ENOUGH_ETH = "Not enough ETH",
+  AMOUNT_IS_ZERO = "Amount is zero",
+  UNKNOWN_OPERATION = "Unknown operation",
 }
