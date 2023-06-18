@@ -13,10 +13,8 @@ export namespace Bulker {
     repay = "Repay",
     withdraw = "Withdraw",
     withdrawCollateral = "WithdrawCollateral",
-    wrapEth = "WrapEth",
-    unwrapEth = "UnwrapEth",
-    wrapStEth = "WrapStEth",
-    unwrapStEth = "UnwrapStEth",
+    unwrap = "unwrap",
+    wrap = "wrap",
     skim = "Skim",
     claimRewards = "ClaimRewards",
   }
@@ -80,24 +78,15 @@ export namespace Bulker {
     receiver: Address;
   }
 
-  export interface WrapEthTransaction {
-    type: TransactionType.wrapEth;
+  export interface WrapTransaction {
+    type: TransactionType.wrap;
+    asset: Address;
     amount: BigNumber;
   }
 
-  export interface UnwrapEthTransaction {
-    type: TransactionType.unwrapEth;
-    amount: BigNumber;
-    receiver: Address;
-  }
-
-  export interface WrapStEthTransaction {
-    type: TransactionType.wrapStEth;
-    amount: BigNumber;
-  }
-
-  export interface UnwrapStEthTransaction {
-    type: TransactionType.unwrapStEth;
+  export interface UnwrapTransaction {
+    type: TransactionType.unwrap;
+    asset: Address;
     amount: BigNumber;
     receiver: Address;
   }
@@ -122,10 +111,8 @@ export namespace Bulker {
     | RepayTransaction
     | WithdrawTransaction
     | WithdrawCollateralTransaction
-    | WrapEthTransaction
-    | UnwrapEthTransaction
-    | WrapStEthTransaction
-    | UnwrapStEthTransaction
+    | WrapTransaction
+    | UnwrapTransaction
     | SkimTransaction
     | ClaimRewardsTransaction;
 }
