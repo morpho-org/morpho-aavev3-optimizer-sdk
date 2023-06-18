@@ -34,3 +34,6 @@ from the user. A hook must be provided to the bulker constructor in order to han
 <div style="text-align:center">
     <img src="./resources/bulker/bulker-borrow-withdraw.svg" width="500">
 </div>
+
+### Specifications
+
