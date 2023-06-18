@@ -88,8 +88,36 @@ export default class BulkerTxHandler
     amount: BigNumber
   ): { value: BigNumber; batch: Bulker.Transactions[] } {
     if (amount.isZero()) throw Error("Amount is zero");
+
+    const {
+      batch: transferBatch,
+      defers,
+      value,
+    } = this.#transferToBulker(underlyingAddress, amount);
+    const batch: Bulker.Transactions[] = transferBatch;
+
+    batch.push({
+      type:
+        underlyingAddress === CONTRACT_ADDRESSES.weth
+          ? TransactionType.supply
+          : TransactionType.supplyCollateral,
+      asset: underlyingAddress,
+      amount: amount,
+    });
+    if (defers.length > 0) batch.push(...defers);
+    return { value, batch };
+  }
+
+  #transferToBulker(
+    underlyingAddress: string,
+    amount: BigNumber
+  ): {
+    value: BigNumber;
+    batch: Bulker.Transactions[];
+    defers: Bulker.Transactions[];
+  } {
     const batch: Bulker.Transactions[] = [];
-    let deferSkimWsteth = false;
+    const defers: Bulker.Transactions[] = [];
     let value = constants.Zero;
 
     const userMarketsData = this._dataHolder.getUserMarketsData();
@@ -135,7 +163,10 @@ export default class BulkerTxHandler
           }
         );
         //  defer the skim to the end of the batch
-        deferSkimWsteth = true;
+        defers.push({
+          type: TransactionType.skim,
+          asset: addresses.wsteth,
+        });
         toTransfer = toTransfer.sub(wstethMissing);
       }
     } else if (getAddress(underlyingAddress) === addresses.weth) {
@@ -179,20 +210,6 @@ export default class BulkerTxHandler
         amount: toTransfer,
       });
     }
-    batch.push({
-      type:
-        underlyingAddress === CONTRACT_ADDRESSES.weth
-          ? TransactionType.supply
-          : TransactionType.supplyCollateral,
-      asset: underlyingAddress,
-      amount: amount,
-    });
-    if (deferSkimWsteth)
-      batch.push({
-        type: TransactionType.skim,
-        asset: addresses.wsteth,
-      });
-
-    return { value, batch };
+    return { value, batch, defers };
   }
 }
