@@ -15,13 +15,60 @@ import { ADAPTER_MOCK } from "../../mocks/mock";
 describe("bulker", () => {
   const userAddress = Wallet.createRandom().address;
   let bulkerHandler: BulkerTxHandler;
+  let adapter: MorphoAaveV3Adapter;
 
   beforeEach(async () => {
-    const adapter = MorphoAaveV3Adapter.fromMock(ADAPTER_MOCK);
+    adapter = MorphoAaveV3Adapter.fromMock(ADAPTER_MOCK);
     bulkerHandler = new BulkerTxHandler(adapter);
     await adapter.connect(userAddress);
     await adapter.refreshAll();
     expect(bulkerHandler.getOperations()).toHaveLength(0);
+  });
+
+  describe("Bulker observability", () => {
+    const spy = jest.fn();
+    afterEach(() => {
+      spy.mockClear();
+    });
+    it("should emit when adding an operation", async () => {
+      bulkerHandler.operations$.subscribe(spy);
+
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy).toHaveBeenCalledWith([]);
+      spy.mockClear();
+      bulkerHandler.addOperation({
+        type: TransactionType.supplyCollateral,
+        underlyingAddress: Underlying.dai,
+        amount: parseUnits("100"),
+      });
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({
+            type: TransactionType.supplyCollateral,
+            underlyingAddress: Underlying.dai,
+            amount: parseUnits("100"),
+          }),
+        ])
+      );
+    });
+    it("should emit an empty array of transaction when user is disconnected", async () => {
+      bulkerHandler.operations$.subscribe(spy);
+
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy).toHaveBeenCalledWith([]);
+      spy.mockClear();
+      bulkerHandler.addOperation({
+        type: TransactionType.supplyCollateral,
+        underlyingAddress: Underlying.dai,
+        amount: parseUnits("100"),
+      });
+      expect(spy).toHaveBeenCalledTimes(1);
+      spy.mockClear();
+      await adapter.disconnect();
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy).toHaveBeenCalledWith([]);
+    });
   });
 
   // @ts-ignore typing error with mocha & jest

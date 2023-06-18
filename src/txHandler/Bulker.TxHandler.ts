@@ -10,7 +10,12 @@ import { MorphoAaveV3Adapter } from "../MorphoAaveV3Adapter";
 import addresses from "../contracts/addresses";
 import CONTRACT_ADDRESSES from "../contracts/addresses";
 import { Underlying } from "../mocks/markets";
-import { Address, TransactionOptions, TransactionType } from "../types";
+import {
+  Address,
+  TransactionOptions,
+  TransactionType,
+  UserData,
+} from "../types";
 
 import { Bulker } from "./Bulker.TxHandler.interface";
 import { NotifierManager } from "./NotifierManager";
@@ -50,6 +55,21 @@ export default class BulkerTxHandler
 
   constructor(protected _adapter: MorphoAaveV3Adapter) {
     super();
+    this._adapter.userData$.subscribe(this.#adapterUpdate.bind(this));
+  }
+
+  /**
+   * Make sure that the bulker actions are empty if the user is not connected
+   */
+  #adapterUpdate() {
+    const userData = this._adapter.getUserData();
+    if (!userData || !userData.address) {
+      // make sure that the bulker actions array is empty
+      if (this.getOperations().length > 0) {
+        this.operations = [];
+        this._value = constants.Zero;
+      }
+    }
   }
 
   addOperation(
