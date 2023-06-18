@@ -7,7 +7,9 @@ import { MorphoAaveV3Adapter } from "../../../src";
 import CONTRACT_ADDRESSES from "../../../src/contracts/addresses";
 import { AdapterMock } from "../../../src/mocks";
 import { Underlying } from "../../../src/mocks/markets";
-import BulkerTxHandler from "../../../src/txHandler/Bulker.TxHandler";
+import BulkerTxHandler, {
+  Errors,
+} from "../../../src/txHandler/Bulker.TxHandler";
 import { Bulker } from "../../../src/txHandler/Bulker.TxHandler.interface";
 import { TransactionType } from "../../../src/types";
 import { ADAPTER_MOCK } from "../../mocks/mock";
@@ -253,6 +255,36 @@ describe("bulker", () => {
 
       expect(bulkerHandler.getValue()).toBnEq(0);
     });
+    it("should throw an error if not enough ETH", async () => {
+      //  set the  weth balance to 0
+      const mock = {
+        ...ADAPTER_MOCK,
+        userMarketsData: {
+          ...ADAPTER_MOCK.userMarketsData,
+          [Underlying.weth]: {
+            ...ADAPTER_MOCK.userMarketsData[Underlying.wsteth],
+            walletBalance: constants.Zero,
+          },
+        },
+        userData: {
+          ...ADAPTER_MOCK.userData,
+          ethBalance: parseUnits("10"),
+        },
+      };
+      const adapter = MorphoAaveV3Adapter.fromMock(mock);
+      bulkerHandler = new BulkerTxHandler(adapter);
+      await adapter.connect(userAddress);
+      await adapter.refreshAll();
+
+      const amount = parseUnits("40");
+      expect(() =>
+        bulkerHandler.addOperation({
+          type: TransactionType.supply,
+          underlyingAddress: Underlying.weth,
+          amount,
+        })
+      ).toThrowError(Errors.NOT_ENOUGH_ETH);
+    });
     it("should use approval in steth wrap", async () => {
       //  set the  weth balance to 0
       const mock = {
@@ -382,7 +414,7 @@ describe("bulker", () => {
           underlyingAddress: Underlying.wsteth,
           amount,
         })
-      ).toThrowError("Not enough stETH to wrap");
+      ).toThrowError(Errors.NOT_ENOUGH_BALANCE);
     });
   });
 });
