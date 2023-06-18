@@ -12,6 +12,7 @@ import CONTRACT_ADDRESSES from "../contracts/addresses";
 import { Underlying } from "../mocks/markets";
 import {
   Address,
+  MaxCapacityLimiter,
   TransactionOptions,
   TransactionType,
   UserData,
@@ -102,7 +103,8 @@ export default class BulkerTxHandler
       case TransactionType.withdrawCollateral:
         ({ batch } = this.#validateWithdraw(
           operation.underlyingAddress,
-          operation.amount
+          operation.amount,
+          operation.unwrap
         ));
         break;
       default:
@@ -233,8 +235,8 @@ export default class BulkerTxHandler
     const batch: Bulker.Transactions[] = [];
     const txType =
       underlyingAddress === addresses.weth
-        ? BulkerTx.withdrawCollateral
-        : BulkerTx.withdraw;
+        ? BulkerTx.withdraw
+        : BulkerTx.withdrawCollateral;
 
     const userMarketsData = this._adapter.getUserMarketsData();
     const userData = this._adapter.getUserData();
@@ -247,15 +249,28 @@ export default class BulkerTxHandler
     )
       throw Error(Errors.INCONSISTENT_DATA);
 
-    const { amount: max } =
+    const { amount: max, limiter } =
       this._adapter.getUserMaxCapacity(
         underlyingAddress,
         underlyingAddress === addresses.weth
-          ? TransactionType.withdraw
-          : TransactionType.withdrawCollateral
+          ? TransactionType.withdrawCollateral
+          : TransactionType.withdraw
       ) ?? {};
+    if (!max || !limiter) throw Error(Errors.INCONSISTENT_DATA);
 
-    if (!max || max.lt(amount)) throw Error(Errors.NOT_ENOUGH_COLLATERAL);
+    if (
+      // edge case: if the user want to withdraw max and is not limited by the health factor,
+      // we can enter any amount
+      // edge case: weth is in supply only so we can withdraw if the limiter is not the pool liquidity
+      max.lt(amount) &&
+      ((underlyingAddress === addresses.weth &&
+        limiter === MaxCapacityLimiter.poolLiquidity) ||
+        [
+          MaxCapacityLimiter.poolLiquidity,
+          MaxCapacityLimiter.borrowCapacity,
+        ].includes(limiter))
+    )
+      throw Error(Errors.NOT_ENOUGH_COLLATERAL);
 
     const receiver = unwrap ? addresses.bulker : userData.address;
     batch.push({
