@@ -144,7 +144,7 @@ describe("bulker", () => {
       expect(supply.amount).toBnEq(amount);
       expect(supply.asset).toEqual(Underlying.weth);
 
-      expect(bulkerHandler.getValues()).toBnEq(amount);
+      expect(bulkerHandler.getValue()).toBnEq(amount);
     });
     it("should use the wrap eth balance and wrap the missing balance", async () => {
       //  set the  weth balance to 0
@@ -195,7 +195,7 @@ describe("bulker", () => {
       expect(supply.amount).toBnEq(amount);
       expect(supply.asset).toEqual(Underlying.weth);
 
-      expect(bulkerHandler.getValues()).toBnEq(parseUnits("50"));
+      expect(bulkerHandler.getValue()).toBnEq(parseUnits("50"));
     });
 
     it("should wrap steth", async () => {
@@ -248,7 +248,7 @@ describe("bulker", () => {
       const skim = operations[4] as Bulker.SkimTransaction;
       expect(skim.asset).toBnEq(Underlying.wsteth);
 
-      expect(bulkerHandler.getValues()).toBnEq(0);
+      expect(bulkerHandler.getValue()).toBnEq(0);
     });
     it("should use approval in steth wrap", async () => {
       //  set the  weth balance to 0
@@ -351,7 +351,7 @@ describe("bulker", () => {
       const skim = operations[6] as Bulker.SkimTransaction;
       expect(skim.asset).toBnEq(Underlying.wsteth);
 
-      expect(bulkerHandler.getValues()).toBnEq(0);
+      expect(bulkerHandler.getValue()).toBnEq(0);
     });
     it("should throw an error if there is no enough steth to wrap", async () => {
       //  set the  weth balance to 0
