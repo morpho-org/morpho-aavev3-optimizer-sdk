@@ -34,7 +34,7 @@ export default class BulkerTxHandler
   public getOperations(): TxOperation<Bulker.Transactions>[] {
     return deepCopy(this.operations$.getValue());
   }
-  public getValues(): BigNumber {
+  public getValue(): BigNumber {
     return BigNumber.from(this._value);
   }
 
