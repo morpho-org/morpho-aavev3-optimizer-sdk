@@ -8,11 +8,12 @@ export enum OperationType {
   claimMorpho = "CLAIM_MORPHO",
 }
 
-export interface TxOperation {
+export interface TxOperation<T = never> {
   type: TransactionType;
   amount: BigNumber;
   underlyingAddress: string;
   signature?: string;
+  actions?: T[];
 }
 
 export interface ClaimMorphoOperation {
@@ -30,7 +31,7 @@ export interface WrapStEthOperation {
 }
 
 export type Operation =
-  | TxOperation
+  | TxOperation<never>
   | ClaimMorphoOperation
   | WrapEthOperation
   | WrapStEthOperation;

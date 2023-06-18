@@ -1,6 +1,6 @@
 import { BigNumber, constants } from "ethers";
 import { deepCopy, getAddress } from "ethers/lib/utils";
-import { Subject } from "rxjs";
+import { BehaviorSubject, Subject } from "rxjs";
 import { TxOperation } from "src/simulation/simulation.types";
 
 import { WadRayMath } from "@morpho-labs/ethers-utils/lib/maths";
@@ -21,33 +21,39 @@ export default class BulkerTxHandler
   extends NotifierManager
   implements IBatchTxHandler
 {
-  _operations: TxOperation[] = [];
-  _bulkerTransactions: Bulker.Transactions[] = [];
   _value = constants.Zero;
 
-  public readonly operations$ = new Subject<TxOperation[]>();
+  public readonly operations$ = new BehaviorSubject<
+    TxOperation<Bulker.Transactions>[]
+  >([]);
 
-  protected set operations(ops: TxOperation[]) {
-    this._operations = ops;
+  protected set operations(ops: TxOperation<Bulker.Transactions>[]) {
     this.operations$.next(ops);
   }
 
-  public getOperations(): TxOperation[] {
-    return deepCopy(this._operations);
+  public getOperations(): TxOperation<Bulker.Transactions>[] {
+    return deepCopy(this.operations$.getValue());
   }
   public getValues(): BigNumber {
     return BigNumber.from(this._value);
   }
 
   public getBulkerTransactions(): Bulker.Transactions[] {
-    return deepCopy(this._bulkerTransactions);
+    return deepCopy(
+      this.operations$
+        .getValue()
+        .map((op) => op.actions!)
+        .flat()
+    );
   }
 
   constructor(protected _dataHolder: MorphoAaveV3DataHolder) {
     super();
   }
 
-  addOperation(operation: TxOperation): void {
+  addOperation(
+    operation: Omit<TxOperation<Bulker.Transactions>, "actions">
+  ): void {
     switch (operation.type) {
       case TransactionType.supply:
       case TransactionType.supplyCollateral:
@@ -56,8 +62,13 @@ export default class BulkerTxHandler
           operation.amount
         );
         this._value = this._value.add(value);
-        this._bulkerTransactions = [...this._bulkerTransactions, ...batch];
-        this.operations = [...this._operations, operation];
+        this.operations = [
+          ...this.getOperations(),
+          {
+            ...operation,
+            actions: batch,
+          },
+        ];
         break;
       default:
         throw Error("Not implemented");
@@ -68,14 +79,8 @@ export default class BulkerTxHandler
     return Promise.resolve(undefined);
   }
 
-  removeOperation(index: number): void {
-    if (index < 0 || index >= this._operations.length) {
-      throw new Error("Invalid index");
-    }
-    const newOperations = [...this._operations.filter((_, i) => i !== index)];
-
-    //  TODO:  validate
-    this.operations = newOperations;
+  removeOperation(): void {
+    this.operations = this.operations.slice(0, -1);
   }
 
   validateSupply(
