@@ -13,6 +13,7 @@ interface CustomMatchers<R = unknown> {
 }
 
 declare global {
+  interface Describe extends jest.Describe {}
   namespace jest {
     interface Expect extends CustomMatchers {}
     interface Matchers<R> extends CustomMatchers<R> {}
