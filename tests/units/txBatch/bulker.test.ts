@@ -1,4 +1,3 @@
-import { use } from "chai";
 import { constants, Wallet } from "ethers";
 import { parseUnits } from "ethers/lib/utils";
 
@@ -13,6 +12,20 @@ import { Bulker } from "../../../src/txHandler/Bulker.TxHandler.interface";
 import { TransactionType } from "../../../src/types";
 import { ADAPTER_MOCK } from "../../mocks/mock";
 
+const emptySignatureHook: Bulker.SignatureHook = {
+  handleTokenSignatures: () => Promise.resolve([]),
+  // Not used in these tests
+  handleManagerSignature: () =>
+    Promise.resolve({
+      _vs: constants.HashZero,
+      recoveryParam: 0,
+      s: "",
+      v: 0,
+      r: "",
+      compact: "",
+      yParityAndS: "",
+    }),
+};
 describe("bulker", () => {
   const userAddress = Wallet.createRandom().address;
   let bulkerHandler: BulkerTxHandler;
@@ -20,7 +33,7 @@ describe("bulker", () => {
 
   beforeEach(async () => {
     adapter = MorphoAaveV3Adapter.fromMock(ADAPTER_MOCK);
-    bulkerHandler = new BulkerTxHandler(adapter);
+    bulkerHandler = new BulkerTxHandler(adapter, emptySignatureHook);
     await adapter.connect(userAddress);
     await adapter.refreshAll();
     expect(bulkerHandler.getOperations()).toHaveLength(0);
@@ -37,7 +50,7 @@ describe("bulker", () => {
       expect(spy).toHaveBeenCalledTimes(1);
       expect(spy).toHaveBeenCalledWith([]);
       spy.mockClear();
-      bulkerHandler.addOperation({
+      await bulkerHandler.addOperation({
         type: TransactionType.supplyCollateral,
         underlyingAddress: Underlying.dai,
         amount: parseUnits("100"),
@@ -59,7 +72,7 @@ describe("bulker", () => {
       expect(spy).toHaveBeenCalledTimes(1);
       expect(spy).toHaveBeenCalledWith([]);
       spy.mockClear();
-      bulkerHandler.addOperation({
+      await bulkerHandler.addOperation({
         type: TransactionType.supplyCollateral,
         underlyingAddress: Underlying.dai,
         amount: parseUnits("100"),
@@ -104,7 +117,7 @@ describe("bulker", () => {
       bulkerTxEth: Bulker.TransactionType;
     }) => {
       it(`should add operations to the batch for ${name}`, async () => {
-        bulkerHandler.addOperation({
+        await bulkerHandler.addOperation({
           type,
           underlyingAddress: Underlying.dai,
           amount: parseUnits("100"),
@@ -112,28 +125,28 @@ describe("bulker", () => {
         expect(bulkerHandler.getOperations().length).toBnGt(0);
         expect(bulkerHandler.getBulkerTransactions().length).toBnGt(0);
       });
-      it(`should throw an error if amount is zero for ${name}`, () => {
-        expect(() =>
+      it(`should throw an error if amount is zero for ${name}`, async () => {
+        await expect(() =>
           bulkerHandler.addOperation({
             type,
             underlyingAddress: Underlying.dai,
             amount: constants.Zero,
           })
-        ).toThrowError(Errors.AMOUNT_IS_ZERO);
+        ).rejects.toThrowError(Errors.AMOUNT_IS_ZERO);
       });
 
-      it(`should throw an error if amount is too high for ${name}`, () => {
-        expect(() =>
+      it(`should throw an error if amount is too high for ${name}`, async () => {
+        await expect(() =>
           bulkerHandler.addOperation({
             type,
             underlyingAddress: Underlying.dai,
             amount: constants.MaxUint256,
           })
-        ).toThrowError(Errors.NOT_ENOUGH_BALANCE);
+        ).rejects.toThrowError(Errors.NOT_ENOUGH_BALANCE);
       });
 
       it(`should use the bulker approval first for ${name}`, async () => {
-        bulkerHandler.addOperation({
+        await bulkerHandler.addOperation({
           type,
           underlyingAddress: Underlying.dai,
           amount: parseUnits("100"),
@@ -157,7 +170,7 @@ describe("bulker", () => {
 
       it(`should add permit2 approval for ${name}`, async () => {
         const amount = parseUnits("100", 6);
-        bulkerHandler.addOperation({
+        await bulkerHandler.addOperation({
           type,
           underlyingAddress: Underlying.usdc,
           amount,
@@ -202,12 +215,12 @@ describe("bulker", () => {
           },
         };
         const adapter = MorphoAaveV3Adapter.fromMock(mock);
-        bulkerHandler = new BulkerTxHandler(adapter);
+        bulkerHandler = new BulkerTxHandler(adapter, emptySignatureHook);
         await adapter.connect(userAddress);
         await adapter.refreshAll();
 
         const amount = parseUnits("100");
-        bulkerHandler.addOperation({
+        await bulkerHandler.addOperation({
           type: typeEth,
           underlyingAddress: Underlying.weth,
           amount,
@@ -246,12 +259,12 @@ describe("bulker", () => {
           },
         };
         const adapter = MorphoAaveV3Adapter.fromMock(mock);
-        bulkerHandler = new BulkerTxHandler(adapter);
+        bulkerHandler = new BulkerTxHandler(adapter, emptySignatureHook);
         await adapter.connect(userAddress);
         await adapter.refreshAll();
 
         const amount = parseUnits("100");
-        bulkerHandler.addOperation({
+        await bulkerHandler.addOperation({
           type: typeEth,
           underlyingAddress: Underlying.weth,
           amount,
@@ -299,12 +312,12 @@ describe("bulker", () => {
           },
         };
         const adapter = MorphoAaveV3Adapter.fromMock(mock);
-        bulkerHandler = new BulkerTxHandler(adapter);
+        bulkerHandler = new BulkerTxHandler(adapter, emptySignatureHook);
         await adapter.connect(userAddress);
         await adapter.refreshAll();
 
         const amount = parseUnits("40");
-        bulkerHandler.addOperation({
+        await bulkerHandler.addOperation({
           type,
           underlyingAddress: Underlying.wsteth,
           amount,
@@ -358,18 +371,18 @@ describe("bulker", () => {
           },
         };
         const adapter = MorphoAaveV3Adapter.fromMock(mock);
-        bulkerHandler = new BulkerTxHandler(adapter);
+        bulkerHandler = new BulkerTxHandler(adapter, emptySignatureHook);
         await adapter.connect(userAddress);
         await adapter.refreshAll();
 
         const amount = parseUnits("40");
-        expect(() =>
+        await expect(() =>
           bulkerHandler.addOperation({
             type: typeEth,
             underlyingAddress: Underlying.weth,
             amount,
           })
-        ).toThrowError(Errors.NOT_ENOUGH_ETH);
+        ).rejects.toThrowError(Errors.NOT_ENOUGH_ETH);
       });
       it(`should use approval in steth wrap for ${name}`, async () => {
         //  set the  weth balance to 0
@@ -391,12 +404,12 @@ describe("bulker", () => {
           },
         };
         const adapter = MorphoAaveV3Adapter.fromMock(mock);
-        bulkerHandler = new BulkerTxHandler(adapter);
+        bulkerHandler = new BulkerTxHandler(adapter, emptySignatureHook);
         await adapter.connect(userAddress);
         await adapter.refreshAll();
 
         const amount = parseUnits("40");
-        bulkerHandler.addOperation({
+        await bulkerHandler.addOperation({
           type,
           underlyingAddress: Underlying.wsteth,
           amount,
@@ -429,12 +442,12 @@ describe("bulker", () => {
           },
         };
         const adapter = MorphoAaveV3Adapter.fromMock(mock);
-        bulkerHandler = new BulkerTxHandler(adapter);
+        bulkerHandler = new BulkerTxHandler(adapter, emptySignatureHook);
         await adapter.connect(userAddress);
         await adapter.refreshAll();
 
         const amount = parseUnits("40");
-        bulkerHandler.addOperation({
+        await bulkerHandler.addOperation({
           type,
           underlyingAddress: Underlying.wsteth,
           amount,
@@ -496,18 +509,18 @@ describe("bulker", () => {
           },
         };
         const adapter = MorphoAaveV3Adapter.fromMock(mock);
-        bulkerHandler = new BulkerTxHandler(adapter);
+        bulkerHandler = new BulkerTxHandler(adapter, emptySignatureHook);
         await adapter.connect(userAddress);
         await adapter.refreshAll();
 
         const amount = parseUnits("100");
-        expect(() =>
+        await expect(() =>
           bulkerHandler.addOperation({
             type,
             underlyingAddress: Underlying.wsteth,
             amount,
           })
-        ).toThrowError(Errors.NOT_ENOUGH_BALANCE);
+        ).rejects.toThrowError(Errors.NOT_ENOUGH_BALANCE);
       });
     }
   );
@@ -527,11 +540,11 @@ describe("bulker", () => {
         },
       };
       const adapter = MorphoAaveV3Adapter.fromMock(mock);
-      bulkerHandler = new BulkerTxHandler(adapter);
+      bulkerHandler = new BulkerTxHandler(adapter, emptySignatureHook);
       await adapter.connect(userAddress);
       await adapter.refreshAll();
       const amount = parseUnits("0.1");
-      bulkerHandler.addOperation({
+      await bulkerHandler.addOperation({
         type,
         underlyingAddress: Underlying.weth,
         amount,
@@ -558,11 +571,11 @@ describe("bulker", () => {
         },
       };
       const adapter = MorphoAaveV3Adapter.fromMock(mock);
-      bulkerHandler = new BulkerTxHandler(adapter);
+      bulkerHandler = new BulkerTxHandler(adapter, emptySignatureHook);
       await adapter.connect(userAddress);
       await adapter.refreshAll();
       const amount = parseUnits("0.1");
-      bulkerHandler.addOperation({
+      await bulkerHandler.addOperation({
         type,
         underlyingAddress: Underlying.weth,
         amount,
@@ -596,20 +609,20 @@ describe("bulker", () => {
       };
 
       const adapter = MorphoAaveV3Adapter.fromMock(mock);
-      bulkerHandler = new BulkerTxHandler(adapter);
+      bulkerHandler = new BulkerTxHandler(adapter, emptySignatureHook);
       await adapter.connect(userAddress);
       await adapter.refreshAll();
 
       const amount = parseUnits("10000");
 
-      expect(() =>
+      await expect(() =>
         bulkerHandler.addOperation({
           type,
           underlyingAddress: Underlying.weth,
           amount,
           unwrap: true,
         })
-      ).toThrowError(Errors.NOT_ENOUGH_COLLATERAL);
+      ).rejects.toThrowError(Errors.NOT_ENOUGH_COLLATERAL);
     });
     it("should throw an error if user is disconnected", async () => {
       //  set the  weth balance to 0
@@ -625,21 +638,21 @@ describe("bulker", () => {
       };
 
       const adapter = MorphoAaveV3Adapter.fromMock(mock);
-      bulkerHandler = new BulkerTxHandler(adapter);
+      bulkerHandler = new BulkerTxHandler(adapter, emptySignatureHook);
       await adapter.connect(userAddress);
       await adapter.refreshAll();
       await adapter.disconnect();
 
       const amount = parseUnits("1");
 
-      expect(() =>
+      await expect(() =>
         bulkerHandler.addOperation({
           type,
           underlyingAddress: Underlying.weth,
           amount,
           unwrap: true,
         })
-      ).toThrowError(Errors.INCONSISTENT_DATA);
+      ).rejects.toThrowError(Errors.INCONSISTENT_DATA);
     });
   });
 
@@ -656,10 +669,10 @@ describe("bulker", () => {
         },
       };
       const adapter = MorphoAaveV3Adapter.fromMock(mock);
-      bulkerHandler = new BulkerTxHandler(adapter);
+      bulkerHandler = new BulkerTxHandler(adapter, emptySignatureHook);
       await adapter.connect(userAddress);
       await adapter.refreshAll();
-      bulkerHandler.addOperation({
+      await bulkerHandler.addOperation({
         type: TransactionType.withdraw,
         underlyingAddress: Underlying.weth,
         amount: parseUnits("0.1"),
@@ -667,11 +680,13 @@ describe("bulker", () => {
       const operations = bulkerHandler.getBulkerTransactions();
       expect(operations).toHaveLength(1);
       expect(operations[0].type).toEqual(Bulker.TransactionType.withdraw);
+
       const morphoTx = operations[0] as Bulker.WithdrawTransaction;
       expect(morphoTx.amount).toBnEq(parseUnits("0.1"));
       expect(morphoTx.asset).toEqual(Underlying.weth);
       expect(morphoTx.receiver).toEqual(userAddress);
     });
+
     it("should withdraw weth and unwrap", async () => {
       const mock = {
         ...ADAPTER_MOCK,
@@ -684,10 +699,10 @@ describe("bulker", () => {
         },
       };
       const adapter = MorphoAaveV3Adapter.fromMock(mock);
-      bulkerHandler = new BulkerTxHandler(adapter);
+      bulkerHandler = new BulkerTxHandler(adapter, emptySignatureHook);
       await adapter.connect(userAddress);
       await adapter.refreshAll();
-      bulkerHandler.addOperation({
+      await bulkerHandler.addOperation({
         type: TransactionType.withdraw,
         underlyingAddress: Underlying.weth,
         amount: parseUnits("0.1"),
@@ -723,10 +738,10 @@ describe("bulker", () => {
         },
       };
       const adapter = MorphoAaveV3Adapter.fromMock(mock);
-      bulkerHandler = new BulkerTxHandler(adapter);
+      bulkerHandler = new BulkerTxHandler(adapter, emptySignatureHook);
       await adapter.connect(userAddress);
       await adapter.refreshAll();
-      bulkerHandler.addOperation({
+      await bulkerHandler.addOperation({
         type: TransactionType.withdraw,
         underlyingAddress: Underlying.weth,
         amount: constants.MaxUint256,
@@ -751,10 +766,10 @@ describe("bulker", () => {
         },
       };
       const adapter = MorphoAaveV3Adapter.fromMock(mock);
-      bulkerHandler = new BulkerTxHandler(adapter);
+      bulkerHandler = new BulkerTxHandler(adapter, emptySignatureHook);
       await adapter.connect(userAddress);
       await adapter.refreshAll();
-      bulkerHandler.addOperation({
+      await bulkerHandler.addOperation({
         type: TransactionType.withdraw,
         underlyingAddress: Underlying.weth,
         amount: constants.MaxUint256,
@@ -788,10 +803,10 @@ describe("bulker", () => {
         },
       };
       const adapter = MorphoAaveV3Adapter.fromMock(mock);
-      bulkerHandler = new BulkerTxHandler(adapter);
+      bulkerHandler = new BulkerTxHandler(adapter, emptySignatureHook);
       await adapter.connect(userAddress);
       await adapter.refreshAll();
-      bulkerHandler.addOperation({
+      await bulkerHandler.addOperation({
         type: TransactionType.withdrawCollateral,
         underlyingAddress: Underlying.wsteth,
         amount: parseUnits("1"),
@@ -820,10 +835,10 @@ describe("bulker", () => {
         },
       };
       const adapter = MorphoAaveV3Adapter.fromMock(mock);
-      bulkerHandler = new BulkerTxHandler(adapter);
+      bulkerHandler = new BulkerTxHandler(adapter, emptySignatureHook);
       await adapter.connect(userAddress);
       await adapter.refreshAll();
-      bulkerHandler.addOperation({
+      await bulkerHandler.addOperation({
         type: TransactionType.withdrawCollateral,
         underlyingAddress: Underlying.wsteth,
         amount: parseUnits("1"),
@@ -863,10 +878,10 @@ describe("bulker", () => {
         },
       };
       const adapter = MorphoAaveV3Adapter.fromMock(mock);
-      bulkerHandler = new BulkerTxHandler(adapter);
+      bulkerHandler = new BulkerTxHandler(adapter, emptySignatureHook);
       await adapter.connect(userAddress);
       await adapter.refreshAll();
-      bulkerHandler.addOperation({
+      await bulkerHandler.addOperation({
         type: TransactionType.withdrawCollateral,
         underlyingAddress: Underlying.wsteth,
         amount: constants.MaxUint256,

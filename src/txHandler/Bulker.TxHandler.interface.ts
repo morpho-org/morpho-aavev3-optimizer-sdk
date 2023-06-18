@@ -3,6 +3,20 @@ import { BigNumber, Signature } from "ethers";
 import { Address } from "../types";
 
 export namespace Bulker {
+  export interface SignatureHook {
+    handleTokenSignatures(
+      params: { token: Address; amount: BigNumber; receiver: Address }[]
+    ): Promise<Signature[]>;
+    handleManagerSignature(
+      params: { isAllowed: boolean; nonce: BigNumber; deadline: BigNumber }[]
+    ): Promise<Signature>;
+  }
+
+  export enum Signatures {
+    approveManager = "approveManager",
+    approve2 = "approve2",
+  }
+
   export enum TransactionType {
     approve2 = "Approve2",
     transferFrom2 = "TransferFrom2",
@@ -23,6 +37,10 @@ export namespace Bulker {
     type: TransactionType.approve2;
     asset: Address;
     amount: BigNumber;
+    signature?: Omit<
+      Signature,
+      "_vs" | "recoveryParam" | "yParity" | "compact"
+    >;
   }
 
   export interface TransferFrom2Transaction {
@@ -36,7 +54,10 @@ export namespace Bulker {
     isAllowed: boolean;
     nonce: BigNumber;
     deadline: BigNumber;
-    signature: Omit<Signature, "_vs" | "recoveryParam" | "yParity" | "compact">;
+    signature?: Omit<
+      Signature,
+      "_vs" | "recoveryParam" | "yParity" | "compact"
+    >;
   }
 
   export interface SupplyTransaction {

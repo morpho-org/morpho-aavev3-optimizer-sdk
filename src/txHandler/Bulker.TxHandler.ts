@@ -1,4 +1,4 @@
-import { BigNumber, constants } from "ethers";
+import { BigNumber, constants, Signature } from "ethers";
 import { deepCopy, getAddress, isAddress } from "ethers/lib/utils";
 import { BehaviorSubject } from "rxjs";
 import { TxOperation } from "src/simulation/simulation.types";
@@ -54,7 +54,11 @@ export default class BulkerTxHandler
     );
   }
 
-  constructor(protected _adapter: MorphoAaveV3Adapter) {
+  constructor(
+    protected _adapter: MorphoAaveV3Adapter,
+    protected _signatureHook: Bulker.SignatureHook,
+    options: { deferSignatures: boolean } = { deferSignatures: true }
+  ) {
     super();
     this._adapter.userData$.subscribe(this.#adapterUpdate.bind(this));
   }
@@ -73,27 +77,27 @@ export default class BulkerTxHandler
     }
   }
 
-  addOperation(
+  async addOperation(
     operation: Omit<TxOperation<Bulker.Transactions>, "actions">
-  ): void {
+  ) {
     let batch: Bulker.Transactions[] = [];
     let value: BigNumber = constants.Zero;
     switch (operation.type) {
       case TransactionType.supply:
       case TransactionType.supplyCollateral:
-        ({ batch, value } = this.#validateSupply(
+        ({ batch, value } = await this.#validateSupply(
           operation.underlyingAddress,
           operation.amount
         ));
         break;
       case TransactionType.repay:
-        ({ batch, value } = this.#validateRepay(
+        ({ batch, value } = await this.#validateRepay(
           operation.underlyingAddress,
           operation.amount
         ));
         break;
       case TransactionType.borrow:
-        ({ batch } = this.#validateBorrow(
+        ({ batch } = await this.#validateBorrow(
           operation.underlyingAddress,
           operation.amount,
           operation.unwrap
@@ -101,7 +105,7 @@ export default class BulkerTxHandler
         break;
       case TransactionType.withdraw:
       case TransactionType.withdrawCollateral:
-        ({ batch } = this.#validateWithdraw(
+        ({ batch } = await this.#validateWithdraw(
           operation.underlyingAddress,
           operation.amount,
           operation.unwrap
@@ -128,17 +132,17 @@ export default class BulkerTxHandler
     this.operations = this.operations.slice(0, -1);
   }
 
-  #validateSupply(
+  async #validateSupply(
     underlyingAddress: string,
     amount: BigNumber
-  ): { value: BigNumber; batch: Bulker.Transactions[] } {
+  ): Promise<{ value: BigNumber; batch: Bulker.Transactions[] }> {
     if (amount.isZero()) throw Error(Errors.AMOUNT_IS_ZERO);
 
     const {
       batch: transferBatch,
       defers,
       value,
-    } = this.#transferToBulker(underlyingAddress, amount);
+    } = await this.#transferToBulker(underlyingAddress, amount);
 
     const batch: Bulker.Transactions[] = transferBatch;
 
@@ -154,17 +158,17 @@ export default class BulkerTxHandler
     return { value, batch };
   }
 
-  #validateRepay(
+  async #validateRepay(
     underlyingAddress: Address,
     amount: BigNumber
-  ): { value: BigNumber; batch: Bulker.Transactions[] } {
+  ): Promise<{ value: BigNumber; batch: Bulker.Transactions[] }> {
     if (amount.isZero()) throw Error(Errors.AMOUNT_IS_ZERO);
 
     const {
       batch: transferBatch,
       defers,
       value,
-    } = this.#transferToBulker(underlyingAddress, amount);
+    } = await this.#transferToBulker(underlyingAddress, amount);
     const batch: Bulker.Transactions[] = transferBatch;
 
     batch.push({
@@ -177,11 +181,11 @@ export default class BulkerTxHandler
     return { value, batch };
   }
 
-  #validateBorrow(
+  async #validateBorrow(
     underlyingAddress: Address,
     amount: BigNumber,
     unwrap = false
-  ): { batch: Bulker.Transactions[] } {
+  ): Promise<{ batch: Bulker.Transactions[] }> {
     underlyingAddress = getAddress(underlyingAddress);
     const batch: Bulker.Transactions[] = [];
 
@@ -226,11 +230,11 @@ export default class BulkerTxHandler
     return { batch };
   }
 
-  #validateWithdraw(
+  async #validateWithdraw(
     underlyingAddress: Address,
     amount: BigNumber,
     unwrap = false
-  ): { batch: Bulker.Transactions[] } {
+  ): Promise<{ batch: Bulker.Transactions[] }> {
     underlyingAddress = getAddress(underlyingAddress);
     const batch: Bulker.Transactions[] = [];
     const txType =
@@ -303,14 +307,14 @@ export default class BulkerTxHandler
    * @param amount
    * @private
    */
-  #transferToBulker(
+  async #transferToBulker(
     underlyingAddress: string,
     amount: BigNumber
-  ): {
+  ): Promise<{
     value: BigNumber;
     batch: Bulker.Transactions[];
     defers: Bulker.Transactions[];
-  } {
+  }> {
     const batch: Bulker.Transactions[] = [];
     const defers: Bulker.Transactions[] = [];
     let value = constants.Zero;
@@ -346,7 +350,6 @@ export default class BulkerTxHandler
             asset: addresses.steth,
             amount: amountToWrap,
           });
-          //  TODO: retrieve signature
         }
 
         batch.push(
