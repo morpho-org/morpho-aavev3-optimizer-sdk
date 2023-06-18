@@ -4,6 +4,9 @@ import { Address } from "./common";
 
 /** All the aggregated user data, should be updated after each user interaction */
 export interface UserData {
+  /** The address of the user */
+  readonly address: Address;
+
   /** The ETH balance of the user
    *
    * Number of decimals:

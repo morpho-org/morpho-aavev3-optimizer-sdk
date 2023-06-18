@@ -1,5 +1,5 @@
 import { BigNumber, constants } from "ethers";
-import { deepCopy, getAddress } from "ethers/lib/utils";
+import { deepCopy, getAddress, isAddress } from "ethers/lib/utils";
 import { BehaviorSubject } from "rxjs";
 import { TxOperation } from "src/simulation/simulation.types";
 
@@ -75,14 +75,16 @@ export default class BulkerTxHandler
         ({ batch } = this.#validateBorrow(
           operation.underlyingAddress,
           operation.amount,
-          constants.AddressZero // TODO: add the user address
+          operation.unwrap
         ));
+        break;
       case TransactionType.withdraw:
+      case TransactionType.withdrawCollateral:
         ({ batch } = this.#validateWithdraw(
           operation.underlyingAddress,
-          operation.amount,
-          constants.AddressZero // TODO: add the user address
+          operation.amount
         ));
+        break;
       default:
         throw Error(Errors.UNKNOWN_OPERATION);
     }
@@ -115,6 +117,7 @@ export default class BulkerTxHandler
       defers,
       value,
     } = this.#transferToBulker(underlyingAddress, amount);
+
     const batch: Bulker.Transactions[] = transferBatch;
 
     batch.push({
@@ -155,7 +158,6 @@ export default class BulkerTxHandler
   #validateBorrow(
     underlyingAddress: Address,
     amount: BigNumber,
-    to: Address,
     unwrap = false
   ): { batch: Bulker.Transactions[] } {
     underlyingAddress = getAddress(underlyingAddress);
@@ -163,27 +165,39 @@ export default class BulkerTxHandler
 
     const userMarketsData = this._adapter.getUserMarketsData();
     const userData = this._adapter.getUserData();
-    if (!userData || !userMarketsData) throw Error(Errors.INCONSISTENT_DATA);
+    // make sure to never send tokens to an unknown address
+    if (
+      !userData ||
+      !userMarketsData ||
+      !isAddress(userData.address) ||
+      userData.address === constants.AddressZero
+    )
+      throw Error(Errors.INCONSISTENT_DATA);
+
     const { amount: max } =
       this._adapter.getUserMaxCapacity(
         underlyingAddress,
         TransactionType.borrow
       ) ?? {};
-    if (!max || max.gt(amount)) throw Error(Errors.NOT_ENOUGH_COLLATERAL);
-    const receiver = unwrap ? addresses.bulker : to;
+
+    if (!max || max.lt(amount)) throw Error(Errors.NOT_ENOUGH_COLLATERAL);
+    const receiver = unwrap ? addresses.bulker : userData.address;
+
     batch.push({
       type: BulkerTx.borrow,
       to: receiver,
       asset: underlyingAddress,
       amount,
     });
+
     if (unwrap) {
       if (![Underlying.wsteth, Underlying.weth].includes(underlyingAddress))
         throw Error(Errors.INCONSISTENT_DATA);
+
       batch.push({
         type: BulkerTx.unwrap,
         asset: underlyingAddress,
-        receiver: to,
+        receiver: userData.address,
         amount: constants.MaxUint256, // Use maxUint to unwrap all and transfer all to the user
       });
     }
@@ -193,7 +207,6 @@ export default class BulkerTxHandler
   #validateWithdraw(
     underlyingAddress: Address,
     amount: BigNumber,
-    to: Address,
     unwrap = false
   ): { batch: Bulker.Transactions[] } {
     underlyingAddress = getAddress(underlyingAddress);
@@ -205,7 +218,15 @@ export default class BulkerTxHandler
 
     const userMarketsData = this._adapter.getUserMarketsData();
     const userData = this._adapter.getUserData();
-    if (!userData || !userMarketsData) throw Error(Errors.INCONSISTENT_DATA);
+    // make sure to never send tokens to an unknown address
+    if (
+      !userData ||
+      !userMarketsData ||
+      !isAddress(userData.address) ||
+      userData.address === constants.AddressZero
+    )
+      throw Error(Errors.INCONSISTENT_DATA);
+
     const { amount: max } =
       this._adapter.getUserMaxCapacity(
         underlyingAddress,
@@ -213,21 +234,24 @@ export default class BulkerTxHandler
           ? TransactionType.withdraw
           : TransactionType.withdrawCollateral
       ) ?? {};
-    if (!max || max.gt(amount)) throw Error(Errors.NOT_ENOUGH_COLLATERAL);
-    const receiver = unwrap ? addresses.bulker : to;
+
+    if (!max || max.lt(amount)) throw Error(Errors.NOT_ENOUGH_COLLATERAL);
+
+    const receiver = unwrap ? addresses.bulker : userData.address;
     batch.push({
       type: txType,
       receiver,
       asset: underlyingAddress,
       amount,
     });
+
     if (unwrap) {
       if (![Underlying.wsteth, Underlying.weth].includes(underlyingAddress))
         throw Error(Errors.INCONSISTENT_DATA);
       batch.push({
         type: BulkerTx.unwrap,
         asset: underlyingAddress,
-        receiver: to,
+        receiver: userData.address,
         amount: constants.MaxUint256, // Use maxUint to unwrap all and transfer all to the user
       });
     }
@@ -259,12 +283,15 @@ export default class BulkerTxHandler
     const userMarketsData = this._adapter.getUserMarketsData();
     const userData = this._adapter.getUserData();
     if (!userData || !userMarketsData) throw Error(Errors.INCONSISTENT_DATA);
+
     let toTransfer = amount;
+
     if (getAddress(underlyingAddress) === addresses.wsteth) {
       const wstethMissing = maxBN(
         amount.sub(userMarketsData[underlyingAddress]!.walletBalance),
         constants.Zero
       );
+
       if (wstethMissing.gt(0)) {
         // we need to wrap some stETH
         // To be sure that  , we add 1e8 to the amount wrapped
@@ -286,6 +313,7 @@ export default class BulkerTxHandler
           });
           //  TODO: retrieve signature
         }
+
         batch.push(
           {
             type: BulkerTx.transferFrom2,
@@ -310,11 +338,14 @@ export default class BulkerTxHandler
         amount.sub(userMarketsData[underlyingAddress]!.walletBalance),
         constants.Zero
       );
+
       const wethMarket = userMarketsData[addresses.weth];
       if (!wethMarket) throw Error(Errors.UNKNOWN_MARKET);
+
       if (wethMissing.gt(0)) {
         if (userData.ethBalance.lt(wethMissing))
           throw Error(Errors.NOT_ENOUGH_ETH); // TODO: use a buffer to keep an amount for the gas
+
         value = value.add(wethMissing); // Add value to the tx
         batch.push({
           type: BulkerTx.wrap,

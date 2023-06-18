@@ -8,6 +8,7 @@ import { MarketsConfigs, MarketsData, UserMarketsData } from "./adapter.types";
 import { LT_LOWER_BOUND } from "./constants";
 import { MorphoAaveMath } from "./maths/AaveV3.maths";
 import {
+  Address,
   FetchedStatic,
   FetchedUpdated,
   GlobalData,
@@ -19,6 +20,8 @@ import {
 
 export class MorphoAaveV3DataHolder {
   protected __MATH__ = new MorphoAaveMath();
+
+  protected _user: Address | null = null;
 
   constructor(
     protected _marketsConfigs: MarketsConfigs = {},
@@ -224,6 +227,7 @@ export class MorphoAaveV3DataHolder {
     }
 
     return {
+      address: this._user ?? constants.AddressZero,
       liquidationValue,
       borrowCapacity,
       totalBorrowInP2P,

@@ -463,4 +463,135 @@ describe("bulker", () => {
       });
     }
   );
+  describe("Borrow", () => {
+    const type = TransactionType.borrow;
+    const bulkerTx = Bulker.TransactionType.borrow;
+    it("should borrow wrapped eth", async () => {
+      //  set the  weth balance to 0
+      const mock = {
+        ...ADAPTER_MOCK,
+        userMarketsData: {
+          ...ADAPTER_MOCK.userMarketsData,
+          [Underlying.wsteth]: {
+            ...ADAPTER_MOCK.userMarketsData[Underlying.wsteth],
+            scaledCollateral: parseUnits("1"),
+          },
+        },
+      };
+      const adapter = MorphoAaveV3Adapter.fromMock(mock);
+      bulkerHandler = new BulkerTxHandler(adapter);
+      await adapter.connect(userAddress);
+      await adapter.refreshAll();
+      const amount = parseUnits("0.1");
+      bulkerHandler.addOperation({
+        type,
+        underlyingAddress: Underlying.weth,
+        amount,
+        unwrap: false,
+      });
+      const operations = bulkerHandler.getBulkerTransactions();
+      expect(operations).toHaveLength(1);
+      expect(operations[0].type).toEqual(bulkerTx);
+      const morphoTx = operations[0] as Bulker.BorrowTransaction;
+      expect(morphoTx.to).toEqual(userAddress);
+      expect(morphoTx.amount).toBnEq(amount);
+      expect(morphoTx.asset).toEqual(Underlying.weth);
+    });
+    it("should borrow and unwrap eth", async () => {
+      //  set the  weth balance to 0
+      const mock = {
+        ...ADAPTER_MOCK,
+        userMarketsData: {
+          ...ADAPTER_MOCK.userMarketsData,
+          [Underlying.wsteth]: {
+            ...ADAPTER_MOCK.userMarketsData[Underlying.wsteth],
+            scaledCollateral: parseUnits("1"),
+          },
+        },
+      };
+      const adapter = MorphoAaveV3Adapter.fromMock(mock);
+      bulkerHandler = new BulkerTxHandler(adapter);
+      await adapter.connect(userAddress);
+      await adapter.refreshAll();
+      const amount = parseUnits("0.1");
+      bulkerHandler.addOperation({
+        type,
+        underlyingAddress: Underlying.weth,
+        amount,
+        unwrap: true,
+      });
+      const operations = bulkerHandler.getBulkerTransactions();
+      expect(operations).toHaveLength(2);
+      expect(operations[0].type).toEqual(bulkerTx);
+      const morphoTx = operations[0] as Bulker.BorrowTransaction;
+      expect(morphoTx.amount).toBnEq(amount);
+      expect(morphoTx.to).toEqual(CONTRACT_ADDRESSES.bulker);
+      expect(morphoTx.asset).toEqual(Underlying.weth);
+
+      expect(operations[1].type).toEqual(Bulker.TransactionType.unwrap);
+      const unwrap = operations[1] as Bulker.UnwrapTransaction;
+      expect(unwrap.amount).toBnEq(constants.MaxUint256);
+      expect(unwrap.asset).toEqual(Underlying.weth);
+      expect(unwrap.receiver).toEqual(userAddress);
+    });
+    it("should throw an error if borrow with not enough collateral", async () => {
+      //  set the  weth balance to 0
+      const mock = {
+        ...ADAPTER_MOCK,
+        userMarketsData: {
+          ...ADAPTER_MOCK.userMarketsData,
+          [Underlying.wsteth]: {
+            ...ADAPTER_MOCK.userMarketsData[Underlying.wsteth],
+            scaledCollateral: parseUnits("1"),
+          },
+        },
+      };
+
+      const adapter = MorphoAaveV3Adapter.fromMock(mock);
+      bulkerHandler = new BulkerTxHandler(adapter);
+      await adapter.connect(userAddress);
+      await adapter.refreshAll();
+
+      const amount = parseUnits("10000");
+
+      expect(() =>
+        bulkerHandler.addOperation({
+          type,
+          underlyingAddress: Underlying.weth,
+          amount,
+          unwrap: true,
+        })
+      ).toThrowError(Errors.NOT_ENOUGH_COLLATERAL);
+    });
+    it("should throw an error if user is disconnected", async () => {
+      //  set the  weth balance to 0
+      const mock = {
+        ...ADAPTER_MOCK,
+        userMarketsData: {
+          ...ADAPTER_MOCK.userMarketsData,
+          [Underlying.wsteth]: {
+            ...ADAPTER_MOCK.userMarketsData[Underlying.wsteth],
+            scaledCollateral: parseUnits("1"),
+          },
+        },
+      };
+
+      const adapter = MorphoAaveV3Adapter.fromMock(mock);
+      bulkerHandler = new BulkerTxHandler(adapter);
+      await adapter.connect(userAddress);
+      await adapter.refreshAll();
+      await adapter.disconnect();
+
+      const amount = parseUnits("1");
+
+      expect(() =>
+        bulkerHandler.addOperation({
+          type,
+          underlyingAddress: Underlying.weth,
+          amount,
+          unwrap: true,
+        })
+      ).toThrowError(Errors.INCONSISTENT_DATA);
+    });
+  });
 });

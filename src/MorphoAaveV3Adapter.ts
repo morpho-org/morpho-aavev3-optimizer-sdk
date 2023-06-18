@@ -123,7 +123,6 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
 
   private __POOL_IRM__ = new PoolInterestRates();
 
-  private _user: Address | null = null;
   private _signer: Signer | null = null;
 
   protected _scaledMarketsData: ScaledMarketsData = {};
