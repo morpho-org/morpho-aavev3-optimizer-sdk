@@ -57,15 +57,13 @@ export namespace Bulker {
     type: TransactionType.borrow;
     asset: Address;
     amount: BigNumber;
-    onBehalf: Address;
-    maxIterations: BigNumber;
+    to: Address;
   }
 
   export interface RepayTransaction {
     type: TransactionType.repay;
     asset: Address;
     amount: BigNumber;
-    onBehalf: Address;
   }
 
   export interface WithdrawTransaction {
@@ -73,7 +71,6 @@ export namespace Bulker {
     asset: Address;
     amount: BigNumber;
     receiver: Address;
-    maxIterations: BigNumber;
   }
 
   export interface WithdrawCollateralTransaction {
