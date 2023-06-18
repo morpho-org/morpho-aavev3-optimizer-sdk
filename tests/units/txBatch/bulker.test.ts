@@ -1,3 +1,4 @@
+import { use } from "chai";
 import { constants, Wallet } from "ethers";
 import { parseUnits } from "ethers/lib/utils";
 
@@ -639,6 +640,248 @@ describe("bulker", () => {
           unwrap: true,
         })
       ).toThrowError(Errors.INCONSISTENT_DATA);
+    });
+  });
+
+  describe("Withdraw", () => {
+    it("should withdraw weth", async () => {
+      const mock = {
+        ...ADAPTER_MOCK,
+        userMarketsData: {
+          ...ADAPTER_MOCK.userMarketsData,
+          [Underlying.weth]: {
+            ...ADAPTER_MOCK.userMarketsData[Underlying.weth],
+            scaledSupplyOnPool: parseUnits("1"),
+          },
+        },
+      };
+      const adapter = MorphoAaveV3Adapter.fromMock(mock);
+      bulkerHandler = new BulkerTxHandler(adapter);
+      await adapter.connect(userAddress);
+      await adapter.refreshAll();
+      bulkerHandler.addOperation({
+        type: TransactionType.withdraw,
+        underlyingAddress: Underlying.weth,
+        amount: parseUnits("0.1"),
+      });
+      const operations = bulkerHandler.getBulkerTransactions();
+      expect(operations).toHaveLength(1);
+      expect(operations[0].type).toEqual(Bulker.TransactionType.withdraw);
+      const morphoTx = operations[0] as Bulker.WithdrawTransaction;
+      expect(morphoTx.amount).toBnEq(parseUnits("0.1"));
+      expect(morphoTx.asset).toEqual(Underlying.weth);
+      expect(morphoTx.receiver).toEqual(userAddress);
+    });
+    it("should withdraw weth and unwrap", async () => {
+      const mock = {
+        ...ADAPTER_MOCK,
+        userMarketsData: {
+          ...ADAPTER_MOCK.userMarketsData,
+          [Underlying.weth]: {
+            ...ADAPTER_MOCK.userMarketsData[Underlying.weth],
+            scaledSupplyOnPool: parseUnits("1"),
+          },
+        },
+      };
+      const adapter = MorphoAaveV3Adapter.fromMock(mock);
+      bulkerHandler = new BulkerTxHandler(adapter);
+      await adapter.connect(userAddress);
+      await adapter.refreshAll();
+      bulkerHandler.addOperation({
+        type: TransactionType.withdraw,
+        underlyingAddress: Underlying.weth,
+        amount: parseUnits("0.1"),
+        unwrap: true,
+      });
+      const operations = bulkerHandler.getBulkerTransactions();
+      expect(operations).toHaveLength(2);
+
+      expect(operations[0].type).toEqual(Bulker.TransactionType.withdraw);
+
+      const morphoTx = operations[0] as Bulker.WithdrawTransaction;
+
+      expect(morphoTx.amount).toBnEq(parseUnits("0.1"));
+      expect(morphoTx.asset).toEqual(Underlying.weth);
+      expect(morphoTx.receiver).toEqual(CONTRACT_ADDRESSES.bulker);
+
+      expect(operations[1].type).toEqual(Bulker.TransactionType.unwrap);
+
+      const unwrap = operations[1] as Bulker.UnwrapTransaction;
+      expect(unwrap.amount).toBnEq(constants.MaxUint256);
+      expect(unwrap.asset).toEqual(Underlying.weth);
+      expect(unwrap.receiver).toEqual(userAddress);
+    });
+    it("should withdraw max weth", async () => {
+      const mock = {
+        ...ADAPTER_MOCK,
+        userMarketsData: {
+          ...ADAPTER_MOCK.userMarketsData,
+          [Underlying.weth]: {
+            ...ADAPTER_MOCK.userMarketsData[Underlying.weth],
+            scaledSupplyOnPool: parseUnits("1"),
+          },
+        },
+      };
+      const adapter = MorphoAaveV3Adapter.fromMock(mock);
+      bulkerHandler = new BulkerTxHandler(adapter);
+      await adapter.connect(userAddress);
+      await adapter.refreshAll();
+      bulkerHandler.addOperation({
+        type: TransactionType.withdraw,
+        underlyingAddress: Underlying.weth,
+        amount: constants.MaxUint256,
+      });
+      const operations = bulkerHandler.getBulkerTransactions();
+      expect(operations).toHaveLength(1);
+      expect(operations[0].type).toEqual(Bulker.TransactionType.withdraw);
+      const morphoTx = operations[0] as Bulker.WithdrawTransaction;
+      expect(morphoTx.amount).toBnEq(constants.MaxUint256);
+      expect(morphoTx.asset).toEqual(Underlying.weth);
+      expect(morphoTx.receiver).toEqual(userAddress);
+    });
+    it("should withdraw max weth and unwrap", async () => {
+      const mock = {
+        ...ADAPTER_MOCK,
+        userMarketsData: {
+          ...ADAPTER_MOCK.userMarketsData,
+          [Underlying.weth]: {
+            ...ADAPTER_MOCK.userMarketsData[Underlying.weth],
+            scaledSupplyOnPool: parseUnits("1"),
+          },
+        },
+      };
+      const adapter = MorphoAaveV3Adapter.fromMock(mock);
+      bulkerHandler = new BulkerTxHandler(adapter);
+      await adapter.connect(userAddress);
+      await adapter.refreshAll();
+      bulkerHandler.addOperation({
+        type: TransactionType.withdraw,
+        underlyingAddress: Underlying.weth,
+        amount: constants.MaxUint256,
+        unwrap: true,
+      });
+      const operations = bulkerHandler.getBulkerTransactions();
+      expect(operations).toHaveLength(2);
+      expect(operations[0].type).toEqual(Bulker.TransactionType.withdraw);
+      const morphoTx = operations[0] as Bulker.WithdrawTransaction;
+
+      expect(morphoTx.amount).toBnEq(constants.MaxUint256);
+      expect(morphoTx.asset).toEqual(Underlying.weth);
+      expect(morphoTx.receiver).toEqual(CONTRACT_ADDRESSES.bulker);
+
+      expect(operations[1].type).toEqual(Bulker.TransactionType.unwrap);
+
+      const unwrap = operations[1] as Bulker.UnwrapTransaction;
+      expect(unwrap.amount).toBnEq(constants.MaxUint256);
+      expect(unwrap.asset).toEqual(Underlying.weth);
+      expect(unwrap.receiver).toEqual(userAddress);
+    });
+    it("should withdraw collateral", async () => {
+      const mock = {
+        ...ADAPTER_MOCK,
+        userMarketsData: {
+          ...ADAPTER_MOCK.userMarketsData,
+          [Underlying.wsteth]: {
+            ...ADAPTER_MOCK.userMarketsData[Underlying.wsteth],
+            scaledSupplyCollateral: parseUnits("1"),
+          },
+        },
+      };
+      const adapter = MorphoAaveV3Adapter.fromMock(mock);
+      bulkerHandler = new BulkerTxHandler(adapter);
+      await adapter.connect(userAddress);
+      await adapter.refreshAll();
+      bulkerHandler.addOperation({
+        type: TransactionType.withdrawCollateral,
+        underlyingAddress: Underlying.wsteth,
+        amount: parseUnits("1"),
+        unwrap: false,
+      });
+      const operations = bulkerHandler.getBulkerTransactions();
+      expect(operations).toHaveLength(1);
+      expect(operations[0].type).toEqual(
+        Bulker.TransactionType.withdrawCollateral
+      );
+      const morphoTx = operations[0] as Bulker.WithdrawCollateralTransaction;
+
+      expect(morphoTx.amount).toBnEq(parseUnits("1"));
+      expect(morphoTx.asset).toEqual(Underlying.wsteth);
+      expect(morphoTx.receiver).toEqual(userAddress);
+    });
+    it("should withdraw collateral and unwrap stEth", async () => {
+      const mock = {
+        ...ADAPTER_MOCK,
+        userMarketsData: {
+          ...ADAPTER_MOCK.userMarketsData,
+          [Underlying.wsteth]: {
+            ...ADAPTER_MOCK.userMarketsData[Underlying.wsteth],
+            scaledSupplyCollateral: parseUnits("1"),
+          },
+        },
+      };
+      const adapter = MorphoAaveV3Adapter.fromMock(mock);
+      bulkerHandler = new BulkerTxHandler(adapter);
+      await adapter.connect(userAddress);
+      await adapter.refreshAll();
+      bulkerHandler.addOperation({
+        type: TransactionType.withdrawCollateral,
+        underlyingAddress: Underlying.wsteth,
+        amount: parseUnits("1"),
+        unwrap: true,
+      });
+      const operations = bulkerHandler.getBulkerTransactions();
+      expect(operations).toHaveLength(2);
+      expect(operations[0].type).toEqual(
+        Bulker.TransactionType.withdrawCollateral
+      );
+      const morphoTx = operations[0] as Bulker.WithdrawCollateralTransaction;
+
+      expect(morphoTx.amount).toBnEq(parseUnits("1"));
+      expect(morphoTx.asset).toEqual(Underlying.wsteth);
+      expect(morphoTx.receiver).toEqual(CONTRACT_ADDRESSES.bulker);
+
+      expect(operations[1].type).toEqual(Bulker.TransactionType.unwrap);
+      const unwrap = operations[1] as Bulker.UnwrapTransaction;
+      expect(unwrap.amount).toBnEq(constants.MaxUint256);
+      expect(unwrap.asset).toEqual(Underlying.wsteth);
+      expect(unwrap.receiver).toEqual(userAddress);
+    });
+
+    it("should withdraw max collateral", async () => {
+      const mock = {
+        ...ADAPTER_MOCK,
+        userMarketsData: {
+          ...ADAPTER_MOCK.userMarketsData,
+          [Underlying.wsteth]: {
+            ...ADAPTER_MOCK.userMarketsData[Underlying.wsteth],
+            scaledSupplyCollateral: parseUnits("1"),
+          },
+          [Underlying.usdc]: {
+            ...ADAPTER_MOCK.userMarketsData[Underlying.wsteth],
+            scaledSupplyCollateral: parseUnits("1000000"),
+          },
+        },
+      };
+      const adapter = MorphoAaveV3Adapter.fromMock(mock);
+      bulkerHandler = new BulkerTxHandler(adapter);
+      await adapter.connect(userAddress);
+      await adapter.refreshAll();
+      bulkerHandler.addOperation({
+        type: TransactionType.withdrawCollateral,
+        underlyingAddress: Underlying.wsteth,
+        amount: constants.MaxUint256,
+        unwrap: false,
+      });
+      const operations = bulkerHandler.getBulkerTransactions();
+      expect(operations).toHaveLength(1);
+      expect(operations[0].type).toEqual(
+        Bulker.TransactionType.withdrawCollateral
+      );
+      const morphoTx = operations[0] as Bulker.WithdrawCollateralTransaction;
+
+      expect(morphoTx.amount).toBnEq(constants.MaxUint256);
+      expect(morphoTx.asset).toEqual(Underlying.wsteth);
+      expect(morphoTx.receiver).toEqual(userAddress);
     });
   });
 });
