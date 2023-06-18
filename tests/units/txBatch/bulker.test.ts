@@ -135,9 +135,10 @@ describe("bulker", () => {
       const operations = bulkerHandler.getBulkerTransactions();
       expect(operations).toHaveLength(2);
 
-      expect(operations[0].type).toEqual(Bulker.TransactionType.wrapEth);
-      const wrap = operations[0] as Bulker.WrapEthTransaction;
+      expect(operations[0].type).toEqual(Bulker.TransactionType.wrap);
+      const wrap = operations[0] as Bulker.WrapTransaction;
       expect(wrap.amount).toBnEq(amount);
+      expect(wrap.asset).toEqual(Underlying.weth);
 
       expect(operations[1].type).toEqual(Bulker.TransactionType.supply);
       const supply = operations[1] as Bulker.SupplyTransaction;
@@ -176,9 +177,10 @@ describe("bulker", () => {
       const operations = bulkerHandler.getBulkerTransactions();
       expect(operations).toHaveLength(4);
 
-      expect(operations[0].type).toEqual(Bulker.TransactionType.wrapEth);
-      const wrap = operations[0] as Bulker.WrapEthTransaction;
+      expect(operations[0].type).toEqual(Bulker.TransactionType.wrap);
+      const wrap = operations[0] as Bulker.WrapTransaction;
       expect(wrap.amount).toEqual(parseUnits("50"));
+      expect(wrap.asset).toEqual(Underlying.weth);
 
       expect(operations[1].type).toEqual(Bulker.TransactionType.approve2);
       const approve = operations[1] as Bulker.Approve2Transaction;
@@ -233,9 +235,10 @@ describe("bulker", () => {
       expect(transfer.amount).toBnEq("40000000000100000000");
       expect(transfer.asset).toEqual(CONTRACT_ADDRESSES.steth);
 
-      expect(operations[2].type).toEqual(Bulker.TransactionType.wrapStEth);
-      const wrap = operations[2] as Bulker.WrapEthTransaction;
+      expect(operations[2].type).toEqual(Bulker.TransactionType.wrap);
+      const wrap = operations[2] as Bulker.WrapTransaction;
       expect(wrap.amount).toBnEq("40000000000100000000");
+      expect(wrap.asset).toEqual(Underlying.wsteth);
 
       expect(operations[3].type).toEqual(
         Bulker.TransactionType.supplyCollateral
@@ -288,9 +291,10 @@ describe("bulker", () => {
       expect(transfer.amount).toBnEq("40000000000100000000");
       expect(transfer.asset).toEqual(CONTRACT_ADDRESSES.steth);
 
-      expect(operations[1].type).toEqual(Bulker.TransactionType.wrapStEth);
-      const wrap = operations[1] as Bulker.WrapEthTransaction;
+      expect(operations[1].type).toEqual(Bulker.TransactionType.wrap);
+      const wrap = operations[1] as Bulker.WrapTransaction;
       expect(wrap.amount).toBnEq("40000000000100000000");
+      expect(wrap.asset).toEqual(Underlying.wsteth);
     });
     it("should partially wrap steth", async () => {
       //  set the  weth balance to 0
@@ -327,9 +331,10 @@ describe("bulker", () => {
       expect(transfer.amount).toBnEq("20000000000100000000");
       expect(transfer.asset).toEqual(CONTRACT_ADDRESSES.steth);
 
-      expect(operations[2].type).toEqual(Bulker.TransactionType.wrapStEth);
-      const wrap = operations[2] as Bulker.WrapEthTransaction;
+      expect(operations[2].type).toEqual(Bulker.TransactionType.wrap);
+      const wrap = operations[2] as Bulker.WrapTransaction;
       expect(wrap.amount).toBnEq("20000000000100000000");
+      expect(wrap.asset).toEqual(Underlying.wsteth);
 
       expect(operations[3].type).toEqual(Bulker.TransactionType.approve2);
       const wrappedApproval = operations[3] as Bulker.Approve2Transaction;

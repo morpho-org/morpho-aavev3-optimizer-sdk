@@ -1,21 +1,22 @@
 import { BigNumber, constants } from "ethers";
 import { deepCopy, getAddress } from "ethers/lib/utils";
-import { BehaviorSubject, Subject } from "rxjs";
+import { BehaviorSubject } from "rxjs";
 import { TxOperation } from "src/simulation/simulation.types";
 
 import { WadRayMath } from "@morpho-labs/ethers-utils/lib/maths";
 import { maxBN } from "@morpho-labs/ethers-utils/lib/utils";
 
-import { MorphoAaveV3DataHolder } from "../MorphoAaveV3DataHolder";
+import { MorphoAaveV3Adapter } from "../MorphoAaveV3Adapter";
 import addresses from "../contracts/addresses";
 import CONTRACT_ADDRESSES from "../contracts/addresses";
-import { Address, TransactionOptions } from "../types";
+import { Underlying } from "../mocks/markets";
+import { Address, TransactionOptions, TransactionType } from "../types";
 
 import { Bulker } from "./Bulker.TxHandler.interface";
 import { NotifierManager } from "./NotifierManager";
-import { IBatchTxHandler, ISimpleTxHandler } from "./TxHandler.interface";
+import { IBatchTxHandler } from "./TxHandler.interface";
 
-import TransactionType = Bulker.TransactionType;
+import BulkerTx = Bulker.TransactionType;
 
 export default class BulkerTxHandler
   extends NotifierManager
@@ -47,7 +48,7 @@ export default class BulkerTxHandler
     );
   }
 
-  constructor(protected _dataHolder: MorphoAaveV3DataHolder) {
+  constructor(protected _adapter: MorphoAaveV3Adapter) {
     super();
   }
 
@@ -59,17 +60,29 @@ export default class BulkerTxHandler
     switch (operation.type) {
       case TransactionType.supply:
       case TransactionType.supplyCollateral:
-        ({ batch, value } = this.validateSupply(
+        ({ batch, value } = this.#validateSupply(
           operation.underlyingAddress,
           operation.amount
         ));
         break;
       case TransactionType.repay:
-        ({ batch, value } = this.validateRepay(
+        ({ batch, value } = this.#validateRepay(
           operation.underlyingAddress,
           operation.amount
         ));
         break;
+      case TransactionType.borrow:
+        ({ batch } = this.#validateBorrow(
+          operation.underlyingAddress,
+          operation.amount,
+          constants.AddressZero // TODO: add the user address
+        ));
+      case TransactionType.withdraw:
+        ({ batch } = this.#validateWithdraw(
+          operation.underlyingAddress,
+          operation.amount,
+          constants.AddressZero // TODO: add the user address
+        ));
       default:
         throw Error(Errors.UNKNOWN_OPERATION);
     }
@@ -91,7 +104,7 @@ export default class BulkerTxHandler
     this.operations = this.operations.slice(0, -1);
   }
 
-  validateSupply(
+  #validateSupply(
     underlyingAddress: string,
     amount: BigNumber
   ): { value: BigNumber; batch: Bulker.Transactions[] } {
@@ -107,8 +120,8 @@ export default class BulkerTxHandler
     batch.push({
       type:
         underlyingAddress === CONTRACT_ADDRESSES.weth
-          ? TransactionType.supply
-          : TransactionType.supplyCollateral,
+          ? BulkerTx.supply
+          : BulkerTx.supplyCollateral,
       asset: underlyingAddress,
       amount: amount,
     });
@@ -116,7 +129,7 @@ export default class BulkerTxHandler
     return { value, batch };
   }
 
-  validateRepay(
+  #validateRepay(
     underlyingAddress: Address,
     amount: BigNumber
   ): { value: BigNumber; batch: Bulker.Transactions[] } {
@@ -130,7 +143,7 @@ export default class BulkerTxHandler
     const batch: Bulker.Transactions[] = transferBatch;
 
     batch.push({
-      type: TransactionType.repay,
+      type: BulkerTx.repay,
       amount,
       asset: underlyingAddress,
     });
@@ -139,6 +152,98 @@ export default class BulkerTxHandler
     return { value, batch };
   }
 
+  #validateBorrow(
+    underlyingAddress: Address,
+    amount: BigNumber,
+    to: Address,
+    unwrap = false
+  ): { batch: Bulker.Transactions[] } {
+    underlyingAddress = getAddress(underlyingAddress);
+    const batch: Bulker.Transactions[] = [];
+
+    const userMarketsData = this._adapter.getUserMarketsData();
+    const userData = this._adapter.getUserData();
+    if (!userData || !userMarketsData) throw Error(Errors.INCONSISTENT_DATA);
+    const { amount: max } =
+      this._adapter.getUserMaxCapacity(
+        underlyingAddress,
+        TransactionType.borrow
+      ) ?? {};
+    if (!max || max.gt(amount)) throw Error(Errors.NOT_ENOUGH_COLLATERAL);
+    const receiver = unwrap ? addresses.bulker : to;
+    batch.push({
+      type: BulkerTx.borrow,
+      to: receiver,
+      asset: underlyingAddress,
+      amount,
+    });
+    if (unwrap) {
+      if (![Underlying.wsteth, Underlying.weth].includes(underlyingAddress))
+        throw Error(Errors.INCONSISTENT_DATA);
+      batch.push({
+        type: BulkerTx.unwrap,
+        asset: underlyingAddress,
+        receiver: to,
+        amount: constants.MaxUint256, // Use maxUint to unwrap all and transfer all to the user
+      });
+    }
+    return { batch };
+  }
+
+  #validateWithdraw(
+    underlyingAddress: Address,
+    amount: BigNumber,
+    to: Address,
+    unwrap = false
+  ): { batch: Bulker.Transactions[] } {
+    underlyingAddress = getAddress(underlyingAddress);
+    const batch: Bulker.Transactions[] = [];
+    const txType =
+      underlyingAddress === addresses.weth
+        ? BulkerTx.withdrawCollateral
+        : BulkerTx.withdraw;
+
+    const userMarketsData = this._adapter.getUserMarketsData();
+    const userData = this._adapter.getUserData();
+    if (!userData || !userMarketsData) throw Error(Errors.INCONSISTENT_DATA);
+    const { amount: max } =
+      this._adapter.getUserMaxCapacity(
+        underlyingAddress,
+        underlyingAddress === addresses.weth
+          ? TransactionType.withdraw
+          : TransactionType.withdrawCollateral
+      ) ?? {};
+    if (!max || max.gt(amount)) throw Error(Errors.NOT_ENOUGH_COLLATERAL);
+    const receiver = unwrap ? addresses.bulker : to;
+    batch.push({
+      type: txType,
+      receiver,
+      asset: underlyingAddress,
+      amount,
+    });
+    if (unwrap) {
+      if (![Underlying.wsteth, Underlying.weth].includes(underlyingAddress))
+        throw Error(Errors.INCONSISTENT_DATA);
+      batch.push({
+        type: BulkerTx.unwrap,
+        asset: underlyingAddress,
+        receiver: to,
+        amount: constants.MaxUint256, // Use maxUint to unwrap all and transfer all to the user
+      });
+    }
+    return { batch };
+  }
+
+  /**
+   * Transfer the amount from the user to the bulker
+   * If the user doesn't have enough, it will use the native ETH balance
+   * And the non wrapped stEth balance
+   *
+   * If this is not enough, it will revert
+   * @param underlyingAddress
+   * @param amount
+   * @private
+   */
   #transferToBulker(
     underlyingAddress: string,
     amount: BigNumber
@@ -151,8 +256,8 @@ export default class BulkerTxHandler
     const defers: Bulker.Transactions[] = [];
     let value = constants.Zero;
 
-    const userMarketsData = this._dataHolder.getUserMarketsData();
-    const userData = this._dataHolder.getUserData();
+    const userMarketsData = this._adapter.getUserMarketsData();
+    const userData = this._adapter.getUserData();
     if (!userData || !userMarketsData) throw Error(Errors.INCONSISTENT_DATA);
     let toTransfer = amount;
     if (getAddress(underlyingAddress) === addresses.wsteth) {
@@ -175,7 +280,7 @@ export default class BulkerTxHandler
         //  check the approval to the bulker
         if (userData.stEthData.bulkerApproval.lt(amountToWrap)) {
           batch.push({
-            type: TransactionType.approve2,
+            type: BulkerTx.approve2,
             asset: addresses.steth,
             amount: amountToWrap,
           });
@@ -183,18 +288,19 @@ export default class BulkerTxHandler
         }
         batch.push(
           {
-            type: TransactionType.transferFrom2,
+            type: BulkerTx.transferFrom2,
             asset: addresses.steth,
             amount: amountToWrap,
           },
           {
-            type: TransactionType.wrapStEth,
+            type: BulkerTx.wrap,
+            asset: addresses.wsteth,
             amount: amountToWrap,
           }
         );
         //  defer the skim to the end of the batch
         defers.push({
-          type: TransactionType.skim,
+          type: BulkerTx.skim,
           asset: addresses.wsteth,
         });
         toTransfer = toTransfer.sub(wstethMissing);
@@ -211,7 +317,8 @@ export default class BulkerTxHandler
           throw Error(Errors.NOT_ENOUGH_ETH); // TODO: use a buffer to keep an amount for the gas
         value = value.add(wethMissing); // Add value to the tx
         batch.push({
-          type: TransactionType.wrapEth,
+          type: BulkerTx.wrap,
+          asset: addresses.weth,
           amount: wethMissing,
         });
 
@@ -227,7 +334,7 @@ export default class BulkerTxHandler
       //  check approval
       if (userMarketsData[underlyingAddress]!.bulkerApproval.lt(toTransfer)) {
         batch.push({
-          type: TransactionType.approve2,
+          type: BulkerTx.approve2,
           asset: underlyingAddress,
           amount: toTransfer,
         });
@@ -235,7 +342,7 @@ export default class BulkerTxHandler
       }
       // transfer
       batch.push({
-        type: TransactionType.transferFrom2,
+        type: BulkerTx.transferFrom2,
         asset: underlyingAddress,
         amount: toTransfer,
       });
@@ -246,6 +353,7 @@ export default class BulkerTxHandler
 
 export enum Errors {
   NOT_ENOUGH_BALANCE = "Not enough balance",
+  NOT_ENOUGH_COLLATERAL = "Not enough collateral",
   INCONSISTENT_DATA = "Inconsistent data",
   UNKNOWN_MARKET = "Unknown market",
   NOT_ENOUGH_ETH = "Not enough ETH",

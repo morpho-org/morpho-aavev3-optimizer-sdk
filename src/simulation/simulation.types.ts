@@ -13,6 +13,7 @@ export interface TxOperation<T = never> {
   amount: BigNumber;
   underlyingAddress: string;
   signature?: string;
+  unwrap?: boolean;
   actions?: T[];
 }
 
