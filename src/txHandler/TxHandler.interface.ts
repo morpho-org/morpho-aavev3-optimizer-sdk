@@ -43,7 +43,7 @@ export interface ISimpleTxHandler
   ) => Promise<void>;
 }
 
-export interface IBatchTxHandler extends INotifierManager {
+export interface IBatchTxHandler {
   addOperation: (operation: TxOperation) => void;
   removeOperation: (index: number) => void;
   executeBatch: (options?: TransactionOptions) => Promise<any>;

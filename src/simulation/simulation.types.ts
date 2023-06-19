@@ -3,8 +3,8 @@ import { BigNumber } from "ethers";
 import { TransactionType, Address } from "../types";
 
 export enum OperationType {
-  wrapETH = "WRAP_ETH",
-  wrapStETH = "WRAP_STETH",
+  wrap = "WRAP",
+  unwrap = "UNWRAP",
   claimMorpho = "CLAIM_MORPHO",
 }
 
@@ -15,24 +15,27 @@ export interface TxOperation<T = never> {
   signature?: string;
   unwrap?: boolean;
   actions?: T[];
+  error?: string;
 }
 
 export interface ClaimMorphoOperation {
   type: OperationType.claimMorpho;
 }
 
-export interface WrapEthOperation {
-  type: OperationType.wrapETH;
+export interface WrapOperation {
+  type: OperationType.wrap;
   amount: BigNumber;
+  underlyingAddress: Address;
 }
 
-export interface WrapStEthOperation {
-  type: OperationType.wrapStETH;
+export interface UnwrapOperation {
+  type: OperationType.unwrap;
   amount: BigNumber;
+  underlyingAddress: Address;
 }
 
 export type Operation =
   | TxOperation<never>
   | ClaimMorphoOperation
-  | WrapEthOperation
-  | WrapStEthOperation;
+  | WrapOperation
+  | UnwrapOperation;
