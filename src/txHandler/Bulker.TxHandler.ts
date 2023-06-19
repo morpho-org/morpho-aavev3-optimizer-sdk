@@ -1,4 +1,4 @@
-import { BigNumber, constants, Signature } from "ethers";
+import { BigNumber, constants } from "ethers";
 import { deepCopy, getAddress, isAddress } from "ethers/lib/utils";
 import { BehaviorSubject } from "rxjs";
 import { TxOperation } from "src/simulation/simulation.types";
@@ -7,27 +7,28 @@ import { WadRayMath } from "@morpho-labs/ethers-utils/lib/maths";
 import { maxBN } from "@morpho-labs/ethers-utils/lib/utils";
 
 import { MorphoAaveV3Adapter } from "../MorphoAaveV3Adapter";
+import { MorphoAaveV3DataHolder } from "../MorphoAaveV3DataHolder";
 import addresses from "../contracts/addresses";
 import CONTRACT_ADDRESSES from "../contracts/addresses";
 import { Underlying } from "../mocks/markets";
+import { MorphoAaveV3Simulator } from "../simulation/MorphoAaveV3Simulator";
 import {
   Address,
   MaxCapacityLimiter,
   TransactionOptions,
   TransactionType,
-  UserData,
 } from "../types";
 
 import { Bulker } from "./Bulker.TxHandler.interface";
-import { NotifierManager } from "./NotifierManager";
 import { IBatchTxHandler } from "./TxHandler.interface";
 
 import BulkerTx = Bulker.TransactionType;
 
 export default class BulkerTxHandler
-  extends NotifierManager
+  extends MorphoAaveV3Simulator
   implements IBatchTxHandler
 {
+  #adapter: MorphoAaveV3Adapter;
   _value = constants.Zero;
 
   public readonly operations$ = new BehaviorSubject<
@@ -55,19 +56,20 @@ export default class BulkerTxHandler
   }
 
   constructor(
-    protected _adapter: MorphoAaveV3Adapter,
+    parentAdapter: MorphoAaveV3Adapter,
     protected _signatureHook: Bulker.SignatureHook,
     options: { deferSignatures: boolean } = { deferSignatures: true }
   ) {
-    super();
-    this._adapter.userData$.subscribe(this.#adapterUpdate.bind(this));
+    super(parentAdapter);
+    this.#adapter = parentAdapter;
+    this.#adapter.userData$.subscribe(this.#adapterUpdate.bind(this));
   }
 
   /**
    * Make sure that the bulker actions are empty if the user is not connected
    */
   #adapterUpdate() {
-    const userData = this._adapter.getUserData();
+    const userData = this.#adapter.getUserData();
     if (!userData || !userData.address) {
       // make sure that the bulker actions array is empty
       if (this.getOperations().length > 0) {
@@ -189,8 +191,8 @@ export default class BulkerTxHandler
     underlyingAddress = getAddress(underlyingAddress);
     const batch: Bulker.Transactions[] = [];
 
-    const userMarketsData = this._adapter.getUserMarketsData();
-    const userData = this._adapter.getUserData();
+    const userMarketsData = this.#adapter.getUserMarketsData();
+    const userData = this.#adapter.getUserData();
     // make sure to never send tokens to an unknown address
     if (
       !userData ||
@@ -201,7 +203,7 @@ export default class BulkerTxHandler
       throw Error(Errors.INCONSISTENT_DATA);
 
     const { amount: max } =
-      this._adapter.getUserMaxCapacity(
+      this.#adapter.getUserMaxCapacity(
         underlyingAddress,
         TransactionType.borrow
       ) ?? {};
@@ -242,8 +244,8 @@ export default class BulkerTxHandler
         ? BulkerTx.withdraw
         : BulkerTx.withdrawCollateral;
 
-    const userMarketsData = this._adapter.getUserMarketsData();
-    const userData = this._adapter.getUserData();
+    const userMarketsData = this.#adapter.getUserMarketsData();
+    const userData = this.#adapter.getUserData();
     // make sure to never send tokens to an unknown address
     if (
       !userData ||
@@ -254,7 +256,7 @@ export default class BulkerTxHandler
       throw Error(Errors.INCONSISTENT_DATA);
 
     const { amount: max, limiter } =
-      this._adapter.getUserMaxCapacity(
+      this.#adapter.getUserMaxCapacity(
         underlyingAddress,
         underlyingAddress === addresses.weth
           ? TransactionType.withdrawCollateral
@@ -319,8 +321,8 @@ export default class BulkerTxHandler
     const defers: Bulker.Transactions[] = [];
     let value = constants.Zero;
 
-    const userMarketsData = this._adapter.getUserMarketsData();
-    const userData = this._adapter.getUserData();
+    const userMarketsData = this.#adapter.getUserMarketsData();
+    const userData = this.#adapter.getUserData();
     if (!userData || !userMarketsData) throw Error(Errors.INCONSISTENT_DATA);
 
     let toTransfer = amount;

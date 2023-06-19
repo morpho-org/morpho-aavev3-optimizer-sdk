@@ -1,5 +1,5 @@
-import { constants } from "ethers";
-import { deepCopy } from "ethers/lib/utils";
+import { BigNumber, constants } from "ethers";
+import { deepCopy, getAddress } from "ethers/lib/utils";
 import {
   BehaviorSubject,
   combineLatest,
@@ -11,12 +11,19 @@ import {
   Subscription,
 } from "rxjs";
 
+import { WadRayMath } from "@morpho-labs/ethers-utils/lib/maths";
 import { minBN } from "@morpho-labs/ethers-utils/lib/utils";
 
 import { MorphoAaveV3DataEmitter } from "../MorphoAaveV3DataEmitter";
 import { MorphoAaveV3DataHolder } from "../MorphoAaveV3DataHolder";
 import { SECONDS_PER_YEAR } from "../constants/date";
-import { MarketData, TransactionType, UserMarketData } from "../types";
+import { Underlying } from "../mocks/markets";
+import {
+  MarketData,
+  TransactionType,
+  UserData,
+  UserMarketData,
+} from "../types";
 
 import { ErrorCode, SimulationError } from "./SimulationError";
 import { HF_THRESHOLD } from "./simulation.config";
@@ -24,12 +31,12 @@ import {
   Operation,
   OperationType,
   TxOperation,
-  WrapEthOperation,
-  WrapStEthOperation,
+  WrapOperation,
+  UnwrapOperation,
 } from "./simulation.types";
 
 export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
-  private readonly _operations$: Subject<Operation[]> = new Subject();
+  protected readonly _simulatorOperations: Subject<Operation[]> = new Subject();
   private _dataState$: Observable<{
     data: MorphoAaveV3DataHolder;
     operations: Operation[];
@@ -58,7 +65,7 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
 
     /* Everytime one of these objects change, recompute the simulation */
     this._dataState$ = combineLatest({
-      operations: this._operations$,
+      operations: this._simulatorOperations,
       data: combineLatest({
         globalData: parentAdapter.globalData$,
         marketsConfigs: parentAdapter.marketsConfigs$,
@@ -92,7 +99,7 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
     /* Force the simulation reexecution when operations change */
     this._subscriptions.push(
       this._dataState$
-        .pipe(sample(this._operations$))
+        .pipe(sample(this._simulatorOperations))
         .subscribe(this._applyOperations.bind(this))
     );
 
@@ -111,11 +118,11 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
   }
 
   public simulate(operations: Operation[]) {
-    this._operations$.next(operations);
+    this._simulatorOperations.next(operations);
   }
 
   public reset() {
-    this._operations$.next([]);
+    this._simulatorOperations.next([]);
   }
 
   private _applyOperations({
@@ -148,10 +155,10 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
     const simulatedUserData = simulatedData.getUserData();
     const newUserData = simulatedUserData && {
       ...simulatedData.computeUserData(),
-      ethBalance: simulatedUserData!.ethBalance,
-      morphoRewards: simulatedUserData!.morphoRewards,
-      stEthData: simulatedUserData!.stEthData,
-      isBulkerManaging: simulatedUserData!.isBulkerManaging,
+      ethBalance: simulatedUserData.ethBalance,
+      morphoRewards: simulatedUserData.morphoRewards,
+      stEthData: simulatedUserData.stEthData,
+      isBulkerManaging: simulatedUserData.isBulkerManaging,
     };
 
     if (newUserData?.healthFactor.lt(HF_THRESHOLD)) {
@@ -203,11 +210,11 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
       case OperationType.claimMorpho:
         simulatedState = this._applyClaimMorphoOperation(data, index);
         break;
-      case OperationType.wrapETH:
-        simulatedState = this._applyWrapEthOperation(data, operation, index);
+      case OperationType.wrap:
+        simulatedState = this._applyWrapOperation(data, operation, index);
         break;
-      case OperationType.wrapStETH:
-        simulatedState = this._applyWrapStEthOperation(data, operation, index);
+      case OperationType.unwrap:
+        simulatedState = this._applyUnwrapOperation(data, operation, index);
     }
 
     return simulatedState;
@@ -219,7 +226,7 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
     return null;
   }
 
-  private _applySupplyOperation(
+  protected _applySupplyOperation(
     data: MorphoAaveV3DataHolder,
     operation: TxOperation,
     index: number
@@ -365,7 +372,7 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
     );
   }
 
-  private _applyBorrowOperation(
+  protected _applyBorrowOperation(
     data: MorphoAaveV3DataHolder,
     operation: TxOperation,
     index: number
@@ -516,7 +523,7 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
     );
   }
 
-  private _applySupplyCollateralOperation(
+  protected _applySupplyCollateralOperation(
     data: MorphoAaveV3DataHolder,
     operation: TxOperation,
     index: number
@@ -608,7 +615,7 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
     );
   }
 
-  private _applyWithdrawOperation(
+  protected _applyWithdrawOperation(
     data: MorphoAaveV3DataHolder,
     operation: TxOperation,
     index: number
@@ -756,7 +763,7 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
     );
   }
 
-  private _applyRepayOperation(
+  protected _applyRepayOperation(
     data: MorphoAaveV3DataHolder,
     operation: TxOperation,
     index: number
@@ -898,7 +905,7 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
     );
   }
 
-  private _applyWithdrawCollateralOperation(
+  protected _applyWithdrawCollateralOperation(
     data: MorphoAaveV3DataHolder,
     operation: TxOperation,
     index: number
@@ -986,7 +993,7 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
     );
   }
 
-  private _applyClaimMorphoOperation(
+  protected _applyClaimMorphoOperation(
     data: MorphoAaveV3DataHolder,
     index: number
   ): MorphoAaveV3DataHolder | null {
@@ -994,21 +1001,118 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
     return null;
   }
 
-  private _applyWrapEthOperation(
+  protected _applyWrapOperation(
     data: MorphoAaveV3DataHolder,
-    operation: WrapEthOperation,
+    operation: WrapOperation,
     index: number
   ): MorphoAaveV3DataHolder | null {
-    //TODO
-    return null;
+    const userData = data.getUserData();
+    if (!userData)
+      return this._raiseError(index, ErrorCode.missingData, operation);
+
+    if (
+      ![Underlying.weth, Underlying.wsteth].includes(
+        getAddress(operation.underlyingAddress)
+      )
+    )
+      return this._raiseError(index, ErrorCode.unknownMarket, operation);
+
+    const maxToWrap =
+      operation.underlyingAddress === Underlying.weth
+        ? userData.ethBalance
+        : userData.stEthData.balance;
+    const amount = minBN(maxToWrap, operation.amount);
+
+    const isEth = operation.underlyingAddress === Underlying.weth;
+
+    const newUserData: UserData = {
+      ...userData,
+      ethBalance: isEth ? userData.ethBalance.sub(amount) : userData.ethBalance,
+      stEthData: isEth
+        ? {
+            ...userData.stEthData,
+            balance: userData.stEthData.balance.sub(amount),
+          }
+        : userData.stEthData,
+    };
+    const marketsData = data.getUserMarketsData();
+    const convert = (amount: BigNumber) => {
+      if (isEth) return amount;
+      return WadRayMath.wadDiv(amount, userData.stEthData.stethPerWsteth);
+    };
+
+    const newUserMarketsData = {
+      ...marketsData,
+      [operation.underlyingAddress]: {
+        ...marketsData[operation.underlyingAddress]!,
+        walletBalance: marketsData[
+          operation.underlyingAddress
+        ]!.walletBalance.add(convert(amount)),
+      },
+    };
+
+    return new MorphoAaveV3DataHolder(
+      data.getMarketsConfigs(),
+      data.getMarketsData(),
+      data.getMarketsList(),
+      data.getGlobalData(),
+      newUserData,
+      newUserMarketsData
+    );
   }
 
-  private _applyWrapStEthOperation(
+  private _applyUnwrapOperation(
     data: MorphoAaveV3DataHolder,
-    operation: WrapStEthOperation,
+    operation: UnwrapOperation,
     index: number
   ): MorphoAaveV3DataHolder | null {
-    //TODO
-    return null;
+    const userData = data.getUserData();
+    const marketsData = data.getUserMarketsData();
+    if (!userData || !marketsData)
+      return this._raiseError(index, ErrorCode.missingData, operation);
+
+    if (
+      ![Underlying.weth, Underlying.wsteth].includes(
+        getAddress(operation.underlyingAddress)
+      )
+    )
+      return this._raiseError(index, ErrorCode.unknownMarket, operation);
+
+    const maxToUnwrap = marketsData[operation.underlyingAddress]!.walletBalance;
+    const amount = minBN(maxToUnwrap, operation.amount);
+
+    const isEth = operation.underlyingAddress === Underlying.weth;
+
+    const convertSteth = (amount: BigNumber) =>
+      WadRayMath.wadMul(amount, userData.stEthData.stethPerWsteth);
+
+    const newUserData: UserData = {
+      ...userData,
+      ethBalance: isEth ? userData.ethBalance.add(amount) : userData.ethBalance,
+      stEthData: isEth
+        ? {
+            ...userData.stEthData,
+            balance: userData.stEthData.balance.add(convertSteth(amount)),
+          }
+        : userData.stEthData,
+    };
+
+    const newUserMarketsData = {
+      ...marketsData,
+      [operation.underlyingAddress]: {
+        ...marketsData[operation.underlyingAddress]!,
+        walletBalance:
+          marketsData[operation.underlyingAddress]!.walletBalance.sub(amount),
+      },
+    };
+
+    return new MorphoAaveV3DataHolder(
+      data.getMarketsConfigs(),
+      data.getMarketsData(),
+      data.getMarketsList(),
+      data.getGlobalData(),
+      newUserData,
+      newUserMarketsData
+    );
   }
 }
