@@ -1,4 +1,4 @@
-import { constants } from "ethers";
+import { BigNumber, constants } from "ethers";
 import { parseUnits } from "ethers/lib/utils";
 
 import { MorphoEpochDistribution } from "../../src/helpers/rewards/rewards.types";
@@ -19,7 +19,7 @@ export const GLOBAL_DATA: Omit<
     gasPrice: parseUnits("1.3", "gwei"),
   },
   eModeCategoryData: {
-    eModeId: constants.Zero,
+    eModeId: BigNumber.from(1),
     ltv: constants.Zero,
     liquidationBonus: constants.Zero,
     label: "",
