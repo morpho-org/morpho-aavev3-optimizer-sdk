@@ -44,7 +44,8 @@ export interface ISimpleTxHandler
 }
 
 export interface IBatchTxHandler {
-  addOperation: (operation: TxOperation) => void;
-  removeOperation: (index: number) => void;
-  executeBatch: (options?: TransactionOptions) => Promise<any>;
+  addOperations: (operations: TxOperation[]) => void;
+  reset: () => void;
+  close: () => any;
+  executeBatch: (options?: TransactionOptions) => Promise<void>;
 }

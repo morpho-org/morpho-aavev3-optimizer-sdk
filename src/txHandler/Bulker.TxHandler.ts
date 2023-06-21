@@ -1,7 +1,6 @@
-import { BigNumber, constants } from "ethers";
-import { deepCopy, getAddress, isAddress } from "ethers/lib/utils";
+import { BigNumber, constants, Signature } from "ethers";
+import { getAddress, isAddress } from "ethers/lib/utils";
 import { BehaviorSubject } from "rxjs";
-import { TxOperation } from "src/simulation/simulation.types";
 
 import { WadRayMath } from "@morpho-labs/ethers-utils/lib/maths";
 import { maxBN } from "@morpho-labs/ethers-utils/lib/utils";
@@ -9,20 +8,38 @@ import { maxBN } from "@morpho-labs/ethers-utils/lib/utils";
 import { MorphoAaveV3Adapter } from "../MorphoAaveV3Adapter";
 import { MorphoAaveV3DataHolder } from "../MorphoAaveV3DataHolder";
 import addresses from "../contracts/addresses";
-import CONTRACT_ADDRESSES from "../contracts/addresses";
 import { Underlying } from "../mocks/markets";
 import { MorphoAaveV3Simulator } from "../simulation/MorphoAaveV3Simulator";
-import {
-  Address,
-  MaxCapacityLimiter,
-  TransactionOptions,
-  TransactionType,
-} from "../types";
+import { ErrorCode } from "../simulation/SimulationError";
+import { OperationType, TxOperation } from "../simulation/simulation.types";
+import { Address, TransactionOptions, TransactionType } from "../types";
 
 import { Bulker } from "./Bulker.TxHandler.interface";
 import { IBatchTxHandler } from "./TxHandler.interface";
 
 import BulkerTx = Bulker.TransactionType;
+
+export enum BulkerSignatureType {
+  transfer = "TRANSFER",
+  managerApproval = "BULKER_APPROVAL",
+}
+export interface BulkerTransferSignature {
+  type: BulkerSignatureType.transfer;
+  underlyingAddress: Address;
+  amount: BigNumber;
+  to: Address;
+  nonce: BigNumber;
+  signature?: Signature;
+  transactionIndex: number;
+}
+export interface BulkerApprovalSignature {
+  type: BulkerSignatureType.managerApproval;
+  manager: Address;
+  nonce: BigNumber;
+  signature?: Signature;
+  transactionIndex: number;
+}
+export type BulkerSignature = BulkerTransferSignature | BulkerApprovalSignature;
 
 export default class BulkerTxHandler
   extends MorphoAaveV3Simulator
@@ -31,168 +48,209 @@ export default class BulkerTxHandler
   #adapter: MorphoAaveV3Adapter;
   _value = constants.Zero;
 
-  public readonly operations$ = new BehaviorSubject<
-    TxOperation<Bulker.Transactions>[]
+  public readonly bulkerOperations$ = new BehaviorSubject<
+    Bulker.Transactions[][]
   >([]);
 
-  protected set operations(ops: TxOperation<Bulker.Transactions>[]) {
-    this.operations$.next(ops);
-  }
+  public readonly signatures$ = new BehaviorSubject<BulkerSignature[]>([]);
 
-  public getOperations(): TxOperation<Bulker.Transactions>[] {
-    return deepCopy(this.operations$.getValue());
-  }
   public getValue(): BigNumber {
     return BigNumber.from(this._value);
   }
 
   public getBulkerTransactions(): Bulker.Transactions[] {
-    return deepCopy(
-      this.operations$
-        .getValue()
-        .map((op) => op.actions ?? [])
-        .flat()
-    );
+    return this.bulkerOperations$.getValue().flat();
   }
 
   constructor(
     parentAdapter: MorphoAaveV3Adapter,
-    protected _signatureHook: Bulker.SignatureHook,
     options: { deferSignatures: boolean } = { deferSignatures: true }
   ) {
     super(parentAdapter);
     this.#adapter = parentAdapter;
-    this.#adapter.userData$.subscribe(this.#adapterUpdate.bind(this));
   }
 
-  /**
-   * Make sure that the bulker actions are empty if the user is not connected
-   */
-  #adapterUpdate() {
-    const userData = this.#adapter.getUserData();
-    if (!userData || !userData.address) {
-      // make sure that the bulker actions array is empty
-      if (this.getOperations().length > 0) {
-        this.operations = [];
-        this._value = constants.Zero;
-      }
-    }
+  reset() {
+    this._value = constants.Zero;
+    this.bulkerOperations$.next([]);
+    this.signatures$.next([]);
+    super.reset();
   }
 
-  async addOperation(
-    operation: Omit<TxOperation<Bulker.Transactions>, "actions">
-  ) {
-    let batch: Bulker.Transactions[] = [];
-    let value: BigNumber = constants.Zero;
-    switch (operation.type) {
-      case TransactionType.supply:
-      case TransactionType.supplyCollateral:
-        ({ batch, value } = await this.#validateSupply(
-          operation.underlyingAddress,
-          operation.amount
-        ));
-        break;
-      case TransactionType.repay:
-        ({ batch, value } = await this.#validateRepay(
-          operation.underlyingAddress,
-          operation.amount
-        ));
-        break;
-      case TransactionType.borrow:
-        ({ batch } = await this.#validateBorrow(
-          operation.underlyingAddress,
-          operation.amount,
-          operation.unwrap
-        ));
-        break;
-      case TransactionType.withdraw:
-      case TransactionType.withdrawCollateral:
-        ({ batch } = await this.#validateWithdraw(
-          operation.underlyingAddress,
-          operation.amount,
-          operation.unwrap
-        ));
-        break;
-      default:
-        throw Error(Errors.UNKNOWN_OPERATION);
-    }
-    this._value = this._value.add(value);
-    this.operations = [
-      ...this.getOperations(),
-      {
-        ...operation,
-        actions: batch,
-      },
-    ];
+  public addOperations(operations: TxOperation[]): void {
+    console.log("addOperations", operations);
+    this._simulatorOperations.next(operations);
   }
 
-  executeBatch(options: TransactionOptions | undefined): Promise<any> {
+  public addSignatures(signatures: BulkerSignature[]): void {
+    const currentSignatures = this.signatures$.getValue().map((signature) => {
+      const newSignature = signatures.find(
+        (newSignature) =>
+          newSignature.transactionIndex === signature.transactionIndex &&
+          newSignature.type === signature.type
+      );
+      if (!newSignature) return signature;
+
+      // TODO: add signature validation
+      return newSignature;
+    });
+    this.signatures$.next(currentSignatures);
+  }
+
+  executeBatch(options?: TransactionOptions): Promise<any> {
     return Promise.resolve(undefined);
   }
 
-  removeOperation(): void {
-    this.operations = this.operations.slice(0, -1);
-  }
+  protected _applySupplyOperation(
+    data: MorphoAaveV3DataHolder,
+    operation: TxOperation,
+    index: number
+  ): MorphoAaveV3DataHolder | null {
+    const { underlyingAddress, amount } = operation;
 
-  async #validateSupply(
-    underlyingAddress: string,
-    amount: BigNumber
-  ): Promise<{ value: BigNumber; batch: Bulker.Transactions[] }> {
-    if (amount.isZero()) throw Error(Errors.AMOUNT_IS_ZERO);
+    const transferData = this.#transferToBulker(
+      data,
+      underlyingAddress,
+      amount,
+      index
+    );
+    if (!transferData) return null;
 
     const {
       batch: transferBatch,
       defers,
       value,
-    } = await this.#transferToBulker(underlyingAddress, amount);
+      data: dataAfterTransfer,
+    } = transferData;
+
+    if (!dataAfterTransfer) return null;
+
+    const dataAfterSupply = super._applySupplyOperation(
+      dataAfterTransfer,
+      operation,
+      index
+    );
+
+    if (!dataAfterSupply) return null;
 
     const batch: Bulker.Transactions[] = transferBatch;
 
     batch.push({
-      type:
-        underlyingAddress === CONTRACT_ADDRESSES.weth
-          ? BulkerTx.supply
-          : BulkerTx.supplyCollateral,
+      type: BulkerTx.supply,
       asset: underlyingAddress,
-      amount: amount,
+      amount,
     });
     if (defers.length > 0) batch.push(...defers);
-    return { value, batch };
-  }
+    this._value = this._value.add(value);
+    this.bulkerOperations$.next([...this.bulkerOperations$.getValue(), batch]);
 
-  async #validateRepay(
-    underlyingAddress: Address,
-    amount: BigNumber
-  ): Promise<{ value: BigNumber; batch: Bulker.Transactions[] }> {
-    if (amount.isZero()) throw Error(Errors.AMOUNT_IS_ZERO);
+    return dataAfterSupply;
+  }
+  protected _applySupplyCollateralOperation(
+    data: MorphoAaveV3DataHolder,
+    operation: TxOperation,
+    index: number
+  ): MorphoAaveV3DataHolder | null {
+    console.log("BulkerTxHandler._applySupplyCollateralOperation");
+    const { underlyingAddress, amount } = operation;
+
+    const transferData = this.#transferToBulker(
+      data,
+      underlyingAddress,
+      amount,
+      index
+    );
+    if (!transferData) return null;
 
     const {
       batch: transferBatch,
       defers,
       value,
-    } = await this.#transferToBulker(underlyingAddress, amount);
+      data: dataAfterTransfer,
+    } = transferData;
+
+    if (!dataAfterTransfer) return null;
+
+    const dataAfterSupply = super._applySupplyCollateralOperation(
+      dataAfterTransfer,
+      operation,
+      index
+    );
+
+    if (!dataAfterSupply) return null;
+
+    const batch: Bulker.Transactions[] = transferBatch;
+
+    batch.push({
+      type: BulkerTx.supplyCollateral,
+      asset: underlyingAddress,
+      amount,
+    });
+    if (defers.length > 0) batch.push(...defers);
+    this._value = this._value.add(value);
+    this.bulkerOperations$.next([...this.bulkerOperations$.getValue(), batch]);
+
+    return dataAfterSupply;
+  }
+
+  protected _applyRepayOperation(
+    data: MorphoAaveV3DataHolder,
+    operation: TxOperation,
+    index: number
+  ): MorphoAaveV3DataHolder | null {
+    const { underlyingAddress, amount } = operation;
+
+    const transferData = this.#transferToBulker(
+      data,
+      underlyingAddress,
+      amount,
+      index
+    );
+    if (!transferData) return null;
+
+    const {
+      batch: transferBatch,
+      defers,
+      value,
+      data: dataAfterTransfer,
+    } = transferData;
+
+    if (!dataAfterTransfer) return null;
+
+    const dataAfterRepay = super._applyRepayOperation(
+      dataAfterTransfer,
+      operation,
+      index
+    );
+
+    if (!dataAfterRepay) return null;
+
     const batch: Bulker.Transactions[] = transferBatch;
 
     batch.push({
       type: BulkerTx.repay,
-      amount,
       asset: underlyingAddress,
+      amount,
     });
-
     if (defers.length > 0) batch.push(...defers);
-    return { value, batch };
+    this._value = this._value.add(value);
+    this.bulkerOperations$.next([...this.bulkerOperations$.getValue(), batch]);
+
+    return dataAfterRepay;
   }
 
-  async #validateBorrow(
-    underlyingAddress: Address,
-    amount: BigNumber,
-    unwrap = false
-  ): Promise<{ batch: Bulker.Transactions[] }> {
-    underlyingAddress = getAddress(underlyingAddress);
-    const batch: Bulker.Transactions[] = [];
+  protected _applyBorrowOperation(
+    data: MorphoAaveV3DataHolder,
+    operation: TxOperation,
+    index: number
+  ): MorphoAaveV3DataHolder | null {
+    const underlyingAddress = getAddress(operation.underlyingAddress);
 
-    const userMarketsData = this.#adapter.getUserMarketsData();
-    const userData = this.#adapter.getUserData();
+    const batch: Bulker.Transactions[] = [];
+    const txType = BulkerTx.borrow;
+
+    const userMarketsData = data.getUserMarketsData();
+    const userData = data.getUserData();
     // make sure to never send tokens to an unknown address
     if (
       !userData ||
@@ -200,27 +258,38 @@ export default class BulkerTxHandler
       !isAddress(userData.address) ||
       userData.address === constants.AddressZero
     )
-      throw Error(Errors.INCONSISTENT_DATA);
+      return this._raiseError(index, ErrorCode.missingData, operation);
 
-    const { amount: max } =
-      this.#adapter.getUserMaxCapacity(
-        underlyingAddress,
-        TransactionType.borrow
-      ) ?? {};
+    const { amount: max, limiter } =
+      data.getUserMaxCapacity(underlyingAddress, TransactionType.borrow) ?? {};
+    if (!max || !limiter)
+      return this._raiseError(index, ErrorCode.missingData, operation);
 
-    if (!max || max.lt(amount)) throw Error(Errors.NOT_ENOUGH_COLLATERAL);
-    const receiver = unwrap ? addresses.bulker : userData.address;
+    const receiver = operation.unwrap ? addresses.bulker : userData.address;
 
     batch.push({
-      type: BulkerTx.borrow,
+      type: txType,
       to: receiver,
       asset: underlyingAddress,
-      amount,
+      amount: operation.amount,
     });
 
-    if (unwrap) {
+    const stateAfterBorrow = super._applyBorrowOperation(
+      data,
+      operation,
+      index
+    );
+    if (!stateAfterBorrow) return null;
+
+    if (operation.unwrap) {
+      const unwrapOp = {
+        type: OperationType.unwrap,
+        amount: operation.amount,
+        underlyingAddress: operation.underlyingAddress,
+      } as const;
+
       if (![Underlying.wsteth, Underlying.weth].includes(underlyingAddress))
-        throw Error(Errors.INCONSISTENT_DATA);
+        return this._raiseError(index, ErrorCode.unknownMarket, operation);
 
       batch.push({
         type: BulkerTx.unwrap,
@@ -228,24 +297,30 @@ export default class BulkerTxHandler
         receiver: userData.address,
         amount: constants.MaxUint256, // Use maxUint to unwrap all and transfer all to the user
       });
+      this.bulkerOperations$.next([
+        ...this.bulkerOperations$.getValue(),
+        batch,
+      ]);
+
+      return super._applyUnwrapOperation(stateAfterBorrow, unwrapOp, index);
     }
-    return { batch };
+    this.bulkerOperations$.next([...this.bulkerOperations$.getValue(), batch]);
+
+    return stateAfterBorrow;
   }
 
-  async #validateWithdraw(
-    underlyingAddress: Address,
-    amount: BigNumber,
-    unwrap = false
-  ): Promise<{ batch: Bulker.Transactions[] }> {
-    underlyingAddress = getAddress(underlyingAddress);
-    const batch: Bulker.Transactions[] = [];
-    const txType =
-      underlyingAddress === addresses.weth
-        ? BulkerTx.withdraw
-        : BulkerTx.withdrawCollateral;
+  protected _applyWithdrawOperation(
+    data: MorphoAaveV3DataHolder,
+    operation: TxOperation,
+    index: number
+  ): MorphoAaveV3DataHolder | null {
+    const underlyingAddress = getAddress(operation.underlyingAddress);
 
-    const userMarketsData = this.#adapter.getUserMarketsData();
-    const userData = this.#adapter.getUserData();
+    const batch: Bulker.Transactions[] = [];
+    const txType = BulkerTx.withdraw;
+
+    const userMarketsData = data.getUserMarketsData();
+    const userData = data.getUserData();
     // make sure to never send tokens to an unknown address
     if (
       !userData ||
@@ -253,50 +328,133 @@ export default class BulkerTxHandler
       !isAddress(userData.address) ||
       userData.address === constants.AddressZero
     )
-      throw Error(Errors.INCONSISTENT_DATA);
+      return this._raiseError(index, ErrorCode.missingData, operation);
 
     const { amount: max, limiter } =
-      this.#adapter.getUserMaxCapacity(
-        underlyingAddress,
-        underlyingAddress === addresses.weth
-          ? TransactionType.withdrawCollateral
-          : TransactionType.withdraw
-      ) ?? {};
-    if (!max || !limiter) throw Error(Errors.INCONSISTENT_DATA);
+      data.getUserMaxCapacity(underlyingAddress, TransactionType.withdraw) ??
+      {};
+    if (!max || !limiter)
+      return this._raiseError(index, ErrorCode.missingData, operation);
 
-    if (
-      // edge case: if the user want to withdraw max and is not limited by the health factor,
-      // we can enter any amount
-      // edge case: weth is in supply only so we can withdraw if the limiter is not the pool liquidity
-      max.lt(amount) &&
-      ((underlyingAddress === addresses.weth &&
-        limiter === MaxCapacityLimiter.poolLiquidity) ||
-        [
-          MaxCapacityLimiter.poolLiquidity,
-          MaxCapacityLimiter.borrowCapacity,
-        ].includes(limiter))
-    )
-      throw Error(Errors.NOT_ENOUGH_COLLATERAL);
+    const receiver = operation.unwrap ? addresses.bulker : userData.address;
 
-    const receiver = unwrap ? addresses.bulker : userData.address;
     batch.push({
       type: txType,
       receiver,
       asset: underlyingAddress,
-      amount,
+      amount: operation.amount,
     });
 
-    if (unwrap) {
+    const stateAfterWithdraw = super._applyWithdrawOperation(
+      data,
+      operation,
+      index
+    );
+    if (!stateAfterWithdraw) return null;
+
+    if (operation.unwrap) {
+      const unwrapOp = {
+        type: OperationType.unwrap,
+        amount: operation.amount,
+        underlyingAddress: operation.underlyingAddress,
+      } as const;
+
       if (![Underlying.wsteth, Underlying.weth].includes(underlyingAddress))
-        throw Error(Errors.INCONSISTENT_DATA);
+        return this._raiseError(index, ErrorCode.unknownMarket, operation);
+
       batch.push({
         type: BulkerTx.unwrap,
         asset: underlyingAddress,
         receiver: userData.address,
         amount: constants.MaxUint256, // Use maxUint to unwrap all and transfer all to the user
       });
+
+      this.bulkerOperations$.next([
+        ...this.bulkerOperations$.getValue(),
+        batch,
+      ]);
+
+      return super._applyUnwrapOperation(stateAfterWithdraw, unwrapOp, index);
     }
-    return { batch };
+
+    this.bulkerOperations$.next([...this.bulkerOperations$.getValue(), batch]);
+
+    return stateAfterWithdraw;
+  }
+
+  protected _applyWithdrawCollateralOperation(
+    data: MorphoAaveV3DataHolder,
+    operation: TxOperation,
+    index: number
+  ): MorphoAaveV3DataHolder | null {
+    const underlyingAddress = getAddress(operation.underlyingAddress);
+
+    const batch: Bulker.Transactions[] = [];
+    const txType = BulkerTx.withdrawCollateral;
+
+    const userMarketsData = data.getUserMarketsData();
+    const userData = data.getUserData();
+    // make sure to never send tokens to an unknown address
+    if (
+      !userData ||
+      !userMarketsData ||
+      !isAddress(userData.address) ||
+      userData.address === constants.AddressZero
+    )
+      return this._raiseError(index, ErrorCode.missingData, operation);
+
+    const { amount: max, limiter } =
+      data.getUserMaxCapacity(
+        underlyingAddress,
+        TransactionType.withdrawCollateral
+      ) ?? {};
+    if (!max || !limiter)
+      return this._raiseError(index, ErrorCode.missingData, operation);
+
+    const receiver = operation.unwrap ? addresses.bulker : userData.address;
+
+    batch.push({
+      type: txType,
+      receiver,
+      asset: underlyingAddress,
+      amount: operation.amount,
+    });
+
+    const stateAfterWithdraw = super._applyWithdrawCollateralOperation(
+      data,
+      operation,
+      index
+    );
+    if (!stateAfterWithdraw) return null;
+
+    if (operation.unwrap) {
+      const unwrapOp = {
+        type: OperationType.unwrap,
+        amount: operation.amount,
+        underlyingAddress: operation.underlyingAddress,
+      } as const;
+
+      if (![Underlying.wsteth, Underlying.weth].includes(underlyingAddress))
+        return this._raiseError(index, ErrorCode.unknownMarket, operation);
+
+      batch.push({
+        type: BulkerTx.unwrap,
+        asset: underlyingAddress,
+        receiver: userData.address,
+        amount: constants.MaxUint256, // Use maxUint to unwrap all and transfer all to the user
+      });
+
+      this.bulkerOperations$.next([
+        ...this.bulkerOperations$.getValue(),
+        batch,
+      ]);
+
+      return super._applyUnwrapOperation(stateAfterWithdraw, unwrapOp, index);
+    }
+
+    this.bulkerOperations$.next([...this.bulkerOperations$.getValue(), batch]);
+
+    return stateAfterWithdraw;
   }
 
   /**
@@ -309,21 +467,26 @@ export default class BulkerTxHandler
    * @param amount
    * @private
    */
-  async #transferToBulker(
+  #transferToBulker(
+    data: MorphoAaveV3DataHolder,
     underlyingAddress: string,
-    amount: BigNumber
-  ): Promise<{
+    amount: BigNumber,
+    index: number
+  ): {
     value: BigNumber;
     batch: Bulker.Transactions[];
     defers: Bulker.Transactions[];
-  }> {
+    data: MorphoAaveV3DataHolder | null;
+  } | null {
     const batch: Bulker.Transactions[] = [];
     const defers: Bulker.Transactions[] = [];
     let value = constants.Zero;
+    let simulatedData: MorphoAaveV3DataHolder | null = data;
 
     const userMarketsData = this.#adapter.getUserMarketsData();
     const userData = this.#adapter.getUserData();
-    if (!userData || !userMarketsData) throw Error(Errors.INCONSISTENT_DATA);
+    if (!userData || !userMarketsData)
+      return this._raiseError(index, ErrorCode.missingData);
 
     let toTransfer = amount;
 
@@ -341,9 +504,6 @@ export default class BulkerTxHandler
           wstethMissing.add(WRAP_BUFFER),
           userData.stEthData.stethPerWsteth
         );
-
-        if (userData.stEthData.balance.lt(amountToWrap))
-          throw Error(Errors.NOT_ENOUGH_BALANCE);
 
         //  check the approval to the bulker
         if (userData.stEthData.bulkerApproval.lt(amountToWrap)) {
@@ -366,6 +526,15 @@ export default class BulkerTxHandler
             amount: amountToWrap,
           }
         );
+        simulatedData = this._applyWrapOperation(
+          simulatedData,
+          {
+            type: OperationType.wrap,
+            amount: amountToWrap,
+            underlyingAddress: addresses.wsteth,
+          },
+          index
+        );
         //  defer the skim to the end of the batch
         defers.push({
           type: BulkerTx.skim,
@@ -379,19 +548,22 @@ export default class BulkerTxHandler
         constants.Zero
       );
 
-      const wethMarket = userMarketsData[addresses.weth];
-      if (!wethMarket) throw Error(Errors.UNKNOWN_MARKET);
-
       if (wethMissing.gt(0)) {
-        if (userData.ethBalance.lt(wethMissing))
-          throw Error(Errors.NOT_ENOUGH_ETH); // TODO: use a buffer to keep an amount for the gas
-
         value = value.add(wethMissing); // Add value to the tx
         batch.push({
           type: BulkerTx.wrap,
           asset: addresses.weth,
           amount: wethMissing,
         });
+        simulatedData = this._applyWrapOperation(
+          simulatedData,
+          {
+            type: OperationType.wrap,
+            amount: wethMissing,
+            underlyingAddress: addresses.weth,
+          },
+          index
+        );
 
         // no skim needed since the eth wrapping is a 1:1 operation
         toTransfer = toTransfer.sub(wethMissing);
@@ -400,7 +572,7 @@ export default class BulkerTxHandler
     if (toTransfer.gt(0)) {
       // check  user  balance
       if (userMarketsData[underlyingAddress]!.walletBalance.lt(toTransfer))
-        throw Error(Errors.NOT_ENOUGH_BALANCE);
+        return this._raiseError(index, ErrorCode.insufficientBalance);
 
       //  check approval
       if (userMarketsData[underlyingAddress]!.bulkerApproval.lt(toTransfer)) {
@@ -418,16 +590,6 @@ export default class BulkerTxHandler
         amount: toTransfer,
       });
     }
-    return { value, batch, defers };
+    return { value, batch, defers, data: simulatedData };
   }
-}
-
-export enum Errors {
-  NOT_ENOUGH_BALANCE = "Not enough balance",
-  NOT_ENOUGH_COLLATERAL = "Not enough collateral",
-  INCONSISTENT_DATA = "Inconsistent data",
-  UNKNOWN_MARKET = "Unknown market",
-  NOT_ENOUGH_ETH = "Not enough ETH",
-  AMOUNT_IS_ZERO = "Amount is zero",
-  UNKNOWN_OPERATION = "Unknown operation",
 }
