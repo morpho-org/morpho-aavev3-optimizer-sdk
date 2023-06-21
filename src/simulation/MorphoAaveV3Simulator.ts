@@ -132,7 +132,6 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
     data: MorphoAaveV3DataHolder;
     operations: Operation[];
   }): void {
-    console.log("Simulating operations", operations);
     if (this.error$.getValue() !== null) this.error$.next(null);
 
     const simulatedData = operations.reduce(
