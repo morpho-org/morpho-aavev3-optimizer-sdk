@@ -132,7 +132,8 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
     data: MorphoAaveV3DataHolder;
     operations: Operation[];
   }): void {
-    this.error$.next(null);
+    console.log("Simulating operations", operations);
+    if (this.error$.getValue() !== null) this.error$.next(null);
 
     const simulatedData = operations.reduce(
       this._applyOperation.bind(this),
@@ -176,7 +177,6 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
     index: number
   ) {
     if (!data) return null;
-
     let simulatedState: MorphoAaveV3DataHolder | null;
 
     switch (operation.type) {
@@ -220,7 +220,7 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
     return simulatedState;
   }
 
-  private _raiseError(index: number, code: ErrorCode, operation?: Operation) {
+  protected _raiseError(index: number, code: ErrorCode, operation?: Operation) {
     if (this.error$.getValue()) return null;
     this.error$.next(new SimulationError(index, code, operation));
     return null;
@@ -231,6 +231,8 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
     operation: TxOperation,
     index: number
   ): MorphoAaveV3DataHolder | null {
+    if (operation.amount.isZero())
+      return this._raiseError(index, ErrorCode.zeroAmount, operation);
     const marketConfig = data.getMarketsConfigs()[operation.underlyingAddress];
 
     /* Market is unknown */
@@ -267,7 +269,11 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
     /******************************/
 
     if (userMarketData.walletBalance.lt(amount))
-      this._raiseError(index, ErrorCode.insufficientWalletBalance, operation);
+      return this._raiseError(
+        index,
+        ErrorCode.insufficientWalletBalance,
+        operation
+      );
 
     const p2pAmount = minBN(amount, marketData.morphoBorrowOnPool);
     const poolAmount = amount.sub(p2pAmount);
@@ -285,7 +291,7 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
       marketConfig.supplyCap.gt(0) &&
       poolLiquidity.gt(marketConfig.supplyCap)
     ) {
-      this._raiseError(index, ErrorCode.supplyCapReached, operation);
+      return this._raiseError(index, ErrorCode.supplyCapReached, operation);
     }
 
     const newMarketData: MarketData = {
@@ -377,6 +383,8 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
     operation: TxOperation,
     index: number
   ): MorphoAaveV3DataHolder | null {
+    if (operation.amount.isZero())
+      return this._raiseError(index, ErrorCode.zeroAmount, operation);
     const marketConfig = data.getMarketsConfigs()[operation.underlyingAddress];
 
     /* Market is unknown */
@@ -391,12 +399,12 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
     if (marketConfig.isBorrowPaused)
       return this._raiseError(index, ErrorCode.operationDisabled, operation);
 
-    const isEmode = this._globalData!.eModeCategoryData.eModeId.eq(
-      marketConfig.eModeCategoryId
-    );
+    const isEmode = data
+      .getGlobalData()!
+      .eModeCategoryData.eModeId.eq(marketConfig.eModeCategoryId);
 
     /* The market is not in emode */
-    if (!this._globalData!.eModeCategoryData.eModeId.isZero() && !isEmode)
+    if (!data.getGlobalData()!.eModeCategoryData.eModeId.isZero() && !isEmode)
       return this._raiseError(index, ErrorCode.noBorrowableEmode, operation);
 
     const marketData = data.getMarketsData()[operation.underlyingAddress];
@@ -424,7 +432,7 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
     const poolAmount = amount.sub(p2pAmount);
 
     if (marketData.poolLiquidity.lt(poolAmount))
-      this._raiseError(index, ErrorCode.notEnoughLiquidity, operation);
+      return this._raiseError(index, ErrorCode.notEnoughLiquidity, operation);
 
     /* Update market data */
     const morphoBorrowInP2P = marketData.morphoBorrowInP2P.add(p2pAmount);
@@ -436,7 +444,7 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
     const poolLiquidity = marketData.poolLiquidity.sub(p2pAmount); // Matched
 
     if (marketConfig.borrowCap.gt(0) && poolBorrow.gt(marketConfig.borrowCap)) {
-      this._raiseError(index, ErrorCode.borrowCapReached, operation);
+      return this._raiseError(index, ErrorCode.borrowCapReached, operation);
     }
 
     const newMarketData: MarketData = {
@@ -528,6 +536,9 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
     operation: TxOperation,
     index: number
   ): MorphoAaveV3DataHolder | null {
+    if (operation.amount.isZero())
+      return this._raiseError(index, ErrorCode.zeroAmount, operation);
+
     const marketConfig = data.getMarketsConfigs()[operation.underlyingAddress];
 
     /* Market is unknown */
@@ -564,7 +575,11 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
     /******************************/
 
     if (userMarketData.walletBalance.lt(amount))
-      this._raiseError(index, ErrorCode.insufficientWalletBalance, operation);
+      return this._raiseError(
+        index,
+        ErrorCode.insufficientWalletBalance,
+        operation
+      );
 
     /* Update market data */
     const totalMorphoCollateral = marketData.totalMorphoCollateral.add(amount);
@@ -574,7 +589,7 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
       marketConfig.supplyCap.gt(0) &&
       poolLiquidity.gt(marketConfig.supplyCap)
     ) {
-      this._raiseError(index, ErrorCode.supplyCapReached, operation);
+      return this._raiseError(index, ErrorCode.supplyCapReached, operation);
     }
 
     const newMarketData: MarketData = {
@@ -620,6 +635,9 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
     operation: TxOperation,
     index: number
   ): MorphoAaveV3DataHolder | null {
+    if (operation.amount.isZero())
+      return this._raiseError(index, ErrorCode.zeroAmount, operation);
+
     const marketConfig = data.getMarketsConfigs()[operation.underlyingAddress];
 
     /* Market is unknown */
@@ -656,13 +674,13 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
     /******************************/
 
     if (userMarketData.totalSupply.lt(amount))
-      this._raiseError(index, ErrorCode.insufficientBalance, operation);
+      return this._raiseError(index, ErrorCode.insufficientBalance, operation);
 
     const poolAmount = minBN(amount, userMarketData.supplyOnPool);
     const p2pAmount = amount.sub(poolAmount);
 
     if (marketData.poolLiquidity.lt(poolAmount))
-      this._raiseError(index, ErrorCode.notEnoughLiquidity, operation);
+      return this._raiseError(index, ErrorCode.notEnoughLiquidity, operation);
 
     /* Update market data */
     const morphoSupplyOnPool = marketData.morphoSupplyOnPool.sub(poolAmount);
@@ -676,7 +694,7 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
     const poolLiquidity = marketData.poolLiquidity.sub(amount); //pool withdraw + unMatched
 
     if (marketConfig.borrowCap.gt(0) && poolBorrow.gt(marketConfig.borrowCap)) {
-      this._raiseError(index, ErrorCode.borrowCapReached, operation);
+      return this._raiseError(index, ErrorCode.borrowCapReached, operation);
     }
 
     const newMarketData: MarketData = {
@@ -768,6 +786,9 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
     operation: TxOperation,
     index: number
   ): MorphoAaveV3DataHolder | null {
+    if (operation.amount.isZero())
+      return this._raiseError(index, ErrorCode.zeroAmount, operation);
+
     const marketConfig = data.getMarketsConfigs()[operation.underlyingAddress];
 
     /* Market is unknown */
@@ -802,15 +823,18 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
     /* Simulated Data Computation */
     /*** Errors are not blocking **/
     /******************************/
-
     if (userMarketData?.totalBorrow.lt(amount))
-      this._raiseError(index, ErrorCode.insufficientBalance, operation);
+      return this._raiseError(index, ErrorCode.insufficientBalance, operation);
 
     const poolAmount = minBN(amount, userMarketData.borrowOnPool);
     const p2pAmount = amount.sub(poolAmount);
 
     if (userMarketData.walletBalance.lt(amount))
-      this._raiseError(index, ErrorCode.insufficientWalletBalance, operation);
+      return this._raiseError(
+        index,
+        ErrorCode.insufficientWalletBalance,
+        operation
+      );
 
     /* Update market data */
     const morphoBorrowInP2P = marketData.morphoBorrowInP2P.sub(p2pAmount);
@@ -910,6 +934,9 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
     operation: TxOperation,
     index: number
   ): MorphoAaveV3DataHolder | null {
+    if (operation.amount.isZero())
+      return this._raiseError(index, ErrorCode.zeroAmount, operation);
+
     const marketConfig = data.getMarketsConfigs()[operation.underlyingAddress];
 
     /* Market is unknown */
@@ -946,10 +973,10 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
     /******************************/
 
     if (userMarketData.totalCollateral.lt(amount))
-      this._raiseError(index, ErrorCode.insufficientBalance, operation);
+      return this._raiseError(index, ErrorCode.insufficientBalance, operation);
 
     if (marketData.poolLiquidity.lt(amount))
-      this._raiseError(index, ErrorCode.notEnoughLiquidity, operation);
+      return this._raiseError(index, ErrorCode.notEnoughLiquidity, operation);
 
     /* Update market data */
     const totalMorphoCollateral = marketData.totalMorphoCollateral.sub(amount);
@@ -1006,6 +1033,9 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
     operation: WrapOperation,
     index: number
   ): MorphoAaveV3DataHolder | null {
+    if (operation.amount.isZero())
+      return this._raiseError(index, ErrorCode.zeroAmount, operation);
+
     const userData = data.getUserData();
     if (!userData)
       return this._raiseError(index, ErrorCode.missingData, operation);
@@ -1021,7 +1051,13 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
       operation.underlyingAddress === Underlying.weth
         ? userData.ethBalance
         : userData.stEthData.balance;
-    const amount = minBN(maxToWrap, operation.amount);
+
+    const amount = operation.amount.eq(constants.MaxUint256)
+      ? minBN(maxToWrap, operation.amount)
+      : operation.amount;
+
+    if (amount.gt(maxToWrap))
+      return this._raiseError(index, ErrorCode.insufficientBalance, operation);
 
     const isEth = operation.underlyingAddress === Underlying.weth;
 
@@ -1061,11 +1097,14 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
     );
   }
 
-  private _applyUnwrapOperation(
+  protected _applyUnwrapOperation(
     data: MorphoAaveV3DataHolder,
     operation: UnwrapOperation,
     index: number
   ): MorphoAaveV3DataHolder | null {
+    if (operation.amount.isZero())
+      return this._raiseError(index, ErrorCode.zeroAmount, operation);
+
     const userData = data.getUserData();
     const marketsData = data.getUserMarketsData();
     if (!userData || !marketsData)

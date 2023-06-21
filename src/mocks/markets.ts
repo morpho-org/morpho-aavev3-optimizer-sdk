@@ -185,7 +185,7 @@ export const MARKETS_CONFIGS: MarketMapping<MarketConfig> = {
     p2pIndexCursor: BigNumber.from(3333),
     borrowCap: constants.Zero,
     supplyCap: constants.Zero,
-    isCollateral: false,
+    isCollateral: true,
   },
 };
 

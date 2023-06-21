@@ -1,6 +1,7 @@
 import { Operation } from "./simulation.types";
 
 export enum ErrorCode {
+  zeroAmount = "ZERO_AMOUNT",
   unknownMarket = "UNKNOWN_MARKET",
   missingData = "MISSING_DATA",
   operationDisabled = "OPERATION_DISABLED",
