@@ -17,6 +17,7 @@ import { Connectable } from "../utils/mixins/Connectable";
 
 import { Bulker } from "./Bulker.TxHandler.interface";
 import { IBatchTxHandler } from "./TxHandler.interface";
+import { NotifierManager } from "./mixins/NotifierManager";
 
 import BulkerTx = Bulker.TransactionType;
 
@@ -43,7 +44,7 @@ export interface BulkerApprovalSignature {
 export type BulkerSignature = BulkerTransferSignature | BulkerApprovalSignature;
 
 export default class BulkerTxHandler
-  extends Connectable(MorphoAaveV3Simulator)
+  extends NotifierManager(Connectable(MorphoAaveV3Simulator))
   implements IBatchTxHandler
 {
   #adapter: MorphoAaveV3Adapter;
