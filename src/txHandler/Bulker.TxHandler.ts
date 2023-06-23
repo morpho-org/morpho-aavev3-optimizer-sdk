@@ -78,7 +78,6 @@ export default class BulkerTxHandler
   }
 
   public addOperations(operations: TxOperation[]): void {
-    console.log("addOperations", operations);
     this._simulatorOperations.next(operations);
   }
 
@@ -151,7 +150,6 @@ export default class BulkerTxHandler
     operation: TxOperation,
     index: number
   ): MorphoAaveV3DataHolder | null {
-    console.log("BulkerTxHandler._applySupplyCollateralOperation");
     const { underlyingAddress, amount } = operation;
 
     const transferData = this.#transferToBulker(

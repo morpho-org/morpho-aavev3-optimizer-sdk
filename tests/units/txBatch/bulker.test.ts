@@ -25,7 +25,7 @@ describe("bulker", () => {
     expect(bulkerHandler.getBulkerTransactions()).toHaveLength(0);
   });
   afterEach(() => {
-    bulkerHandler.reset();
+    bulkerHandler.close();
   });
 
   describe("Bulker observability", () => {
@@ -39,7 +39,7 @@ describe("bulker", () => {
       expect(spy).toHaveBeenCalledTimes(1);
       expect(spy).toHaveBeenCalledWith([]);
       spy.mockClear();
-      await bulkerHandler.addOperations([
+      bulkerHandler.addOperations([
         {
           type: TransactionType.supplyCollateral,
           underlyingAddress: Underlying.dai,
@@ -358,9 +358,11 @@ describe("bulker", () => {
         const amount = parseUnits("40");
 
         bulkerHandler.error$.subscribe((err) => {
+          if (!err) return;
           console.log(err);
         });
-        await bulkerHandler.addOperations([
+
+        bulkerHandler.addOperations([
           {
             type,
             underlyingAddress: Underlying.wsteth,
