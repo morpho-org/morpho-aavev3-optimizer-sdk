@@ -10,6 +10,7 @@ import {
   TransactionType,
 } from "../types";
 import { delay } from "../utils";
+import { Connectable } from "../utils/mixins/Connectable";
 import { getPermit2Message } from "../utils/permit2";
 
 import { ApprovalHandlerOptions } from "./ApprovalHandler.interface";
@@ -17,28 +18,14 @@ import { NotifierManager } from "./NotifierManager";
 import { ISimpleTxHandler } from "./TxHandler.interface";
 
 export default class MockTxHandler
-  extends NotifierManager
+  extends Connectable(NotifierManager)
   implements ISimpleTxHandler
 {
-  private _isMockTxHandler = true;
-  static isMockTxHandler(txHandler: any): txHandler is MockTxHandler {
-    return !!(txHandler && txHandler._isMockTxHandler);
-  }
-
-  private _user: string | null = null;
   private _shortDelay: number;
 
   constructor(private _longDelay: number, _shortDelay?: number) {
     super();
     this._shortDelay = _shortDelay ?? this._longDelay / 4;
-  }
-
-  public connect(user: string | null) {
-    this._user = user;
-  }
-
-  public disconnect() {
-    this._user = null;
   }
 
   async handleMorphoTransaction(

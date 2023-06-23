@@ -48,7 +48,10 @@ import { ADAPTER_MOCK_1 } from "./mocks/mock1";
 import { MorphoAaveV3Simulator } from "./simulation/MorphoAaveV3Simulator";
 import { ApprovalHandlerOptions } from "./txHandler/ApprovalHandler.interface";
 import MockTxHandler from "./txHandler/Mock.TxHandler";
-import { ISimpleTxHandler } from "./txHandler/TxHandler.interface";
+import {
+  IBatchTxHandler,
+  ISimpleTxHandler,
+} from "./txHandler/TxHandler.interface";
 import Web3TxHandler from "./txHandler/Web3.TxHandler";
 import { ITransactionNotifier } from "./txHandler/notifiers/TransactionNotifier.interface";
 import {
@@ -59,6 +62,7 @@ import {
   TransactionType,
   UserData,
 } from "./types";
+import { isConnectable } from "./utils/mixins/Connectable";
 
 export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
   private _isMorphoAdapter = true;
@@ -137,7 +141,8 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
     private _userFetcher: UserFetcher,
     private _globalDataFetcher: GlobalDataFetcher,
     private _rewardsFetcher: RewardsFetcher,
-    private _txHandler: ISimpleTxHandler | null = null
+    private _txHandler: ISimpleTxHandler | null = null,
+    private _batchTxHandler: IBatchTxHandler | null = null
   ) {
     super();
     this.marketsData$.next({});
@@ -146,6 +151,22 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
     this.userMarketsData$.next({});
     this.userData$.next(null);
     this.globalData$.next(null);
+  }
+
+  public setTxHandler(txHandler: ISimpleTxHandler | null) {
+    this._txHandler = txHandler;
+
+    if (isConnectable(this._txHandler)) {
+      this._txHandler.connect(this._signer, this._user);
+    }
+  }
+
+  public setBatchTxHandler(batchTxHandler: IBatchTxHandler | null) {
+    this._batchTxHandler = batchTxHandler;
+
+    if (isConnectable(this._batchTxHandler)) {
+      this._batchTxHandler.connect(this._signer, this._user);
+    }
   }
 
   /** Return a simulator instance that allows you to simulate transactions */
@@ -193,11 +214,12 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
 
     await this._updateUserData(true);
 
-    if (Web3TxHandler.isWeb3TxHandler(this._txHandler)) {
-      this._txHandler.connect(signer);
+    if (isConnectable(this._txHandler)) {
+      this._txHandler.connect(signer, user);
     }
-    if (MockTxHandler.isMockTxHandler(this._txHandler)) {
-      this._txHandler.connect(user);
+
+    if (isConnectable(this._batchTxHandler)) {
+      this._batchTxHandler.connect(signer, user);
     }
 
     return this;
@@ -209,12 +231,14 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
 
     await this._setProvider();
 
-    if (
-      Web3TxHandler.isWeb3TxHandler(this._txHandler) ||
-      MockTxHandler.isMockTxHandler(this._txHandler)
-    ) {
+    if (isConnectable(this._txHandler)) {
       this._txHandler.disconnect();
     }
+
+    if (isConnectable(this._batchTxHandler)) {
+      this._batchTxHandler.disconnect();
+    }
+
     this._scaledUserMarketsData = {};
     this.userMarketsData = Object.fromEntries(
       this._marketsList!.map((underlyingAddress) => [underlyingAddress, null])
