@@ -1,4 +1,4 @@
-import { BigNumber, constants, Signature } from "ethers";
+import { BigNumber, constants, Signature, Signer } from "ethers";
 import { getAddress, isAddress } from "ethers/lib/utils";
 import { BehaviorSubject } from "rxjs";
 
@@ -13,6 +13,7 @@ import { MorphoAaveV3Simulator } from "../simulation/MorphoAaveV3Simulator";
 import { ErrorCode } from "../simulation/SimulationError";
 import { OperationType, TxOperation } from "../simulation/simulation.types";
 import { Address, TransactionOptions, TransactionType } from "../types";
+import { Connectable } from "../utils/mixins/Connectable";
 
 import { Bulker } from "./Bulker.TxHandler.interface";
 import { IBatchTxHandler } from "./TxHandler.interface";
@@ -42,7 +43,7 @@ export interface BulkerApprovalSignature {
 export type BulkerSignature = BulkerTransferSignature | BulkerApprovalSignature;
 
 export default class BulkerTxHandler
-  extends MorphoAaveV3Simulator
+  extends Connectable(MorphoAaveV3Simulator)
   implements IBatchTxHandler
 {
   #adapter: MorphoAaveV3Adapter;
@@ -68,6 +69,11 @@ export default class BulkerTxHandler
   ) {
     super(parentAdapter);
     this.#adapter = parentAdapter;
+  }
+
+  public disconnect(): void {
+    this.reset();
+    super.disconnect();
   }
 
   reset() {

@@ -2,7 +2,7 @@ import { INotifierManager } from "./TxHandler.interface";
 import CompositeNotifier from "./notifiers/Composite.notifier";
 import { ITransactionNotifier } from "./notifiers/TransactionNotifier.interface";
 
-export abstract class NotifierManager implements INotifierManager {
+export class NotifierManager implements INotifierManager {
   private _notifiers: ITransactionNotifier[] = [];
   private _compositeNotifier?: ITransactionNotifier;
 

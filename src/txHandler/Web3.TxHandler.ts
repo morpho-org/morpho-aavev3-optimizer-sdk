@@ -29,6 +29,7 @@ import {
   TransactionOptions,
   TransactionType,
 } from "../types";
+import { Connectable } from "../utils/mixins/Connectable";
 import { getPermit2Message } from "../utils/permit2";
 
 import { ApprovalHandlerOptions } from "./ApprovalHandler.interface";
@@ -38,26 +39,11 @@ import { waitTransaction } from "./helpers/waitTransaction";
 import { ITransactionNotifier } from "./notifiers/TransactionNotifier.interface";
 
 export default class Web3TxHandler
-  extends NotifierManager
+  extends Connectable(NotifierManager)
   implements ISimpleTxHandler
 {
-  private _isWeb3TxHandler = true;
-  static isWeb3TxHandler(txHandler: any): txHandler is Web3TxHandler {
-    return !!(txHandler && txHandler._isWeb3TxHandler);
-  }
-
-  private _signer: Signer | null = null;
-
   constructor(private readonly _txSignature?: string) {
     super();
-  }
-
-  public connect(signer: Signer | null) {
-    this._signer = signer;
-  }
-
-  public disconnect() {
-    this._signer = null;
   }
 
   public async handleMorphoTransaction(
