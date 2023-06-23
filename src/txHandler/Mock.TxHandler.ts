@@ -10,15 +10,16 @@ import {
   TransactionType,
 } from "../types";
 import { delay } from "../utils";
+import { Base } from "../utils/mixins/Base";
 import { Connectable } from "../utils/mixins/Connectable";
 import { getPermit2Message } from "../utils/permit2";
 
 import { ApprovalHandlerOptions } from "./ApprovalHandler.interface";
-import { NotifierManager } from "./NotifierManager";
 import { ISimpleTxHandler } from "./TxHandler.interface";
+import { NotifierManager } from "./mixins/NotifierManager";
 
 export default class MockTxHandler
-  extends Connectable(NotifierManager)
+  extends Connectable(NotifierManager(Base))
   implements ISimpleTxHandler
 {
   private _shortDelay: number;

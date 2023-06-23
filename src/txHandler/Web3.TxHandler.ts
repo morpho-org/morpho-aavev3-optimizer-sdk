@@ -1,10 +1,4 @@
-import {
-  BigNumber,
-  constants,
-  PopulatedTransaction,
-  Signer,
-  utils,
-} from "ethers";
+import { BigNumber, constants, PopulatedTransaction, utils } from "ethers";
 import { getAddress, splitSignature } from "ethers/lib/utils";
 
 import { JsonRpcSigner } from "@ethersproject/providers";
@@ -29,17 +23,18 @@ import {
   TransactionOptions,
   TransactionType,
 } from "../types";
+import { Base } from "../utils/mixins/Base";
 import { Connectable } from "../utils/mixins/Connectable";
 import { getPermit2Message } from "../utils/permit2";
 
 import { ApprovalHandlerOptions } from "./ApprovalHandler.interface";
-import { NotifierManager } from "./NotifierManager";
 import { ISimpleTxHandler } from "./TxHandler.interface";
 import { waitTransaction } from "./helpers/waitTransaction";
+import { NotifierManager } from "./mixins/NotifierManager";
 import { ITransactionNotifier } from "./notifiers/TransactionNotifier.interface";
 
 export default class Web3TxHandler
-  extends Connectable(NotifierManager)
+  extends Connectable(NotifierManager(Base))
   implements ISimpleTxHandler
 {
   constructor(private readonly _txSignature?: string) {
