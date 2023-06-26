@@ -57,6 +57,7 @@ describe("MorphoAaveV3", () => {
     await deal(dai.address, morphoUser.address, initialDaiBalance);
 
     initialBlock = await time.latestBlock();
+
     // set the morphoAaveAdapter
     morphoAdapter = MorphoAaveV3Adapter.fromChain({
       provider: ethers.provider,

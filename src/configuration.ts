@@ -1,5 +1,5 @@
 import { BigNumber, getDefaultProvider, providers } from "ethers";
-import { deepCopy, parseUnits } from "ethers/lib/utils";
+import { parseUnits } from "ethers/lib/utils";
 
 interface Configuration {
   /**
