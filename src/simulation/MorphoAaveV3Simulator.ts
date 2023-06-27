@@ -36,7 +36,7 @@ import {
 } from "./simulation.types";
 
 export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
-  protected readonly _simulatorOperations: Subject<Operation[]> = new Subject();
+  public readonly simulatorOperations: Subject<Operation[]> = new Subject();
   private _dataState$: Observable<{
     data: MorphoAaveV3DataHolder;
     operations: Operation[];
@@ -65,7 +65,7 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
 
     /* Everytime one of these objects change, recompute the simulation */
     this._dataState$ = combineLatest({
-      operations: this._simulatorOperations,
+      operations: this.simulatorOperations,
       data: combineLatest({
         globalData: parentAdapter.globalData$,
         marketsConfigs: parentAdapter.marketsConfigs$,
@@ -99,7 +99,7 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
     /* Force the simulation reexecution when operations change */
     this._subscriptions.push(
       this._dataState$
-        .pipe(sample(this._simulatorOperations))
+        .pipe(sample(this.simulatorOperations))
         .subscribe(this._applyOperations.bind(this))
     );
 
@@ -118,11 +118,11 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
   }
 
   public simulate(operations: Operation[]) {
-    this._simulatorOperations.next(operations);
+    this.simulatorOperations.next(operations);
   }
 
   public reset() {
-    this._simulatorOperations.next([]);
+    this.simulatorOperations.next([]);
   }
 
   private _applyOperations({

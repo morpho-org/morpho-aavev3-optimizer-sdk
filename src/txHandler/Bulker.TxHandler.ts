@@ -11,7 +11,11 @@ import addresses from "../contracts/addresses";
 import { Underlying } from "../mocks/markets";
 import { MorphoAaveV3Simulator } from "../simulation/MorphoAaveV3Simulator";
 import { ErrorCode } from "../simulation/SimulationError";
-import { OperationType, TxOperation } from "../simulation/simulation.types";
+import {
+  Operation,
+  OperationType,
+  TxOperation,
+} from "../simulation/simulation.types";
 import { Address, TransactionOptions, TransactionType } from "../types";
 import { Connectable } from "../utils/mixins/Connectable";
 
@@ -82,6 +86,7 @@ export default class BulkerTxHandler
   constructor(parentAdapter: MorphoAaveV3Adapter) {
     super(parentAdapter);
     this.#adapter = parentAdapter;
+    parentAdapter.setBatchTxHandler(this);
   }
 
   public disconnect(): void {
@@ -96,12 +101,38 @@ export default class BulkerTxHandler
     super.reset();
   }
 
-  public addOperations(operations: TxOperation[]): void {
-    this._simulatorOperations.next(operations);
+  public addOperations(operations: Operation[]): void {
+    this.simulatorOperations.next(operations);
   }
 
   #askForSignature(signature: BulkerSignature<false>) {
-    this.signatures$.next([...this.signatures$.getValue(), signature]);
+    const oldSignatures = [...this.signatures$.getValue()];
+    const existingSignatureIndex = oldSignatures.findIndex((sig) => {
+      //TODO
+    });
+
+    if (existingSignatureIndex === -1) {
+      return this.signatures$.next([...oldSignatures, signature]);
+    }
+
+    const existingSignature = oldSignatures[existingSignatureIndex];
+
+    if (!existingSignature.signature) {
+      oldSignatures[existingSignatureIndex] = signature;
+      return this.signatures$.next(oldSignatures);
+    }
+
+    if (
+      "amount" in existingSignature &&
+      existingSignature.amount.gte(
+        (signature as BulkerTransferSignature).amount
+      )
+    ) {
+      return this.signatures$.next(oldSignatures);
+    }
+
+    oldSignatures[existingSignatureIndex] = signature;
+    return this.signatures$.next(oldSignatures);
   }
 
   public addSignatures(signatures: BulkerSignature<true>[]): void {
