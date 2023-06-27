@@ -270,6 +270,9 @@ export interface ScaledUserMarketData {
 
   /** The permit2 nonce of the user */
   readonly nonce: BigNumber;
+
+  /** The permit2 nonce of the user for the bulker contract */
+  readonly bulkerNonce: BigNumber;
 }
 
 /** Exploitable user data for the given market, computed using the current indexes.
@@ -433,4 +436,7 @@ export interface StEthData {
    * `18` _(WEI)_
    */
   readonly bulkerApproval: BigNumber;
+
+  /** The permit2 nonce of the user for the bulker contract */
+  readonly bulkerNonce: BigNumber;
 }

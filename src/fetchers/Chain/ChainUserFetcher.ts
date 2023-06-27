@@ -73,6 +73,7 @@ export class ChainUserFetcher extends ChainFetcher implements UserFetcher {
       scaledBorrowOnPool,
       permit2Approval,
       { nonce },
+      { nonce: bulkerNonce },
     ] = await Promise.all([
       erc20.balanceOf(userAddress),
       erc20.allowance(userAddress, CONTRACT_ADDRESSES.morphoAaveV3),
@@ -88,6 +89,11 @@ export class ChainUserFetcher extends ChainFetcher implements UserFetcher {
         underlyingAddress,
         CONTRACT_ADDRESSES.morphoAaveV3
       ),
+      this._permit2!.allowance(
+        userAddress,
+        underlyingAddress,
+        CONTRACT_ADDRESSES.bulker
+      ),
     ]);
 
     return {
@@ -100,6 +106,7 @@ export class ChainUserFetcher extends ChainFetcher implements UserFetcher {
       walletBalance,
       approval,
       nonce: BigNumber.from(nonce),
+      bulkerNonce: BigNumber.from(bulkerNonce),
       bulkerApproval,
       permit2Approval,
     };
@@ -122,21 +129,32 @@ export class ChainUserFetcher extends ChainFetcher implements UserFetcher {
 
   async fetchStethData(userAddress: Address, blockTag: BlockTag = "latest") {
     const stEth = StEth__factory.connect(addresses.steth, this._provider);
-    const [balance, stethPerWsteth, permit2Approval, bulkerApproval] =
-      await Promise.all([
-        stEth.balanceOf(userAddress, {
-          blockTag,
-        }),
-        stEth.getPooledEthByShares(WadRayMath.WAD, { blockTag }),
-        stEth.allowance(userAddress, CONTRACT_ADDRESSES.permit2),
-        stEth.allowance(userAddress, CONTRACT_ADDRESSES.bulker),
-      ]);
+    const [
+      balance,
+      stethPerWsteth,
+      permit2Approval,
+      bulkerApproval,
+      { nonce: bulkerNonce },
+    ] = await Promise.all([
+      stEth.balanceOf(userAddress, {
+        blockTag,
+      }),
+      stEth.getPooledEthByShares(WadRayMath.WAD, { blockTag }),
+      stEth.allowance(userAddress, CONTRACT_ADDRESSES.permit2),
+      stEth.allowance(userAddress, CONTRACT_ADDRESSES.bulker),
+      this._permit2!.allowance(
+        userAddress,
+        addresses.steth,
+        CONTRACT_ADDRESSES.bulker
+      ),
+    ]);
 
     return {
       balance,
       stethPerWsteth,
       permit2Approval,
       bulkerApproval,
+      bulkerNonce: BigNumber.from(bulkerNonce),
     };
   }
 }

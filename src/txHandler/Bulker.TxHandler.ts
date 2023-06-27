@@ -1,4 +1,4 @@
-import { BigNumber, constants, Signature, Signer } from "ethers";
+import { BigNumber, constants, Signature } from "ethers";
 import { getAddress, isAddress } from "ethers/lib/utils";
 import { BehaviorSubject } from "rxjs";
 
@@ -25,23 +25,38 @@ export enum BulkerSignatureType {
   transfer = "TRANSFER",
   managerApproval = "BULKER_APPROVAL",
 }
-export interface BulkerTransferSignature {
+type FullfillableSignature<Fullfilled extends boolean | null = null> =
+  Fullfilled extends true
+    ? Signature
+    : Fullfilled extends false
+    ? undefined
+    : Signature | undefined;
+
+export interface BulkerTransferSignature<
+  Fullfilled extends boolean | null = null
+> {
   type: BulkerSignatureType.transfer;
   underlyingAddress: Address;
   amount: BigNumber;
   to: Address;
   nonce: BigNumber;
-  signature?: Signature;
+  signature: FullfillableSignature<Fullfilled>;
   transactionIndex: number;
 }
-export interface BulkerApprovalSignature {
+
+export interface BulkerApprovalSignature<
+  Fullfilled extends boolean | null = null
+> {
   type: BulkerSignatureType.managerApproval;
   manager: Address;
   nonce: BigNumber;
-  signature?: Signature;
+  signature: FullfillableSignature<Fullfilled>;
   transactionIndex: number;
 }
-export type BulkerSignature = BulkerTransferSignature | BulkerApprovalSignature;
+
+export type BulkerSignature<Fullfilled extends boolean | null = null> =
+  | BulkerTransferSignature<Fullfilled>
+  | BulkerApprovalSignature<Fullfilled>;
 
 export default class BulkerTxHandler
   extends NotifierManager(Connectable(MorphoAaveV3Simulator))
@@ -64,10 +79,7 @@ export default class BulkerTxHandler
     return this.bulkerOperations$.getValue().flat();
   }
 
-  constructor(
-    parentAdapter: MorphoAaveV3Adapter,
-    options: { deferSignatures: boolean } = { deferSignatures: true }
-  ) {
+  constructor(parentAdapter: MorphoAaveV3Adapter) {
     super(parentAdapter);
     this.#adapter = parentAdapter;
   }
@@ -88,18 +100,24 @@ export default class BulkerTxHandler
     this._simulatorOperations.next(operations);
   }
 
-  public addSignatures(signatures: BulkerSignature[]): void {
-    const currentSignatures = this.signatures$.getValue().map((signature) => {
-      const newSignature = signatures.find(
-        (newSignature) =>
-          newSignature.transactionIndex === signature.transactionIndex &&
-          newSignature.type === signature.type
-      );
-      if (!newSignature) return signature;
+  #askForSignature(signature: BulkerSignature<false>) {
+    this.signatures$.next([...this.signatures$.getValue(), signature]);
+  }
 
-      // TODO: add signature validation
-      return newSignature;
-    });
+  public addSignatures(signatures: BulkerSignature<true>[]): void {
+    const currentSignatures = this.signatures$
+      .getValue()
+      .map((signatureRequest) => {
+        const fullfilledSignature = signatures.find(
+          (signature) =>
+            signature.transactionIndex === signatureRequest.transactionIndex &&
+            signature.type === signatureRequest.type
+        );
+        if (!fullfilledSignature) return signatureRequest;
+
+        // TODO: add signature validation
+        return fullfilledSignature;
+      });
     this.signatures$.next(currentSignatures);
   }
 
@@ -519,6 +537,16 @@ export default class BulkerTxHandler
           });
         }
 
+        this.#askForSignature({
+          type: BulkerSignatureType.transfer,
+          underlyingAddress: addresses.steth,
+          amount: amountToWrap,
+          to: addresses.bulker,
+          nonce: userData.stEthData.bulkerNonce,
+          signature: undefined,
+          transactionIndex: index,
+        });
+
         batch.push(
           {
             type: BulkerTx.transferFrom2,
@@ -586,8 +614,16 @@ export default class BulkerTxHandler
           asset: underlyingAddress,
           amount: toTransfer,
         });
-        //  TODO: retrieve signature
       }
+      this.#askForSignature({
+        type: BulkerSignatureType.transfer,
+        underlyingAddress: underlyingAddress,
+        amount: toTransfer,
+        to: addresses.bulker,
+        nonce: userMarketsData[underlyingAddress]!.bulkerNonce,
+        signature: undefined,
+        transactionIndex: index,
+      });
       // transfer
       batch.push({
         type: BulkerTx.transferFrom2,
