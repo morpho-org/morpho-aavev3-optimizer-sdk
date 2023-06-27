@@ -20,7 +20,6 @@ describe("bulker", () => {
   beforeEach(async () => {
     adapter = MorphoAaveV3Adapter.fromMock(ADAPTER_MOCK);
     bulkerHandler = new BulkerTxHandler(adapter);
-    adapter.setBatchTxHandler(bulkerHandler);
     await adapter.connect(userAddress);
     await adapter.refreshAll();
     expect(bulkerHandler.getBulkerTransactions()).toHaveLength(0);
