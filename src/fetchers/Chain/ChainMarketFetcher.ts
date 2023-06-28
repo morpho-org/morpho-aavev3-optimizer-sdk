@@ -30,7 +30,7 @@ export class ChainMarketFetcher extends ChainFetcher implements MarketFetcher {
   private _pool?: AaveV3Pool;
   private _morpho?: MorphoAaveV3;
 
-  constructor(protected _provider: ethers.providers.BaseProvider) {
+  constructor(_provider: ethers.providers.BaseProvider) {
     super(_provider);
     this._morpho = MorphoAaveV3__factory.connect(
       CONTRACT_ADDRESSES.morphoAaveV3,

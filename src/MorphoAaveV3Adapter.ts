@@ -77,7 +77,7 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
     } = params ?? {};
     const { rewardsFetcher } = getExtraFetchers(extraFetchersConfig);
 
-    const provider = _provider ? _provider : sdk.configuration.defaultProvider;
+    const provider = _provider ?? sdk.configuration.defaultProvider;
 
     return new MorphoAaveV3Adapter(
       new ChainMarketFetcher(provider),
