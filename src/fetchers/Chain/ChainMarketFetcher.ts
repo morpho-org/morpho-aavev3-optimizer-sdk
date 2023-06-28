@@ -30,63 +30,58 @@ export class ChainMarketFetcher extends ChainFetcher implements MarketFetcher {
   private _pool?: AaveV3Pool;
   private _morpho?: MorphoAaveV3;
 
-  constructor(protected _provider: ethers.providers.Provider) {
+  constructor(protected _provider: ethers.providers.BaseProvider) {
     super(_provider);
-    this._morpho = this._multicall.wrap(
-      MorphoAaveV3__factory.connect(
-        CONTRACT_ADDRESSES.morphoAaveV3,
-        this._provider
-      )
+    this._morpho = MorphoAaveV3__factory.connect(
+      CONTRACT_ADDRESSES.morphoAaveV3,
+      this._provider
     );
   }
 
-  protected async _init(): Promise<boolean> {
+  protected async _init(blockTag: BlockTag): Promise<boolean> {
+    if (this._poolDataProvider) return true;
     try {
-      this._morpho = this._multicall.wrap(
-        MorphoAaveV3__factory.connect(
-          CONTRACT_ADDRESSES.morphoAaveV3,
-          this._provider
-        )
+      const overrides = { blockTag };
+
+      this._morpho = MorphoAaveV3__factory.connect(
+        CONTRACT_ADDRESSES.morphoAaveV3,
+        this._provider
       );
 
-      const addressesProvider = this._multicall.wrap(
-        AaveV3AddressesProvider__factory.connect(
-          addresses.morphoAaveV3.addressesProvider,
-          this._provider
-        )
+      const addressesProvider = AaveV3AddressesProvider__factory.connect(
+        addresses.morphoAaveV3.addressesProvider,
+        this._provider
       );
 
-      this._pool = this._multicall.wrap(
-        AaveV3Pool__factory.connect(addresses.morphoAaveV3.pool, this._provider)
+      this._pool = AaveV3Pool__factory.connect(
+        addresses.morphoAaveV3.pool,
+        this._provider
       );
 
-      const oracleAddress = await addressesProvider.getPriceOracle();
+      const oracleAddress = await addressesProvider.getPriceOracle(overrides);
 
-      this._oracle = this._multicall.wrap(
-        AaveV3Oracle__factory.connect(oracleAddress, this._provider)
+      this._oracle = AaveV3Oracle__factory.connect(
+        oracleAddress,
+        this._provider
       );
 
-      this._poolDataProvider = this._multicall.wrap(
-        AaveV3DataProvider__factory.connect(
-          addresses.morphoAaveV3.poolDataProvider,
-          this._provider
-        )
+      this._poolDataProvider = AaveV3DataProvider__factory.connect(
+        addresses.morphoAaveV3.poolDataProvider,
+        this._provider
       );
 
-      return super._init();
+      return super._init(blockTag);
     } catch {
       return false;
     }
   }
 
   async fetchAllMarkets(blockTag: BlockTag = "latest"): Promise<string[]> {
-    this._multicall.defaultBlockTag = blockTag;
-
-    const successfulInit = await this._initialization;
+    const successfulInit = await this._init(blockTag);
 
     if (!successfulInit) throw new Error("Error during initialisation");
 
-    return await this._morpho!.marketsCreated();
+    return await this._morpho!.marketsCreated({ blockTag });
   }
 
   async fetchMarketData(
@@ -94,11 +89,11 @@ export class ChainMarketFetcher extends ChainFetcher implements MarketFetcher {
     { priceSource }: { priceSource: Address },
     blockTag: BlockTag = "latest"
   ): Promise<ScaledMarketData> {
-    this._multicall.defaultBlockTag = blockTag;
-    const successfulInit = await this._initialization;
+    const successfulInit = await this._init(blockTag);
 
     if (!successfulInit) throw new Error("Error during initialisation");
 
+    const overrides = { blockTag };
     const [
       usdPriceFromPriceSource,
       {
@@ -130,28 +125,24 @@ export class ChainMarketFetcher extends ChainFetcher implements MarketFetcher {
         idleSupply,
       },
     ] = await Promise.all([
-      this._oracle!.getAssetPrice(priceSource),
-      this._poolDataProvider!.getReserveData(underlyingAddress),
-      this._morpho!.market(underlyingAddress),
+      this._oracle!.getAssetPrice(priceSource, overrides),
+      this._poolDataProvider!.getReserveData(underlyingAddress, overrides),
+      this._morpho!.market(underlyingAddress, overrides),
     ]);
 
-    const variableDebtToken = this._multicall.wrap(
-      VariableDebtToken__factory.connect(
-        variableDebtTokenAddress,
-        this._provider
-      )
+    const variableDebtToken = VariableDebtToken__factory.connect(
+      variableDebtTokenAddress,
+      this._provider
     );
 
-    const stableDebtToken = this._multicall.wrap(
-      ERC20__factory.connect(stableDebtTokenAddress, this._provider)
+    const stableDebtToken = ERC20__factory.connect(
+      stableDebtTokenAddress,
+      this._provider
     );
-
-    const aToken = this._multicall.wrap(
-      AToken__factory.connect(aTokenAddress, this._provider)
-    );
-
-    const underlying = this._multicall.wrap(
-      ERC20__factory.connect(underlyingAddress, this._provider)
+    const aToken = AToken__factory.connect(aTokenAddress, this._provider);
+    const underlying = ERC20__factory.connect(
+      underlyingAddress,
+      this._provider
     );
 
     const [
@@ -166,16 +157,16 @@ export class ChainMarketFetcher extends ChainFetcher implements MarketFetcher {
       reserveCaps,
     ] = await Promise.all([
       usdPriceFromPriceSource.isZero()
-        ? this._oracle!.getAssetPrice(underlyingAddress)
+        ? this._oracle!.getAssetPrice(underlyingAddress, overrides)
         : usdPriceFromPriceSource, // fallback to the underlying price source if the first price source is not available
-      variableDebtToken.scaledTotalSupply(),
-      stableDebtToken.totalSupply(), // TODO: scale this with the stable index
-      aToken.scaledTotalSupply(),
-      variableDebtToken.scaledBalanceOf(this._morpho!.address),
-      aToken.scaledBalanceOf(this._morpho!.address),
-      underlying.balanceOf(aTokenAddress),
-      underlying.decimals(),
-      this._poolDataProvider!.getReserveCaps(underlyingAddress),
+      variableDebtToken.scaledTotalSupply(overrides),
+      stableDebtToken.totalSupply(overrides), // TODO: scale this with the stable index
+      aToken.scaledTotalSupply(overrides),
+      variableDebtToken.scaledBalanceOf(this._morpho!.address, overrides),
+      aToken.scaledBalanceOf(this._morpho!.address, overrides),
+      underlying.balanceOf(aTokenAddress, overrides),
+      underlying.decimals(overrides),
+      this._poolDataProvider!.getReserveCaps(underlyingAddress, overrides),
     ]);
 
     const borrowCap = reserveCaps.borrowCap.mul(pow10(decimals));
@@ -228,12 +219,13 @@ export class ChainMarketFetcher extends ChainFetcher implements MarketFetcher {
     underlyingAddress: Address,
     blockTag: BlockTag = "latest"
   ): Promise<MarketConfig> {
-    this._multicall.defaultBlockTag = blockTag;
-    const successfulInit = await this._initialization;
+    const successfulInit = await this._init(blockTag);
     if (!successfulInit) throw new Error("Error during initialisation");
 
-    const underlying = this._multicall.wrap(
-      ERC20__factory.connect(underlyingAddress, this._provider)
+    const overrides = { blockTag };
+    const underlying = ERC20__factory.connect(
+      underlyingAddress,
+      this._provider
     );
 
     const [
@@ -245,13 +237,19 @@ export class ChainMarketFetcher extends ChainFetcher implements MarketFetcher {
       { borrowCap, supplyCap },
       eModeCategoryId,
     ] = await Promise.all([
-      this._morpho!.market(underlyingAddress),
-      underlying.symbol(),
-      underlying.name(),
-      underlying.decimals(),
-      this._poolDataProvider!.getReserveConfigurationData(underlyingAddress),
-      this._poolDataProvider!.getReserveCaps(underlyingAddress),
-      this._poolDataProvider!.getReserveEModeCategory(underlyingAddress),
+      this._morpho!.market(underlyingAddress, overrides),
+      underlying.symbol(overrides),
+      underlying.name(overrides),
+      underlying.decimals(overrides),
+      this._poolDataProvider!.getReserveConfigurationData(
+        underlyingAddress,
+        overrides
+      ),
+      this._poolDataProvider!.getReserveCaps(underlyingAddress, overrides),
+      this._poolDataProvider!.getReserveEModeCategory(
+        underlyingAddress,
+        overrides
+      ),
     ]);
 
     return {

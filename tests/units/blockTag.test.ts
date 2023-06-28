@@ -1,4 +1,5 @@
-import { constants } from "ethers";
+import { constants, getDefaultProvider, providers } from "ethers";
+import * as process from "process";
 
 import { MorphoAaveV3Adapter } from "../../src";
 
@@ -8,7 +9,9 @@ describe("Get positions at different blockTags", () => {
   let adapter: MorphoAaveV3Adapter;
 
   it("should have no position before it's first deposit", async () => {
-    adapter = MorphoAaveV3Adapter.fromChain();
+    adapter = MorphoAaveV3Adapter.fromChain({
+      provider: getDefaultProvider(process.env.RPC_URL),
+    });
     await adapter.connect(userAddress);
     await adapter.refreshAll(firstDepositBlockTag - 1);
 

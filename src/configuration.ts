@@ -11,7 +11,7 @@ interface Configuration {
    *
    * @desc It can be overridden by passing a provider to the SDK when using fromChain static method of the Adapter.
    */
-  readonly defaultProvider: providers.Provider;
+  readonly defaultProvider: providers.BaseProvider;
 
   /**
    * The default max iterations for supply and borrow operations.

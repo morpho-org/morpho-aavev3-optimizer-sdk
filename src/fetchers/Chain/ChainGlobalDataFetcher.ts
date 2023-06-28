@@ -1,7 +1,6 @@
-import { BigNumber, constants, ethers } from "ethers";
+import { BigNumber, constants, ethers, providers } from "ethers";
 
 import { BlockTag } from "@ethersproject/providers";
-
 import {
   AaveV3Oracle__factory,
   AaveV3Oracle,
@@ -36,7 +35,7 @@ export class ChainGlobalDataFetcher
     label: string;
   };
 
-  constructor(protected _provider: ethers.providers.Provider) {
+  constructor(protected _provider: ethers.providers.BaseProvider) {
     super(_provider);
     this._rewardsDistributor = RewardsDistributor__factory.connect(
       addresses.morphoDao.rewardsDistributor,
@@ -44,13 +43,12 @@ export class ChainGlobalDataFetcher
     );
   }
 
-  protected async _init(): Promise<boolean> {
+  protected async _init(blockTag: providers.BlockTag): Promise<boolean> {
     try {
-      const addressesProvider = this._multicall.wrap(
-        AaveV3AddressesProvider__factory.connect(
-          addresses.morphoAaveV3.addressesProvider,
-          this._provider
-        )
+      const overrides = { blockTag };
+      const addressesProvider = AaveV3AddressesProvider__factory.connect(
+        addresses.morphoAaveV3.addressesProvider,
+        this._provider
       );
 
       this._rewardsDistributor = RewardsDistributor__factory.connect(
@@ -58,24 +56,25 @@ export class ChainGlobalDataFetcher
         this._provider
       );
 
-      const morpho = this._multicall.wrap(
-        MorphoAaveV3__factory.connect(
-          CONTRACT_ADDRESSES.morphoAaveV3,
-          this._provider
-        )
+      const morpho = MorphoAaveV3__factory.connect(
+        CONTRACT_ADDRESSES.morphoAaveV3,
+        this._provider
       );
-      const pool = this._multicall.wrap(
-        AaveV3Pool__factory.connect(addresses.morphoAaveV3.pool, this._provider)
+      const pool = AaveV3Pool__factory.connect(
+        addresses.morphoAaveV3.pool,
+        this._provider
       );
 
       const [oracleAddress, eModeId] = await Promise.all([
-        addressesProvider.getPriceOracle(),
-        morpho.eModeCategoryId(),
+        addressesProvider.getPriceOracle(overrides),
+        morpho.eModeCategoryId(overrides),
       ]);
 
-      this._oracle = this._multicall.wrap(
-        AaveV3Oracle__factory.connect(oracleAddress, this._provider)
+      this._oracle = AaveV3Oracle__factory.connect(
+        oracleAddress,
+        this._provider
       );
+
       if (eModeId.isZero()) {
         this._eModeCategoryData = {
           eModeId,
@@ -86,7 +85,7 @@ export class ChainGlobalDataFetcher
           priceSource: constants.AddressZero,
         };
       } else {
-        const eModeConfig = await pool.getEModeCategoryData(eModeId);
+        const eModeConfig = await pool.getEModeCategoryData(eModeId, overrides);
 
         this._eModeCategoryData = {
           eModeId,
@@ -100,7 +99,7 @@ export class ChainGlobalDataFetcher
         };
       }
 
-      return super._init();
+      return super._init(blockTag);
     } catch (e) {
       // eslint-disable-next-line no-console
       console.error(e);
@@ -109,7 +108,7 @@ export class ChainGlobalDataFetcher
   }
 
   async fetchGlobalData(blockTag: BlockTag = "latest") {
-    const successfulInit = await this._initialization;
+    const successfulInit = await this._init(blockTag);
     if (!successfulInit) throw new Error("Error during initialisation");
 
     const [currentBlock, feeData, ethUsdPrice, currRoot] = await Promise.all([

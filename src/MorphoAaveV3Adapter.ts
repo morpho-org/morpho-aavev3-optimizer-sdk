@@ -8,6 +8,7 @@ import {
 } from "ethers/lib/utils";
 
 import { BlockTag, Provider } from "@ethersproject/abstract-provider";
+import { BaseProvider } from "@ethersproject/providers";
 import { PercentMath } from "@morpho-labs/ethers-utils/lib/maths";
 import { minBN } from "@morpho-labs/ethers-utils/lib/utils";
 
@@ -67,7 +68,7 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
   static fromChain(params?: {
     txSignature?: string;
     extraFetchersConfig?: Partial<ExtraFetchersConfig>;
-    provider?: Provider;
+    provider?: BaseProvider;
   }) {
     const {
       txSignature,
@@ -187,7 +188,8 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
     this._user = user;
     this._signer = signer;
 
-    if (signer?.provider) await this._setProvider(signer.provider);
+    if (signer?.provider)
+      await this._setProvider(signer.provider as BaseProvider);
 
     await this._updateUserData(true);
 
@@ -226,7 +228,7 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
     return this._user !== null;
   }
 
-  private async _setProvider(provider?: ethers.providers.Provider) {
+  private async _setProvider(provider?: ethers.providers.BaseProvider) {
     provider ??= sdk.configuration.defaultProvider;
 
     if (ChainFetcher.isChainFetcher(this._marketFetcher)) {
