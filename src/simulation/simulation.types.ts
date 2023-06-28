@@ -11,6 +11,7 @@ export enum OperationType {
 export interface TxOperation<T = never> {
   type: TransactionType;
   amount: BigNumber;
+  formattedAmount?: BigNumber;
   underlyingAddress: string;
   signature?: string;
   unwrap?: boolean;
@@ -25,12 +26,14 @@ export interface ClaimMorphoOperation {
 export interface WrapOperation {
   type: OperationType.wrap;
   amount: BigNumber;
+  formattedAmount?: BigNumber;
   underlyingAddress: Address;
 }
 
 export interface UnwrapOperation {
   type: OperationType.unwrap;
   amount: BigNumber;
+  formattedAmount?: BigNumber;
   underlyingAddress: Address;
 }
 
