@@ -10,6 +10,7 @@ import {
   Subject,
   Subscription,
 } from "rxjs";
+import { UserMarketsData } from "src/adapter.types";
 
 import { WadRayMath } from "@morpho-labs/ethers-utils/lib/maths";
 import { minBN } from "@morpho-labs/ethers-utils/lib/utils";
@@ -17,9 +18,11 @@ import { minBN } from "@morpho-labs/ethers-utils/lib/utils";
 import { MorphoAaveV3DataEmitter } from "../MorphoAaveV3DataEmitter";
 import { MorphoAaveV3DataHolder } from "../MorphoAaveV3DataHolder";
 import { SECONDS_PER_YEAR } from "../constants/date";
+import addresses from "../contracts/addresses";
 import { Underlying } from "../mocks/markets";
 import {
   MarketData,
+  StEthData,
   TransactionType,
   UserData,
   UserMarketData,
@@ -193,6 +196,8 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
   ) {
     if (!data) return null;
     let simulatedState: MorphoAaveV3DataHolder | null;
+    let stEthData: StEthData | undefined;
+    let userMarketsData: UserMarketsData | undefined;
 
     this._formatOperation(data, operation);
 
@@ -229,6 +234,18 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
         break;
       case OperationType.wrap:
         simulatedState = this._applyWrapOperation(data, operation, index);
+        if (
+          simulatedState &&
+          getAddress(operation.underlyingAddress) === addresses.wsteth
+        ) {
+          const oldStEthData = simulatedState.getUserData()?.stEthData;
+          if (oldStEthData) {
+            stEthData = {
+              ...oldStEthData,
+              bulkerNonce: oldStEthData.bulkerNonce.add(1),
+            };
+          }
+        }
         break;
       case OperationType.unwrap:
         simulatedState = this._applyUnwrapOperation(data, operation, index);
@@ -236,12 +253,34 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
 
     if (!simulatedState) return simulatedState;
 
+    if (
+      operation.type === TransactionType.repay ||
+      operation.type === TransactionType.supply ||
+      operation.type === TransactionType.supplyCollateral
+    ) {
+      if (simulatedState) {
+        const oldData = simulatedState.getUserMarketsData();
+        if (oldData) {
+          const oldMarketData = oldData[operation.underlyingAddress];
+          if (oldMarketData) {
+            userMarketsData = {
+              ...oldData,
+              [operation.underlyingAddress]: {
+                ...oldMarketData,
+                bulkerNonce: oldMarketData.bulkerNonce.add(1),
+              },
+            };
+          }
+        }
+      }
+    }
+
     const simulatedUserData = simulatedState.getUserData();
     const newUserData = simulatedUserData && {
       ...simulatedState.computeUserData(),
       ethBalance: simulatedUserData.ethBalance,
       morphoRewards: simulatedUserData.morphoRewards,
-      stEthData: simulatedUserData.stEthData,
+      stEthData: stEthData ?? simulatedUserData.stEthData,
       isBulkerManaging: simulatedUserData.isBulkerManaging,
     };
 
@@ -255,7 +294,7 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
       simulatedState.getMarketsList(),
       simulatedState.getGlobalData(),
       newUserData,
-      simulatedState.getUserMarketsData()
+      userMarketsData ?? simulatedState.getUserMarketsData()
     );
   }
 

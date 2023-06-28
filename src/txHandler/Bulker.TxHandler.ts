@@ -142,26 +142,16 @@ export default class BulkerTxHandler
     data: MorphoAaveV3DataHolder;
     operations: Operation[];
   }): void {
-    if (!data.getUserData()?.isBulkerManaging) {
-      this.#askForSignature({
-        type: BulkerSignatureType.managerApproval,
-        manager: addresses.bulker,
-        nonce: BigNumber.from(0), //TODO
-        signature: undefined,
-        transactionIndex: 0,
-      });
-    }
-
     super._applyOperations({ operations, data });
   }
 
   #askForSignature(signature: BulkerSignature<false>) {
     const oldSignatures = [...this.signatures$.getValue()];
-    const existingSignatureIndex = oldSignatures.findIndex((sig) => {
+    const existingSignature = oldSignatures.find((sig) => {
       if (sig.type !== signature.type) return false;
 
       if (sig.type === BulkerSignatureType.managerApproval) {
-        return sig.transactionIndex === signature.transactionIndex;
+        return true;
       }
 
       return (
@@ -171,28 +161,10 @@ export default class BulkerTxHandler
       );
     });
 
-    if (existingSignatureIndex === -1) {
-      return this.signatures$.next([...oldSignatures, signature]);
-    }
-
-    const existingSignature = oldSignatures[existingSignatureIndex];
-
-    if (!existingSignature.signature) {
-      oldSignatures[existingSignatureIndex] = signature;
+    if (existingSignature) {
       return this.signatures$.next(oldSignatures);
     }
-
-    if (
-      existingSignature.type === BulkerSignatureType.managerApproval ||
-      existingSignature.amount.gte(
-        (signature as BulkerTransferSignature).amount
-      )
-    ) {
-      return this.signatures$.next(oldSignatures);
-    }
-
-    oldSignatures[existingSignatureIndex] = signature;
-    return this.signatures$.next(oldSignatures);
+    return this.signatures$.next([...oldSignatures, signature]);
   }
 
   public addSignatures(signatures: BulkerSignature<true>[]): void {
@@ -359,6 +331,18 @@ export default class BulkerTxHandler
     return dataAfterRepay;
   }
 
+  #approveManager(data: MorphoAaveV3DataHolder, index: number) {
+    if (!data.getUserData()?.isBulkerManaging) {
+      this.#askForSignature({
+        type: BulkerSignatureType.managerApproval,
+        manager: addresses.bulker,
+        signature: undefined,
+        nonce: BigNumber.from(0), //TODO
+        transactionIndex: index,
+      });
+    }
+  }
+
   protected _applyBorrowOperation(
     data: MorphoAaveV3DataHolder,
     operation: TxOperation,
@@ -380,6 +364,8 @@ export default class BulkerTxHandler
     ) {
       return this._raiseError(index, ErrorCode.missingData, operation);
     }
+
+    this.#approveManager(data, index);
 
     const receiver = operation.unwrap ? addresses.bulker : userData.address;
 
@@ -599,8 +585,8 @@ export default class BulkerTxHandler
     let value = constants.Zero;
     let simulatedData: MorphoAaveV3DataHolder | null = data;
 
-    const userMarketsData = this.#adapter.getUserMarketsData();
-    const userData = this.#adapter.getUserData();
+    const userMarketsData = simulatedData.getUserMarketsData();
+    const userData = simulatedData.getUserData();
     if (!userData || !userMarketsData)
       return this._raiseError(index, ErrorCode.missingData);
 
