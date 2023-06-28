@@ -110,6 +110,14 @@ export default class BulkerTxHandler
 
   public clearAllOperations(): void {
     this.simulatorOperations$.next([]);
+
+    const bulkerApprovalSignature = this.signatures$
+      .getValue()
+      .find((s) => s.type === BulkerSignatureType.managerApproval);
+
+    if (bulkerApprovalSignature)
+      return this.signatures$.next([bulkerApprovalSignature]);
+
     this.signatures$.next([]);
   }
 
@@ -175,7 +183,7 @@ export default class BulkerTxHandler
     }
 
     if (
-      "amount" in existingSignature &&
+      existingSignature.type === BulkerSignatureType.managerApproval ||
       existingSignature.amount.gte(
         (signature as BulkerTransferSignature).amount
       )
