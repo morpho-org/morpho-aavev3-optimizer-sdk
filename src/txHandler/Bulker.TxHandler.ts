@@ -102,13 +102,65 @@ export default class BulkerTxHandler
   }
 
   public addOperations(operations: Operation[]): void {
-    this.simulatorOperations.next(operations);
+    this.simulatorOperations$.next([
+      ...this.simulatorOperations$.getValue(),
+      ...operations,
+    ]);
+  }
+
+  public clearAllOperations(): void {
+    this.simulatorOperations$.next([]);
+    this.signatures$.next([]);
+  }
+
+  public removeLastOperation(): void {
+    const nOperations = this.simulatorOperations$.getValue().length;
+    if (nOperations === 0) return;
+
+    this.simulatorOperations$.next(
+      this.simulatorOperations$.getValue().slice(0, -1)
+    );
+    this.signatures$.next(
+      this.signatures$
+        .getValue()
+        .filter((s) => s.transactionIndex !== nOperations - 1)
+    );
+  }
+
+  _applyOperations({
+    operations,
+    data,
+  }: {
+    data: MorphoAaveV3DataHolder;
+    operations: Operation[];
+  }): void {
+    if (!data.getUserData()?.isBulkerManaging) {
+      this.#askForSignature({
+        type: BulkerSignatureType.managerApproval,
+        manager: addresses.bulker,
+        nonce: BigNumber.from(0), //TODO
+        signature: undefined,
+        transactionIndex: 0,
+      });
+    }
+
+    super._applyOperations({ operations, data });
   }
 
   #askForSignature(signature: BulkerSignature<false>) {
     const oldSignatures = [...this.signatures$.getValue()];
     const existingSignatureIndex = oldSignatures.findIndex((sig) => {
-      //TODO
+      if (sig.type !== signature.type) return false;
+
+      if (sig.type === BulkerSignatureType.managerApproval) {
+        return sig.transactionIndex === signature.transactionIndex;
+      }
+
+      return (
+        sig.transactionIndex === signature.transactionIndex &&
+        //@ts-expect-error
+        sig.underlyingAddress === signature.underlyingAddress
+      );
     });
 
     if (existingSignatureIndex === -1) {
@@ -161,7 +213,9 @@ export default class BulkerTxHandler
     operation: TxOperation,
     index: number
   ): MorphoAaveV3DataHolder | null {
-    const { underlyingAddress, amount } = operation;
+    const { underlyingAddress, formattedAmount } = operation;
+
+    const amount = formattedAmount!;
 
     const transferData = this.#transferToBulker(
       data,
@@ -206,7 +260,9 @@ export default class BulkerTxHandler
     operation: TxOperation,
     index: number
   ): MorphoAaveV3DataHolder | null {
-    const { underlyingAddress, amount } = operation;
+    const { underlyingAddress, formattedAmount } = operation;
+
+    const amount = formattedAmount!;
 
     const transferData = this.#transferToBulker(
       data,
@@ -252,7 +308,9 @@ export default class BulkerTxHandler
     operation: TxOperation,
     index: number
   ): MorphoAaveV3DataHolder | null {
-    const { underlyingAddress, amount } = operation;
+    const { underlyingAddress, formattedAmount } = operation;
+
+    const amount = formattedAmount!;
 
     const transferData = this.#transferToBulker(
       data,
@@ -284,7 +342,7 @@ export default class BulkerTxHandler
     batch.push({
       type: BulkerTx.repay,
       asset: underlyingAddress,
-      amount,
+      amount, //TODO We want to send max for a repay max
     });
     if (defers.length > 0) batch.push(...defers);
     this._value = this._value.add(value);
@@ -311,13 +369,9 @@ export default class BulkerTxHandler
       !userMarketsData ||
       !isAddress(userData.address) ||
       userData.address === constants.AddressZero
-    )
+    ) {
       return this._raiseError(index, ErrorCode.missingData, operation);
-
-    const { amount: max, limiter } =
-      data.getUserMaxCapacity(underlyingAddress, TransactionType.borrow) ?? {};
-    if (!max || !limiter)
-      return this._raiseError(index, ErrorCode.missingData, operation);
+    }
 
     const receiver = operation.unwrap ? addresses.bulker : userData.address;
 
@@ -325,7 +379,7 @@ export default class BulkerTxHandler
       type: txType,
       to: receiver,
       asset: underlyingAddress,
-      amount: operation.amount,
+      amount: operation.formattedAmount!,
     });
 
     const stateAfterBorrow = super._applyBorrowOperation(
@@ -338,7 +392,7 @@ export default class BulkerTxHandler
     if (operation.unwrap) {
       const unwrapOp = {
         type: OperationType.unwrap,
-        amount: operation.amount,
+        amount: operation.formattedAmount!,
         underlyingAddress: operation.underlyingAddress,
       } as const;
 
@@ -356,7 +410,7 @@ export default class BulkerTxHandler
         batch,
       ]);
 
-      return super._applyUnwrapOperation(stateAfterBorrow, unwrapOp, index);
+      return this._applyOperation(stateAfterBorrow, unwrapOp, index);
     }
     this.bulkerOperations$.next([...this.bulkerOperations$.getValue(), batch]);
 
@@ -396,7 +450,7 @@ export default class BulkerTxHandler
       type: txType,
       receiver,
       asset: underlyingAddress,
-      amount: operation.amount,
+      amount: operation.formattedAmount!, //TODO handle max withdraw
     });
 
     const stateAfterWithdraw = super._applyWithdrawOperation(
@@ -409,7 +463,7 @@ export default class BulkerTxHandler
     if (operation.unwrap) {
       const unwrapOp = {
         type: OperationType.unwrap,
-        amount: operation.amount,
+        amount: operation.formattedAmount!,
         underlyingAddress: operation.underlyingAddress,
       } as const;
 
@@ -428,7 +482,7 @@ export default class BulkerTxHandler
         batch,
       ]);
 
-      return super._applyUnwrapOperation(stateAfterWithdraw, unwrapOp, index);
+      return this._applyOperation(stateAfterWithdraw, unwrapOp, index);
     }
 
     this.bulkerOperations$.next([...this.bulkerOperations$.getValue(), batch]);
@@ -471,7 +525,7 @@ export default class BulkerTxHandler
       type: txType,
       receiver,
       asset: underlyingAddress,
-      amount: operation.amount,
+      amount: operation.formattedAmount!,
     });
 
     const stateAfterWithdraw = super._applyWithdrawCollateralOperation(
@@ -484,7 +538,7 @@ export default class BulkerTxHandler
     if (operation.unwrap) {
       const unwrapOp = {
         type: OperationType.unwrap,
-        amount: operation.amount,
+        amount: operation.formattedAmount!,
         underlyingAddress: operation.underlyingAddress,
       } as const;
 
@@ -503,7 +557,7 @@ export default class BulkerTxHandler
         batch,
       ]);
 
-      return super._applyUnwrapOperation(stateAfterWithdraw, unwrapOp, index);
+      return this._applyOperation(stateAfterWithdraw, unwrapOp, index);
     }
 
     this.bulkerOperations$.next([...this.bulkerOperations$.getValue(), batch]);
@@ -590,7 +644,7 @@ export default class BulkerTxHandler
             amount: amountToWrap,
           }
         );
-        simulatedData = this._applyWrapOperation(
+        simulatedData = this._applyOperation(
           simulatedData,
           {
             type: OperationType.wrap,
@@ -619,7 +673,7 @@ export default class BulkerTxHandler
           asset: addresses.weth,
           amount: wethMissing,
         });
-        simulatedData = this._applyWrapOperation(
+        simulatedData = this._applyOperation(
           simulatedData,
           {
             type: OperationType.wrap,

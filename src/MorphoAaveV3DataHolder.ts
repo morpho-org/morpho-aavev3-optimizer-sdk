@@ -30,7 +30,9 @@ export class MorphoAaveV3DataHolder {
     protected _globalData: FetchedUpdated<GlobalData> = null,
     protected _userData: FetchedUpdated<UserData> = null,
     protected _userMarketsData: UserMarketsData = {}
-  ) {}
+  ) {
+    this._user = _userData?.address ?? null;
+  }
 
   /* Getters */
   public getMarketsConfigs() {
