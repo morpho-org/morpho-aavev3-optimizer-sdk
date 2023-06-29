@@ -1,4 +1,7 @@
+import * as dotenv from "dotenv";
 import { BigNumber, BigNumberish } from "ethers";
+
+dotenv.config();
 
 expect.extend({
   toBnEq: (b1: BigNumberish, b2: BigNumberish) => {

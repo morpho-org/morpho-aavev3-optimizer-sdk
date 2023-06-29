@@ -1,9 +1,10 @@
 import { expect } from "chai";
 import { utils, constants } from "ethers";
 import { getAddress } from "ethers/lib/utils";
-import { ethers } from "hardhat";
+import { ethers, network } from "hardhat";
 import { deal } from "hardhat-deal";
 
+import { BaseProvider } from "@ethersproject/providers";
 import { WadRayMath } from "@morpho-labs/ethers-utils/lib/maths";
 import {
   ERC20__factory,
@@ -57,9 +58,10 @@ describe("MorphoAaveV3", () => {
     await deal(dai.address, morphoUser.address, initialDaiBalance);
 
     initialBlock = await time.latestBlock();
+
     // set the morphoAaveAdapter
     morphoAdapter = MorphoAaveV3Adapter.fromChain({
-      provider: ethers.provider,
+      provider: morphoUser.provider! as BaseProvider,
     });
     await morphoAdapter.connect(morphoUser.address, morphoUser);
     await morphoAdapter.refreshAll(initialBlock);
