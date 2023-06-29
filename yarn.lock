@@ -4276,9 +4276,9 @@ har-validator@~5.1.3:
     har-schema "^2.0.0"
 
 hardhat-deal@^1.3.0:
-  version "1.3.0"
-  resolved "https://registry.yarnpkg.com/hardhat-deal/-/hardhat-deal-1.3.0.tgz#06fbbaafc78e3dce07159049064bc1cb551ca014"
-  integrity sha512-jnD2nryxA+GSZ4RsuKAoIQYhGK1+U0gjMS4SZdCz5Wxmfdv4Qgk05lqQxsR6Ko5nMG27uMJAWPVHjYdvhaRH4w==
+  version "1.4.0"
+  resolved "https://registry.yarnpkg.com/hardhat-deal/-/hardhat-deal-1.4.0.tgz#3f42f52603c1f9eeb7e583ca7261478d17b875a4"
+  integrity sha512-8+p0c7u3RsRWf5mzAAUbJTq11HAJJb+tj6AcM9w4ObN1LTMBouQ7D6sc3zQwLP8dddYbA7z0wrkp+zn61cPxCg==
 
 hardhat-gas-reporter@^1.0.9:
   version "1.0.9"
