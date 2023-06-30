@@ -241,7 +241,9 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
 
     this._scaledUserMarketsData = {};
     this.userMarketsData = Object.fromEntries(
-      this._marketsList!.map((underlyingAddress) => [underlyingAddress, null])
+      this._marketsList!.map(
+        (underlyingAddress) => [underlyingAddress, null] as const
+      )
     );
 
     this.userData = null;
@@ -387,7 +389,7 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
 
     this._txHandler.addNotifier(refreshNotifier);
 
-    this._txHandler.handleClaimMorpho(
+    await this._txHandler.handleClaimMorpho(
       this._user,
       rewardsClaimData,
       this._userData?.morphoRewards?.claimable ?? constants.Zero,
@@ -482,14 +484,20 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
         .fetchAllMarkets(this._globalData!.currentBlock.number)
         .then((r) => r.map(getAddress));
       this.marketsConfigs = Object.fromEntries(
-        this._marketsList!.map((underlyingAddress) => [underlyingAddress, null])
+        this._marketsList!.map(
+          (underlyingAddress) => [underlyingAddress, null] as const
+        )
       );
       this.marketsData = Object.fromEntries(
-        this._marketsList!.map((underlyingAddress) => [underlyingAddress, null])
+        this._marketsList!.map(
+          (underlyingAddress) => [underlyingAddress, null] as const
+        )
       );
 
       this.userMarketsData = Object.fromEntries(
-        this._marketsList!.map((underlyingAddress) => [underlyingAddress, null])
+        this._marketsList!.map(
+          (underlyingAddress) => [underlyingAddress, null] as const
+        )
       );
 
       this.userData = null;
@@ -521,7 +529,6 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
         // override LTV and LT with eMode values
         collateralFactor:
           this._globalData!.eModeCategoryData.liquidationThreshold,
-        // If LTV = 0, then LT = 0 on Morpho
         borrowableFactor: this._globalData!.eModeCategoryData.ltv,
       };
     }

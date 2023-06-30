@@ -1,9 +1,9 @@
-import { constants, getDefaultProvider, providers } from "ethers";
+import { constants, getDefaultProvider } from "ethers";
 import { parseEther } from "ethers/lib/utils";
 import * as process from "process";
 
+import { Underlying } from "../../lib/mocks/markets";
 import { MorphoAaveV3Adapter } from "../../src";
-import { Underlying } from "../mocks/markets";
 
 describe("Get positions at different blockTags", () => {
   const userAddress = "0x8C01527C46f0adD00d4B52110b74e4A883590cA7"; // iaezi.eth

@@ -21,6 +21,7 @@ const USER_MARKETS_DATA: MarketMapping<ScaledUserMarketData> = {
     approval: constants.Zero,
     permit2Approval: constants.MaxUint256,
     nonce: BigNumber.from(0),
+    bulkerNonce: BigNumber.from(0),
   },
   [Underlying.usdc]: {
     underlyingAddress: Underlying.usdc,
@@ -34,6 +35,7 @@ const USER_MARKETS_DATA: MarketMapping<ScaledUserMarketData> = {
     approval: constants.MaxUint256,
     permit2Approval: constants.Zero,
     nonce: BigNumber.from(0),
+    bulkerNonce: BigNumber.from(0),
   },
   [Underlying.wbtc]: {
     underlyingAddress: Underlying.wbtc,
@@ -47,6 +49,7 @@ const USER_MARKETS_DATA: MarketMapping<ScaledUserMarketData> = {
     approval: constants.MaxUint256,
     permit2Approval: constants.Zero,
     nonce: BigNumber.from(0),
+    bulkerNonce: BigNumber.from(0),
   },
   [Underlying.uni]: {
     underlyingAddress: Underlying.uni,
@@ -60,6 +63,7 @@ const USER_MARKETS_DATA: MarketMapping<ScaledUserMarketData> = {
     approval: constants.MaxUint256,
     permit2Approval: constants.Zero,
     nonce: BigNumber.from(0),
+    bulkerNonce: BigNumber.from(0),
   },
   [Underlying.usdt]: {
     underlyingAddress: Underlying.usdt,
@@ -73,6 +77,7 @@ const USER_MARKETS_DATA: MarketMapping<ScaledUserMarketData> = {
     bulkerApproval: constants.Zero,
     permit2Approval: constants.Zero,
     nonce: BigNumber.from(0),
+    bulkerNonce: BigNumber.from(0),
   },
   [Underlying.weth]: {
     underlyingAddress: Underlying.weth,
@@ -86,6 +91,7 @@ const USER_MARKETS_DATA: MarketMapping<ScaledUserMarketData> = {
     bulkerApproval: constants.Zero,
     permit2Approval: constants.Zero,
     nonce: BigNumber.from(0),
+    bulkerNonce: BigNumber.from(0),
   },
   [Underlying.wsteth]: {
     underlyingAddress: Underlying.wsteth,
@@ -99,6 +105,7 @@ const USER_MARKETS_DATA: MarketMapping<ScaledUserMarketData> = {
     bulkerApproval: constants.Zero,
     permit2Approval: constants.Zero,
     nonce: BigNumber.from(0),
+    bulkerNonce: BigNumber.from(0),
   },
 };
 
@@ -149,6 +156,7 @@ export const ADAPTER_MOCK: AdapterMock = {
       bulkerApproval: constants.Zero,
       stethPerWsteth: constants.WeiPerEther,
       permit2Approval: constants.MaxUint256,
+      bulkerNonce: BigNumber.from(0),
       balance: parseUnits("50"),
     },
   },

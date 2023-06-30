@@ -20,10 +20,10 @@ export const GLOBAL_DATA: Omit<
   },
   eModeCategoryData: {
     eModeId: BigNumber.from(1),
-    ltv: constants.Zero,
+    ltv: parseUnits("0.73", 4),
     liquidationBonus: constants.Zero,
     label: "",
-    liquidationThreshold: constants.Zero,
+    liquidationThreshold: parseUnits("0.74", 4),
     priceSource: constants.AddressZero,
   },
   currRoot: "",
