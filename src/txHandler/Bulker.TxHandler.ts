@@ -1,6 +1,6 @@
 import { BigNumber, constants, Signature } from "ethers";
 import { getAddress, isAddress } from "ethers/lib/utils";
-import { BehaviorSubject } from "rxjs";
+import { BehaviorSubject, debounceTime, firstValueFrom, Subject } from "rxjs";
 
 import { WadRayMath } from "@morpho-labs/ethers-utils/lib/maths";
 import { maxBN } from "@morpho-labs/ethers-utils/lib/utils";
@@ -18,6 +18,7 @@ import {
 } from "../simulation/simulation.types";
 import { Address, TransactionOptions, TransactionType } from "../types";
 import { Connectable } from "../utils/mixins/Connectable";
+import { UpdatableBehaviorSubject } from "../utils/rxjs/UpdatableBehaviorSubject";
 
 import { Bulker } from "./Bulker.TxHandler.interface";
 import { IBatchTxHandler } from "./TxHandler.interface";
@@ -69,7 +70,9 @@ export default class BulkerTxHandler
   #adapter: MorphoAaveV3Adapter;
   _value = constants.Zero;
 
-  public readonly bulkerOperations$ = new BehaviorSubject<
+  #done$?: Subject<boolean>;
+
+  public readonly bulkerOperations$ = new UpdatableBehaviorSubject<
     Bulker.Transactions[][]
   >([]);
 
@@ -101,11 +104,14 @@ export default class BulkerTxHandler
     super.reset();
   }
 
-  public addOperations(operations: Operation[]): void {
+  public async addOperations(operations: Operation[]): Promise<void> {
+    this.#done$ = new Subject();
     this.simulatorOperations$.next([
       ...this.simulatorOperations$.getValue(),
       ...operations,
     ]);
+
+    await firstValueFrom(this.#done$);
   }
 
   public clearAllOperations(): void {
@@ -134,8 +140,9 @@ export default class BulkerTxHandler
     data: MorphoAaveV3DataHolder;
     operations: Operation[];
   }): void {
-    this.bulkerOperations$.next([]);
+    this.bulkerOperations$.setValue([]);
     super._applyOperations({ operations, data });
+    this.#done$!.next(true);
   }
 
   #askForSignature(signature: BulkerSignature<false>) {

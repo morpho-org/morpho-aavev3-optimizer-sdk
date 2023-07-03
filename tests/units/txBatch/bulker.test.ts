@@ -1,3 +1,4 @@
+/* eslint-disable jest/no-focused-tests */
 import { BigNumber, constants, Wallet } from "ethers";
 import { parseUnits } from "ethers/lib/utils";
 
@@ -39,7 +40,7 @@ describe("bulker", () => {
       expect(spy).toHaveBeenCalledTimes(1);
       expect(spy).toHaveBeenCalledWith([]);
       spy.mockClear();
-      bulkerHandler.addOperations([
+      await bulkerHandler.addOperations([
         {
           type: TransactionType.supplyCollateral,
           underlyingAddress: Underlying.dai,
@@ -129,7 +130,7 @@ describe("bulker", () => {
       it(`should throw an error if amount is zero for ${name}`, async () => {
         const mockError = jest.fn();
         bulkerHandler.error$.subscribe(mockError);
-        bulkerHandler.addOperations([
+        await bulkerHandler.addOperations([
           {
             type,
             underlyingAddress: Underlying.dai,
@@ -155,7 +156,7 @@ describe("bulker", () => {
       it(`should throw an error if amount is too high for ${name}`, async () => {
         const mockError = jest.fn();
         bulkerHandler.error$.subscribe(mockError);
-        bulkerHandler.addOperations([
+        await bulkerHandler.addOperations([
           {
             type,
             underlyingAddress: Underlying.dai,
@@ -351,24 +352,20 @@ describe("bulker", () => {
           },
         };
         const adapter = MorphoAaveV3Adapter.fromMock(mock);
-        await adapter.connect(userAddress);
-        await adapter.refreshAll();
         bulkerHandler.close();
         bulkerHandler = new BulkerTxHandler(adapter);
+        await adapter.connect(userAddress);
+        await adapter.refreshAll();
         const amount = parseUnits("40");
 
-        bulkerHandler.error$.subscribe((err) => {
-          if (!err) return;
-          console.log(err);
-        });
-
-        bulkerHandler.addOperations([
+        await bulkerHandler.addOperations([
           {
             type,
             underlyingAddress: Underlying.wsteth,
             amount,
           },
         ]);
+
         const operations = bulkerHandler.getBulkerTransactions();
         expect(operations).toHaveLength(5);
 
@@ -427,7 +424,7 @@ describe("bulker", () => {
 
         const mockError = jest.fn();
         bulkerHandler.error$.subscribe(mockError);
-        bulkerHandler.addOperations([
+        await bulkerHandler.addOperations([
           {
             type: typeEth,
             underlyingAddress: Underlying.weth,
@@ -591,7 +588,7 @@ describe("bulker", () => {
 
         const mockError = jest.fn();
         bulkerHandler.error$.subscribe(mockError);
-        bulkerHandler.addOperations([
+        await bulkerHandler.addOperations([
           {
             type,
             underlyingAddress: Underlying.wsteth,
@@ -712,7 +709,7 @@ describe("bulker", () => {
 
       const mockError = jest.fn();
       bulkerHandler.error$.subscribe(mockError);
-      bulkerHandler.addOperations([
+      await bulkerHandler.addOperations([
         {
           type,
           underlyingAddress: Underlying.weth,
@@ -755,7 +752,7 @@ describe("bulker", () => {
 
       const mockError = jest.fn();
       bulkerHandler.error$.subscribe(mockError);
-      bulkerHandler.addOperations([
+      await bulkerHandler.addOperations([
         {
           type,
           underlyingAddress: Underlying.weth,

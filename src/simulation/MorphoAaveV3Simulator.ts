@@ -3,12 +3,13 @@ import { deepCopy, getAddress } from "ethers/lib/utils";
 import {
   BehaviorSubject,
   combineLatest,
+  identity,
   map,
   Observable,
   sample,
   sampleTime,
-  Subject,
   Subscription,
+  timer,
 } from "rxjs";
 import { UserMarketsData } from "src/adapter.types";
 
@@ -103,17 +104,9 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
     this._subscriptions.push(
       this._dataState$
         .pipe(sample(this.simulatorOperations$))
+        .pipe(this._timeout > 0 ? sample(timer(0, this._timeout)) : identity)
         .subscribe(this._applyOperations.bind(this))
     );
-
-    if (this._timeout > 0) {
-      /* Prevent the simulation from being recomputed several time within `_timeout` miliseconds  */
-      this._subscriptions.push(
-        this._dataState$
-          .pipe(sampleTime(this._timeout))
-          .subscribe(this._applyOperations.bind(this))
-      );
-    }
   }
 
   public close() {
