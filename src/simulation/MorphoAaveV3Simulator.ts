@@ -2,13 +2,13 @@ import { BigNumber, constants } from "ethers";
 import { deepCopy, getAddress } from "ethers/lib/utils";
 import {
   BehaviorSubject,
+  EMPTY,
+  Observable,
+  Subscription,
   combineLatest,
   identity,
   map,
-  Observable,
   sample,
-  sampleTime,
-  Subscription,
   timer,
 } from "rxjs";
 import { UserMarketsData } from "src/adapter.types";
@@ -35,8 +35,8 @@ import {
   Operation,
   OperationType,
   TxOperation,
-  WrapOperation,
   UnwrapOperation,
+  WrapOperation,
 } from "./simulation.types";
 
 export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
@@ -103,8 +103,14 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
     /* Force the simulation reexecution when operations change */
     this._subscriptions.push(
       this._dataState$
-        .pipe(sample(this.simulatorOperations$))
-        .pipe(this._timeout > 0 ? sample(timer(0, this._timeout)) : identity)
+        .pipe(
+          sample(
+            combineLatest([
+              this._timeout > 0 ? timer(0, this._timeout) : EMPTY,
+              this.simulatorOperations$,
+            ])
+          )
+        )
         .subscribe(this._applyOperations.bind(this))
     );
   }
