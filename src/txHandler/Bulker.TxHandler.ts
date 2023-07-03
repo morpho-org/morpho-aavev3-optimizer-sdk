@@ -134,6 +134,7 @@ export default class BulkerTxHandler
     data: MorphoAaveV3DataHolder;
     operations: Operation[];
   }): void {
+    this.bulkerOperations$.next([]);
     super._applyOperations({ operations, data });
   }
 
@@ -185,14 +186,12 @@ export default class BulkerTxHandler
     operation: TxOperation,
     index: number
   ): MorphoAaveV3DataHolder | null {
-    const { underlyingAddress, formattedAmount } = operation;
-
-    const amount = formattedAmount!;
+    const { underlyingAddress, formattedAmount, amount } = operation;
 
     const transferData = this.#transferToBulker(
       data,
       underlyingAddress,
-      amount,
+      formattedAmount!,
       index
     );
     if (!transferData) return null;
@@ -227,19 +226,18 @@ export default class BulkerTxHandler
 
     return dataAfterSupply;
   }
+
   protected _applySupplyCollateralOperation(
     data: MorphoAaveV3DataHolder,
     operation: TxOperation,
     index: number
   ): MorphoAaveV3DataHolder | null {
-    const { underlyingAddress, formattedAmount } = operation;
-
-    const amount = formattedAmount!;
+    const { underlyingAddress, formattedAmount, amount } = operation;
 
     const transferData = this.#transferToBulker(
       data,
       underlyingAddress,
-      amount,
+      formattedAmount!,
       index
     );
     if (!transferData) return null;
@@ -280,14 +278,12 @@ export default class BulkerTxHandler
     operation: TxOperation,
     index: number
   ): MorphoAaveV3DataHolder | null {
-    const { underlyingAddress, formattedAmount } = operation;
-
-    const amount = formattedAmount!;
+    const { underlyingAddress, formattedAmount, amount } = operation;
 
     const transferData = this.#transferToBulker(
       data,
       underlyingAddress,
-      amount,
+      formattedAmount!,
       index
     );
     if (!transferData) return null;
@@ -314,7 +310,7 @@ export default class BulkerTxHandler
     batch.push({
       type: BulkerTx.repay,
       asset: underlyingAddress,
-      amount, //TODO We want to send max for a repay max
+      amount,
     });
     if (defers.length > 0) batch.push(...defers);
     this._value = this._value.add(value);
