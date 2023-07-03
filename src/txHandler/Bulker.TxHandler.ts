@@ -16,7 +16,12 @@ import {
   OperationType,
   TxOperation,
 } from "../simulation/simulation.types";
-import { Address, TransactionOptions, TransactionType } from "../types";
+import {
+  Address,
+  MaxCapacityLimiter,
+  TransactionOptions,
+  TransactionType,
+} from "../types";
 import { Connectable } from "../utils/mixins/Connectable";
 import { UpdatableBehaviorSubject } from "../utils/rxjs/UpdatableBehaviorSubject";
 
@@ -142,7 +147,7 @@ export default class BulkerTxHandler
   }): void {
     this.bulkerOperations$.setValue([]);
     super._applyOperations({ operations, data });
-    this.#done$!.next(true);
+    this.#done$?.next(true);
   }
 
   #askForSignature(signature: BulkerSignature<false>) {
@@ -435,11 +440,16 @@ export default class BulkerTxHandler
 
     const receiver = operation.unwrap ? addresses.bulker : userData.address;
 
+    const amount =
+      limiter === MaxCapacityLimiter.balance
+        ? operation.amount
+        : operation.formattedAmount!;
+
     batch.push({
       type: txType,
       receiver,
       asset: underlyingAddress,
-      amount: operation.formattedAmount!, //TODO handle max withdraw
+      amount,
     });
 
     const stateAfterWithdraw = super._applyWithdrawOperation(
@@ -510,11 +520,16 @@ export default class BulkerTxHandler
 
     const receiver = operation.unwrap ? addresses.bulker : userData.address;
 
+    const amount =
+      limiter === MaxCapacityLimiter.balance
+        ? operation.amount
+        : operation.formattedAmount!;
+
     batch.push({
       type: txType,
       receiver,
       asset: underlyingAddress,
-      amount: operation.formattedAmount!,
+      amount,
     });
 
     const stateAfterWithdraw = super._applyWithdrawCollateralOperation(

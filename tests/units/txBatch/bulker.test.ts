@@ -1,4 +1,3 @@
-/* eslint-disable jest/no-focused-tests */
 import { BigNumber, constants, Wallet } from "ethers";
 import { parseUnits } from "ethers/lib/utils";
 
@@ -160,7 +159,7 @@ describe("bulker", () => {
           {
             type,
             underlyingAddress: Underlying.dai,
-            amount: constants.MaxUint256,
+            amount: constants.MaxUint256.sub(1), // sub 1 otherwise the value is replaced by the user max capacity
           },
         ]);
         expect(mockError).toHaveBeenCalledTimes(2);
@@ -243,6 +242,7 @@ describe("bulker", () => {
             ...ADAPTER_MOCK.userMarketsData,
             [Underlying.weth]: {
               ...ADAPTER_MOCK.userMarketsData[Underlying.weth],
+              scaledBorrowOnPool: parseUnits("100"),
               walletBalance: constants.Zero,
             },
           },
@@ -290,6 +290,7 @@ describe("bulker", () => {
             ...ADAPTER_MOCK.userMarketsData,
             [Underlying.weth]: {
               ...ADAPTER_MOCK.userMarketsData[Underlying.weth],
+              scaledBorrowOnPool: parseUnits("100"),
               walletBalance: parseUnits("50"),
             },
           },
@@ -442,6 +443,7 @@ describe("bulker", () => {
               type: OperationType.wrap,
               underlyingAddress: Underlying.weth,
               amount,
+              formattedAmount: amount,
             },
           })
         );
@@ -604,6 +606,7 @@ describe("bulker", () => {
             type: OperationType.wrap,
             underlyingAddress: Underlying.wsteth,
             amount: BigNumber.from("100000000000100000000"),
+            formattedAmount: BigNumber.from("100000000000100000000"),
           },
         });
       });
@@ -771,6 +774,7 @@ describe("bulker", () => {
             type: TransactionType.borrow,
             underlyingAddress: Underlying.weth,
             amount: parseUnits("1"),
+            formattedAmount: parseUnits("1"),
             unwrap: true,
           },
         })

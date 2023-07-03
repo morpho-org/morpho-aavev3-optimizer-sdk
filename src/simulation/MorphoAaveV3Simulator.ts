@@ -333,7 +333,6 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
     /* Simulated Data Computation */
     /*** Errors are not blocking **/
     /******************************/
-
     if (userMarketData.walletBalance.lt(amount))
       return this._raiseError(
         index,
