@@ -98,7 +98,7 @@ export default class BulkerTxHandler
   }
 
   constructor(parentAdapter: MorphoAaveV3Adapter) {
-    super(parentAdapter);
+    super(parentAdapter, undefined, true);
     this.#adapter = parentAdapter;
     parentAdapter.setBatchTxHandler(this);
   }

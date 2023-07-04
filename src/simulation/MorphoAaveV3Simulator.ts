@@ -55,7 +55,8 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
    */
   constructor(
     parentAdapter: MorphoAaveV3DataEmitter,
-    private _timeout: number = 1000
+    private _timeout: number = 1000,
+    protected _allowWrapping = false
   ) {
     super();
 
@@ -183,8 +184,11 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
     }
 
     operation.formattedAmount = operation.amount.eq(constants.MaxUint256)
-      ? data.getUserMaxCapacity(operation.underlyingAddress, operation.type)
-          ?.amount
+      ? data.getUserMaxCapacity(
+          operation.underlyingAddress,
+          operation.type,
+          this._allowWrapping
+        )?.amount
       : operation.amount;
   }
 
@@ -1113,7 +1117,7 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
     const newUserData: UserData = {
       ...userData,
       ethBalance: isEth ? userData.ethBalance.sub(amount) : userData.ethBalance,
-      stEthData: isEth
+      stEthData: !isEth
         ? {
             ...userData.stEthData,
             balance: userData.stEthData.balance.sub(amount),

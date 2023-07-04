@@ -1,11 +1,12 @@
 import { constants } from "ethers";
-import { deepCopy } from "ethers/lib/utils";
+import { deepCopy, getAddress } from "ethers/lib/utils";
 
-import { PercentMath } from "@morpho-labs/ethers-utils/lib/maths";
+import { PercentMath, WadRayMath } from "@morpho-labs/ethers-utils/lib/maths";
 import { maxBN, minBNS, pow10 } from "@morpho-labs/ethers-utils/lib/utils";
 
 import { MarketsConfigs, MarketsData, UserMarketsData } from "./adapter.types";
 import { LT_LOWER_BOUND } from "./constants";
+import addresses from "./contracts/addresses";
 import { MorphoAaveMath } from "./maths/AaveV3.maths";
 import {
   Address,
@@ -22,6 +23,8 @@ export class MorphoAaveV3DataHolder {
   protected __MATH__ = new MorphoAaveMath();
 
   protected _user: Address | null = null;
+
+  protected _allowWrapping = false;
 
   constructor(
     protected _marketsConfigs: MarketsConfigs = {},
@@ -261,7 +264,8 @@ export class MorphoAaveV3DataHolder {
 
   public getUserMaxCapacity(
     underlyingAddress: string,
-    txType: TransactionType
+    txType: TransactionType,
+    allowWrapping = this._allowWrapping
   ): MaxCapacity | null {
     const userMarketData = this._userMarketsData[underlyingAddress];
     const marketData = this._marketsData[underlyingAddress];
@@ -269,6 +273,22 @@ export class MorphoAaveV3DataHolder {
 
     if (!userMarketData || !marketData || !this._userData || !marketConfig)
       return null;
+
+    let walletBalance = userMarketData.walletBalance;
+
+    if (allowWrapping) {
+      if (getAddress(underlyingAddress) === addresses.wsteth) {
+        walletBalance = walletBalance.add(
+          WadRayMath.wadDiv(
+            this._userData.stEthData.balance,
+            this._userData.stEthData.stethPerWsteth
+          )
+        );
+      }
+      if (getAddress(underlyingAddress) === addresses.weth) {
+        walletBalance = walletBalance.add(this._userData.ethBalance);
+      }
+    }
 
     if (marketData.usdPrice.isZero())
       return { amount: constants.Zero, limiter: MaxCapacityLimiter.zeroPrice };
@@ -286,7 +306,7 @@ export class MorphoAaveV3DataHolder {
             limiter: MaxCapacityLimiter.operationPaused,
           };
 
-        const maxSupplyFromWallet = userMarketData.walletBalance;
+        const maxSupplyFromWallet = walletBalance;
         const maxSupplyFromSupplyCap = marketConfig.supplyCap.isZero()
           ? constants.MaxUint256
           : maxBN(
@@ -371,7 +391,7 @@ export class MorphoAaveV3DataHolder {
             limiter: MaxCapacityLimiter.operationPaused,
           };
 
-        const maxRepayFromWallet = userMarketData.walletBalance;
+        const maxRepayFromWallet = walletBalance;
         const maxRepayFromBorrowBalance = userMarketData.totalBorrow;
 
         const maxRepay = minBNS(maxRepayFromWallet, maxRepayFromBorrowBalance);
