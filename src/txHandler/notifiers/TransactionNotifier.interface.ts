@@ -6,7 +6,7 @@ import {
 } from "@ethersproject/providers";
 
 import { Address } from "../../types";
-import { getPermit2Message } from "../../utils/permit2";
+import { getPermit2Message } from "../../utils/signatures/permit2";
 
 export interface ITransactionNotifier {
   /** Transcation started */

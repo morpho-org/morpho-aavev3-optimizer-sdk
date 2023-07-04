@@ -146,7 +146,11 @@ export class ChainUserFetcher extends ChainFetcher implements UserFetcher {
     managerAddress: Address,
     blockTag: BlockTag = "latest"
   ) {
-    return this._morpho!.isManagedBy(userAddress, managerAddress, { blockTag });
+    const [isBulkerManaging, nonce] = await Promise.all([
+      this._morpho!.isManagedBy(userAddress, managerAddress, { blockTag }),
+      this._morpho!.userNonce(userAddress, { blockTag }),
+    ]);
+    return { isBulkerManaging, nonce };
   }
 
   async fetchStethData(userAddress: Address, blockTag: BlockTag = "latest") {

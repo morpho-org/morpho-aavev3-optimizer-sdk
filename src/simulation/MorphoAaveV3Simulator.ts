@@ -281,6 +281,7 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
       morphoRewards: simulatedUserData.morphoRewards,
       stEthData: stEthData ?? simulatedUserData.stEthData,
       isBulkerManaging: simulatedUserData.isBulkerManaging,
+      nonce: simulatedUserData.nonce,
     };
 
     if (newUserData?.healthFactor.lt(HF_THRESHOLD)) {

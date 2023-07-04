@@ -49,7 +49,7 @@ export interface UserFetcher extends Fetcher {
     userAddress: Address,
     managerAddress: Address,
     blockTag?: BlockTag
-  ) => Promise<boolean>;
+  ) => Promise<{ isBulkerManaging: boolean; nonce: BigNumber }>;
 
   fetchStethData: (
     userAddress: Address,

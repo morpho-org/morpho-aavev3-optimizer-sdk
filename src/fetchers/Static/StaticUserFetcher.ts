@@ -35,7 +35,10 @@ export class StaticUserFetcher extends StaticFetcher implements UserFetcher {
     return delay(this._userData.ethBalance, this._longDelay);
   }
   async fetchManagerApproval(userAddress: Address, managerAddress: Address) {
-    return delay(true, this._longDelay);
+    return delay(
+      { isBulkerManaging: true, nonce: constants.Zero },
+      this._longDelay
+    );
   }
 
   fetchStethData(userAddress: Address, blockTag?: BlockTag) {

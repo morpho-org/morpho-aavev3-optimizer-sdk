@@ -25,7 +25,7 @@ import {
 } from "../types";
 import { Base } from "../utils/mixins/Base";
 import { Connectable } from "../utils/mixins/Connectable";
-import { getPermit2Message } from "../utils/permit2";
+import { getPermit2Message } from "../utils/signatures/permit2";
 
 import { ApprovalHandlerOptions } from "./ApprovalHandler.interface";
 import { ISimpleTxHandler } from "./TxHandler.interface";

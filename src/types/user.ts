@@ -185,6 +185,8 @@ export interface UserData {
      */
     current: BigNumber;
   } | null;
+
+  readonly nonce: BigNumber;
 }
 
 /** Scaled user data on the market, should be updated after each user interaction.

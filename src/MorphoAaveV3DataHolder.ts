@@ -56,7 +56,7 @@ export class MorphoAaveV3DataHolder {
 
   public computeUserData(): Omit<
     UserData,
-    "ethBalance" | "morphoRewards" | "stEthData" | "isBulkerManaging"
+    "ethBalance" | "morphoRewards" | "stEthData" | "isBulkerManaging" | "nonce"
   > {
     let liquidationValue = constants.Zero;
     let borrowCapacity = constants.Zero;

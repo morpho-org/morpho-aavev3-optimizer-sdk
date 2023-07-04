@@ -610,7 +610,7 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
     ] = (await Promise.all(promises)) as [
       BigNumber,
       UserData["morphoRewards"] | null,
-      boolean | null,
+      { isBulkerManaging: boolean; nonce: BigNumber } | null,
       StEthData | null
     ];
 
@@ -619,8 +619,9 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
       ? morphoRewardsOrVoid
       : this._userData!.morphoRewards;
     const isBulkerManaging = fetch
-      ? managerApprovalOrVoid!
+      ? managerApprovalOrVoid!.isBulkerManaging
       : this._userData!.isBulkerManaging;
+    const nonce = fetch ? managerApprovalOrVoid!.nonce : this._userData!.nonce;
     const stEthData = fetch ? stEthBalanceOrVoid! : this._userData!.stEthData;
 
     this.userData = {
@@ -628,6 +629,7 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
       morphoRewards,
       isBulkerManaging,
       stEthData,
+      nonce,
       ...this.computeUserData(),
     };
 

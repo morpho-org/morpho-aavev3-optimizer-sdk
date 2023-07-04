@@ -1,6 +1,6 @@
 import { BigNumber, constants, Signature } from "ethers";
 import { getAddress, isAddress } from "ethers/lib/utils";
-import { BehaviorSubject, debounceTime, firstValueFrom, Subject } from "rxjs";
+import { BehaviorSubject, firstValueFrom, Subject } from "rxjs";
 
 import { WadRayMath } from "@morpho-labs/ethers-utils/lib/maths";
 import { maxBN } from "@morpho-labs/ethers-utils/lib/utils";
@@ -8,6 +8,7 @@ import { maxBN } from "@morpho-labs/ethers-utils/lib/utils";
 import { MorphoAaveV3Adapter } from "../MorphoAaveV3Adapter";
 import { MorphoAaveV3DataHolder } from "../MorphoAaveV3DataHolder";
 import addresses from "../contracts/addresses";
+import { safeSignTypedData } from "../helpers/signatures";
 import { Underlying } from "../mocks/markets";
 import { MorphoAaveV3Simulator } from "../simulation/MorphoAaveV3Simulator";
 import { ErrorCode } from "../simulation/SimulationError";
@@ -24,6 +25,9 @@ import {
 } from "../types";
 import { Connectable } from "../utils/mixins/Connectable";
 import { UpdatableBehaviorSubject } from "../utils/rxjs/UpdatableBehaviorSubject";
+import { getManagerApprovalMessage } from "../utils/signatures/manager";
+import { getPermit2Message } from "../utils/signatures/permit2";
+import { SignatureMessage } from "../utils/signatures/types";
 
 import { Bulker } from "./Bulker.TxHandler.interface";
 import { IBatchTxHandler } from "./TxHandler.interface";
@@ -37,10 +41,12 @@ export enum BulkerSignatureType {
 }
 type FullfillableSignature<Fullfilled extends boolean | null = null> =
   Fullfilled extends true
-    ? Signature
+    ? { deadline: BigNumber; signature: Signature; nonce: BigNumber }
     : Fullfilled extends false
     ? undefined
-    : Signature | undefined;
+    :
+        | { deadline: BigNumber; signature: Signature; nonce: BigNumber }
+        | undefined;
 
 export interface BulkerTransferSignature<
   Fullfilled extends boolean | null = null
@@ -189,6 +195,57 @@ export default class BulkerTxHandler
     this.signatures$.next(currentSignatures);
   }
 
+  public async sign(toSign: BulkerSignature<false>): Promise<void> {
+    if (!this._signer) return;
+
+    let permit2Message: SignatureMessage;
+    let nonce: BigNumber;
+    const deadline = constants.MaxUint256;
+
+    if (toSign.type === BulkerSignatureType.transfer) {
+      const userMarketData =
+        this.getUserMarketsData()[toSign.underlyingAddress];
+      if (!userMarketData) {
+        console.error(
+          `Missing user data for market ${toSign.underlyingAddress}`
+        );
+        return;
+      }
+      nonce = userMarketData.bulkerNonce;
+      permit2Message = getPermit2Message(
+        toSign.underlyingAddress,
+        toSign.amount,
+        nonce,
+        deadline,
+        addresses.bulker
+      );
+    } else {
+      const userData = this.getUserData();
+      if (!userData) {
+        console.error(`Missing user data`);
+        return;
+      }
+      nonce = userData.nonce;
+      permit2Message = getManagerApprovalMessage(
+        userData.address,
+        addresses.bulker,
+        nonce,
+        deadline
+      );
+    }
+
+    const signature = await safeSignTypedData(
+      this._signer,
+      permit2Message.data.domain,
+      permit2Message.data.types,
+      permit2Message.data.message
+    );
+
+    this.addSignatures([
+      { ...toSign, signature: { signature, deadline, nonce } },
+    ]);
+  }
+
   executeBatch(options?: TransactionOptions): Promise<any> {
     return Promise.resolve(undefined);
   }
@@ -332,12 +389,14 @@ export default class BulkerTxHandler
   }
 
   #approveManager(data: MorphoAaveV3DataHolder, index: number) {
-    if (!data.getUserData()?.isBulkerManaging) {
+    const userData = data.getUserData();
+    if (!userData) throw new Error("No user data");
+    if (!userData.isBulkerManaging) {
       this.#askForSignature({
         type: BulkerSignatureType.managerApproval,
         manager: addresses.bulker,
         signature: undefined,
-        nonce: BigNumber.from(0), //TODO
+        nonce: userData.nonce,
         transactionIndex: index,
       });
     }
@@ -440,6 +499,8 @@ export default class BulkerTxHandler
 
     const receiver = operation.unwrap ? addresses.bulker : userData.address;
 
+    this.#approveManager(data, index);
+
     const amount =
       limiter === MaxCapacityLimiter.balance
         ? operation.amount
@@ -519,6 +580,8 @@ export default class BulkerTxHandler
       return this._raiseError(index, ErrorCode.missingData, operation);
 
     const receiver = operation.unwrap ? addresses.bulker : userData.address;
+
+    this.#approveManager(data, index);
 
     const amount =
       limiter === MaxCapacityLimiter.balance
