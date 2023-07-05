@@ -1,4 +1,4 @@
-import { BigNumber, Signature } from "ethers";
+import { BigNumber, CallOverrides, Signature } from "ethers";
 
 import { Address } from "../types";
 
@@ -33,14 +33,31 @@ export namespace Bulker {
     claimRewards = "ClaimRewards",
   }
 
+  /**
+   * [From contract](https://github.com/morpho-org/morpho-aave-v3/blob/a31526116d077628f64086dd7238126b56b4e149/src/interfaces/extensions/IBulkerGateway.sol#L29C5-L45C6)
+   */
+  export enum ActionType {
+    APPROVE2,
+    TRANSFER_FROM2,
+    APPROVE_MANAGER,
+    SUPPLY,
+    SUPPLY_COLLATERAL,
+    BORROW,
+    REPAY,
+    WITHDRAW,
+    WITHDRAW_COLLATERAL,
+    WRAP_ETH,
+    UNWRAP_ETH,
+    WRAP_ST_ETH,
+    UNWRAP_ST_ETH,
+    SKIM,
+    CLAIM_REWARDS,
+  }
+
   export interface Approve2Transaction {
     type: TransactionType.approve2;
     asset: Address;
     amount: BigNumber;
-    signature?: Omit<
-      Signature,
-      "_vs" | "recoveryParam" | "yParity" | "compact"
-    >;
   }
 
   export interface TransferFrom2Transaction {
@@ -52,12 +69,6 @@ export namespace Bulker {
   export interface ApproveManagerTransaction {
     type: TransactionType.approveManager;
     isAllowed: boolean;
-    nonce: BigNumber;
-    deadline: BigNumber;
-    signature?: Omit<
-      Signature,
-      "_vs" | "recoveryParam" | "yParity" | "compact"
-    >;
   }
 
   export interface SupplyTransaction {
@@ -136,4 +147,8 @@ export namespace Bulker {
     | UnwrapTransaction
     | SkimTransaction
     | ClaimRewardsTransaction;
+
+  export interface TransactionOptions {
+    overrides?: CallOverrides;
+  }
 }

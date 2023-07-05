@@ -1,9 +1,19 @@
 import { BigNumber, constants, Signature } from "ethers";
-import { getAddress, isAddress } from "ethers/lib/utils";
+import {
+  AbiCoder,
+  getAddress,
+  isAddress,
+  splitSignature,
+} from "ethers/lib/utils";
 import { BehaviorSubject, firstValueFrom, Subject } from "rxjs";
 
 import { WadRayMath } from "@morpho-labs/ethers-utils/lib/maths";
 import { maxBN } from "@morpho-labs/ethers-utils/lib/utils";
+import {
+  ERC20__factory,
+  MorphoAaveV3__factory,
+  MorphoBulkerGateway__factory,
+} from "@morpho-labs/morpho-ethers-contract";
 
 import sdk from "..";
 import { MorphoAaveV3Adapter } from "../MorphoAaveV3Adapter";
@@ -21,8 +31,8 @@ import {
 import {
   Address,
   MaxCapacityLimiter,
-  TransactionOptions,
   TransactionType,
+  UserData,
 } from "../types";
 import { Connectable } from "../utils/mixins/Connectable";
 import { UpdatableBehaviorSubject } from "../utils/rxjs/UpdatableBehaviorSubject";
@@ -35,6 +45,7 @@ import { IBatchTxHandler } from "./TxHandler.interface";
 import { NotifierManager } from "./mixins/NotifierManager";
 
 import BulkerTx = Bulker.TransactionType;
+import BulkerTransactionOptions = Bulker.TransactionOptions;
 
 export enum BulkerSignatureType {
   transfer = "TRANSFER",
@@ -42,12 +53,10 @@ export enum BulkerSignatureType {
 }
 type FullfillableSignature<Fullfilled extends boolean | null = null> =
   Fullfilled extends true
-    ? { deadline: BigNumber; signature: Signature; nonce: BigNumber }
+    ? { deadline: BigNumber; signature: Signature }
     : Fullfilled extends false
     ? undefined
-    :
-        | { deadline: BigNumber; signature: Signature; nonce: BigNumber }
-        | undefined;
+    : { deadline: BigNumber; signature: Signature } | undefined;
 
 export interface BulkerTransferSignature<
   Fullfilled extends boolean | null = null
@@ -209,32 +218,13 @@ export default class BulkerTxHandler
     if (!this._signer) return;
 
     let permit2Message: SignatureMessage;
-    let nonce: BigNumber;
     const deadline = constants.MaxUint256;
 
     if (toSign.type === BulkerSignatureType.transfer) {
-      if (getAddress(toSign.underlyingAddress) === addresses.steth) {
-        const userData = this.getUserData();
-        if (!userData) {
-          console.error(`Missing user data`);
-          return;
-        }
-        nonce = userData.stEthData.bulkerNonce;
-      } else {
-        const userMarketData =
-          this.getUserMarketsData()[toSign.underlyingAddress];
-        if (!userMarketData) {
-          console.error(
-            `Missing user data for market ${toSign.underlyingAddress}`
-          );
-          return;
-        }
-        nonce = userMarketData.bulkerNonce;
-      }
       permit2Message = getPermit2Message(
         toSign.underlyingAddress,
         toSign.amount,
-        nonce,
+        toSign.nonce,
         deadline,
         addresses.bulker
       );
@@ -244,11 +234,10 @@ export default class BulkerTxHandler
         console.error(`Missing user data`);
         return;
       }
-      nonce = userData.nonce;
       permit2Message = getManagerApprovalMessage(
         userData.address,
         addresses.bulker,
-        nonce,
+        toSign.nonce,
         deadline
       );
     }
@@ -260,13 +249,281 @@ export default class BulkerTxHandler
       permit2Message.data.message
     );
 
-    this.addSignatures([
-      { ...toSign, signature: { signature, deadline, nonce } },
-    ]);
+    this.addSignatures([{ ...toSign, signature: { signature, deadline } }]);
   }
 
-  executeBatch(options?: TransactionOptions): Promise<any> {
-    return Promise.resolve(undefined);
+  async executeBatch(options?: BulkerTransactionOptions): Promise<any> {
+    const signer = this._signer;
+    if (!signer) return;
+    const bulkerTransactions = this.bulkerOperations$.getValue();
+    if (bulkerTransactions.length === 0) return;
+
+    const actions: Bulker.ActionType[] = [];
+    const data: string[] = [];
+    const remainingPermit2Approvals: Record<string, BigNumber> = {};
+    const missingSignatures: Bulker.Transactions[] = [];
+    const abiCoder = new AbiCoder();
+
+    bulkerTransactions.forEach((transactions, index) => {
+      transactions.forEach((transaction) => {
+        const iMorpho = MorphoAaveV3__factory.createInterface();
+        const userData = this.getUserData();
+        if (!userData) throw Error(`Missing user data`);
+
+        switch (transaction.type) {
+          case BulkerTx.approve2: {
+            if (!remainingPermit2Approvals[transaction.asset]) {
+              if (getAddress(transaction.asset) === addresses.steth) {
+                remainingPermit2Approvals[transaction.asset] =
+                  userData.stEthData.permit2Approval;
+              } else {
+                const userMarketData =
+                  this.getUserMarketsData()?.[transaction.asset];
+                if (!userMarketData)
+                  throw Error(`Missing data for asset ${transaction.asset}`);
+                remainingPermit2Approvals[transaction.asset] =
+                  userMarketData.permit2Approval;
+              }
+            }
+            remainingPermit2Approvals[transaction.asset] =
+              remainingPermit2Approvals[transaction.asset].sub(
+                transaction.amount
+              );
+
+            const signature = this.signatures$.getValue().find((sig) => {
+              return (
+                sig.transactionIndex === index &&
+                sig.type === BulkerSignatureType.transfer &&
+                sig.underlyingAddress === transaction.asset &&
+                !!sig.signature
+              );
+            });
+
+            if (!signature) {
+              missingSignatures.push(transaction);
+              return;
+            }
+
+            actions.push(Bulker.ActionType.APPROVE2);
+            data.push(
+              abiCoder.encode(
+                [
+                  "address",
+                  "uint256",
+                  "uint256",
+                  "tuple(uint8 v, bytes32 r, bytes32 s)",
+                ],
+                [
+                  transaction.asset,
+                  transaction.amount,
+                  signature.signature!.deadline,
+                  splitSignature(signature.signature!.signature),
+                ]
+              )
+            );
+            break;
+          }
+
+          case BulkerTx.approveManager: {
+            const signature = this.signatures$.getValue().find((sig) => {
+              return (
+                sig.transactionIndex === index &&
+                sig.type === BulkerSignatureType.managerApproval &&
+                !!sig.signature
+              );
+            });
+
+            if (!signature) {
+              missingSignatures.push(transaction);
+              return;
+            }
+
+            actions.push(Bulker.ActionType.APPROVE_MANAGER);
+            data.push(
+              abiCoder.encode(
+                [
+                  "bool",
+                  "uint256",
+                  "uint256",
+                  "tuple(uint8 v, bytes32 r, bytes32 s)",
+                ],
+                [
+                  true,
+                  signature.nonce,
+                  signature.signature!.deadline,
+                  splitSignature(signature.signature!.signature),
+                ]
+              )
+            );
+            break;
+          }
+
+          case BulkerTx.borrow: {
+            actions.push(Bulker.ActionType.BORROW);
+            data.push(
+              abiCoder.encode(
+                ["address", "uint256", "address", "uint256"],
+                [
+                  transaction.asset,
+                  transaction.amount,
+                  transaction.to,
+                  sdk.configuration.defaultMaxIterations.borrow,
+                ]
+              )
+            );
+            break;
+          }
+
+          case BulkerTx.supply: {
+            actions.push(Bulker.ActionType.SUPPLY);
+            data.push(
+              abiCoder.encode(
+                ["address", "uint256", "address", "uint256"],
+                [
+                  transaction.asset,
+                  transaction.amount,
+                  userData.address,
+                  sdk.configuration.defaultMaxIterations.supply,
+                ]
+              )
+            );
+            break;
+          }
+
+          case BulkerTx.supplyCollateral: {
+            actions.push(Bulker.ActionType.SUPPLY_COLLATERAL);
+            data.push(
+              abiCoder.encode(
+                ["address", "uint256", "address"],
+                [transaction.asset, transaction.amount, userData.address]
+              )
+            );
+            break;
+          }
+
+          case BulkerTx.repay: {
+            actions.push(Bulker.ActionType.REPAY);
+            data.push(
+              abiCoder.encode(
+                ["address", "uint256", "address"],
+                [transaction.asset, transaction.amount, userData.address]
+              )
+            );
+            break;
+          }
+
+          case BulkerTx.withdraw: {
+            actions.push(Bulker.ActionType.WITHDRAW);
+            data.push(
+              abiCoder.encode(
+                ["address", "uint256", "address", "uint256"],
+                [
+                  transaction.asset,
+                  transaction.amount,
+                  transaction.receiver,
+                  sdk.configuration.defaultMaxIterations.supply,
+                ]
+              )
+            );
+            break;
+          }
+
+          case BulkerTx.withdrawCollateral: {
+            actions.push(Bulker.ActionType.WITHDRAW_COLLATERAL);
+            data.push(
+              abiCoder.encode(
+                ["address", "uint256", "address"],
+                [transaction.asset, transaction.amount, transaction.receiver]
+              )
+            );
+            break;
+          }
+
+          case BulkerTx.transferFrom2: {
+            actions.push(Bulker.ActionType.TRANSFER_FROM2);
+            data.push(
+              abiCoder.encode(
+                ["address", "uint256"],
+                [transaction.asset, transaction.amount]
+              )
+            );
+            break;
+          }
+
+          case BulkerTx.wrap: {
+            actions.push(
+              getAddress(transaction.asset) === addresses.weth
+                ? Bulker.ActionType.WRAP_ETH
+                : Bulker.ActionType.WRAP_ST_ETH
+            );
+            data.push(abiCoder.encode(["uint256"], [transaction.amount]));
+            break;
+          }
+
+          case BulkerTx.unwrap: {
+            actions.push(
+              getAddress(transaction.asset) === addresses.weth
+                ? Bulker.ActionType.UNWRAP_ETH
+                : Bulker.ActionType.UNWRAP_ST_ETH
+            );
+            data.push(
+              abiCoder.encode(
+                ["uint256", "address"],
+                [transaction.amount, transaction.receiver]
+              )
+            );
+            break;
+          }
+
+          case BulkerTx.skim: {
+            actions.push(Bulker.ActionType.SKIM);
+            data.push(
+              abiCoder.encode(
+                ["address", "address"],
+                [transaction.asset, userData.address]
+              )
+            );
+            break;
+          }
+
+          case BulkerTx.claimRewards: {
+            actions.push(Bulker.ActionType.CLAIM_REWARDS);
+            data.push(
+              abiCoder.encode(
+                ["address[]", "address"],
+                [transaction.assets, userData.address]
+              )
+            );
+            break;
+          }
+        }
+      });
+    });
+
+    if (missingSignatures.length > 0) {
+      console.error(`Missing signatures: ${JSON.stringify(missingSignatures)}`);
+      return;
+    }
+
+    const missingPermit2Approvals = Object.keys(
+      remainingPermit2Approvals
+    ).filter((asset) => remainingPermit2Approvals[asset].isNegative());
+
+    if (missingPermit2Approvals.length > 0) {
+      for (const asset of missingPermit2Approvals) {
+        const erc20 = ERC20__factory.connect(asset, signer);
+        await erc20.approve(addresses.permit2, constants.MaxUint256);
+      }
+    }
+
+    const bulker = MorphoBulkerGateway__factory.connect(
+      addresses.bulker,
+      signer
+    );
+
+    console.debug(actions, data);
+
+    await bulker.execute(actions, data);
   }
 
   protected _applySupplyOperation(
@@ -409,6 +666,7 @@ export default class BulkerTxHandler
 
   #approveManager(data: MorphoAaveV3DataHolder, index: number) {
     const userData = data.getUserData();
+    const batch: Bulker.Transactions[] = [];
     if (!userData) throw new Error("No user data");
     if (!userData.isBulkerManaging) {
       this.#askForSignature({
@@ -418,7 +676,27 @@ export default class BulkerTxHandler
         nonce: userData.nonce,
         transactionIndex: index,
       });
+      const newUserData: UserData = {
+        ...userData,
+        isBulkerManaging: true,
+      };
+      batch.push({
+        type: BulkerTx.approveManager,
+        isAllowed: true,
+      });
+      return {
+        batch,
+        data: new MorphoAaveV3DataHolder(
+          data.getMarketsConfigs(),
+          data.getMarketsData(),
+          data.getMarketsList(),
+          data.getGlobalData(),
+          newUserData,
+          data.getUserMarketsData()
+        ),
+      };
     }
+    return { batch, data };
   }
 
   protected _applyBorrowOperation(
@@ -443,7 +721,10 @@ export default class BulkerTxHandler
       return this._raiseError(index, ErrorCode.missingData, operation);
     }
 
-    this.#approveManager(data, index);
+    const { data: stateAfterManagerApproval, batch: approvalBatch } =
+      this.#approveManager(data, index);
+
+    batch.push(...approvalBatch);
 
     const receiver = operation.unwrap ? addresses.bulker : userData.address;
 
@@ -455,7 +736,7 @@ export default class BulkerTxHandler
     });
 
     const stateAfterBorrow = super._applyBorrowOperation(
-      data,
+      stateAfterManagerApproval,
       operation,
       index
     );
@@ -518,7 +799,10 @@ export default class BulkerTxHandler
 
     const receiver = operation.unwrap ? addresses.bulker : userData.address;
 
-    this.#approveManager(data, index);
+    const { data: stateAfterManagerApproval, batch: approvalBatch } =
+      this.#approveManager(data, index);
+
+    batch.push(...approvalBatch);
 
     const amount =
       limiter === MaxCapacityLimiter.balance
@@ -533,7 +817,7 @@ export default class BulkerTxHandler
     });
 
     const stateAfterWithdraw = super._applyWithdrawOperation(
-      data,
+      stateAfterManagerApproval,
       operation,
       index
     );
@@ -600,7 +884,10 @@ export default class BulkerTxHandler
 
     const receiver = operation.unwrap ? addresses.bulker : userData.address;
 
-    this.#approveManager(data, index);
+    const { data: stateAfterManagerApproval, batch: approvalBatch } =
+      this.#approveManager(data, index);
+
+    batch.push(...approvalBatch);
 
     const amount =
       limiter === MaxCapacityLimiter.balance
@@ -615,7 +902,7 @@ export default class BulkerTxHandler
     });
 
     const stateAfterWithdraw = super._applyWithdrawCollateralOperation(
-      data,
+      stateAfterManagerApproval,
       operation,
       index
     );
