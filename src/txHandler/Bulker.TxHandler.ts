@@ -182,11 +182,20 @@ export default class BulkerTxHandler
     const currentSignatures = this.signatures$
       .getValue()
       .map((signatureRequest) => {
-        const fullfilledSignature = signatures.find(
-          (signature) =>
+        const fullfilledSignature = signatures.find((signature) => {
+          let match =
             signature.transactionIndex === signatureRequest.transactionIndex &&
-            signature.type === signatureRequest.type
-        );
+            signature.type === signatureRequest.type;
+          if (
+            signature.type === BulkerSignatureType.transfer &&
+            signatureRequest.type === BulkerSignatureType.transfer
+          ) {
+            match &&=
+              signature.underlyingAddress ===
+              signatureRequest.underlyingAddress;
+          }
+          return match;
+        });
         if (!fullfilledSignature) return signatureRequest;
 
         // TODO: add signature validation
@@ -203,15 +212,24 @@ export default class BulkerTxHandler
     const deadline = constants.MaxUint256;
 
     if (toSign.type === BulkerSignatureType.transfer) {
-      const userMarketData =
-        this.getUserMarketsData()[toSign.underlyingAddress];
-      if (!userMarketData) {
-        console.error(
-          `Missing user data for market ${toSign.underlyingAddress}`
-        );
-        return;
+      if (getAddress(toSign.underlyingAddress) === addresses.steth) {
+        const userData = this.getUserData();
+        if (!userData) {
+          console.error(`Missing user data`);
+          return;
+        }
+        nonce = userData.stEthData.bulkerNonce;
+      } else {
+        const userMarketData =
+          this.getUserMarketsData()[toSign.underlyingAddress];
+        if (!userMarketData) {
+          console.error(
+            `Missing user data for market ${toSign.underlyingAddress}`
+          );
+          return;
+        }
+        nonce = userMarketData.bulkerNonce;
       }
-      nonce = userMarketData.bulkerNonce;
       permit2Message = getPermit2Message(
         toSign.underlyingAddress,
         toSign.amount,
