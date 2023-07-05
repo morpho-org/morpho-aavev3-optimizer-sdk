@@ -4,6 +4,7 @@ import { deepCopy, getAddress } from "ethers/lib/utils";
 import { PercentMath, WadRayMath } from "@morpho-labs/ethers-utils/lib/maths";
 import { maxBN, minBNS, pow10 } from "@morpho-labs/ethers-utils/lib/utils";
 
+import sdk from ".";
 import { MarketsConfigs, MarketsData, UserMarketsData } from "./adapter.types";
 import { LT_LOWER_BOUND } from "./constants";
 import addresses from "./contracts/addresses";
@@ -278,12 +279,14 @@ export class MorphoAaveV3DataHolder {
 
     if (allowWrapping) {
       if (getAddress(underlyingAddress) === addresses.wsteth) {
-        walletBalance = walletBalance.add(
-          WadRayMath.wadDiv(
-            this._userData.stEthData.balance,
-            this._userData.stEthData.stethPerWsteth
+        walletBalance = walletBalance
+          .add(
+            WadRayMath.wadDiv(
+              this._userData.stEthData.balance,
+              this._userData.stEthData.stethPerWsteth
+            )
           )
-        );
+          .sub(sdk.configuration.bulkerWrapBuffer);
       }
       if (getAddress(underlyingAddress) === addresses.weth) {
         walletBalance = walletBalance.add(this._userData.ethBalance);

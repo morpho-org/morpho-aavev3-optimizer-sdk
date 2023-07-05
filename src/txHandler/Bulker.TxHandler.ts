@@ -5,6 +5,7 @@ import { BehaviorSubject, firstValueFrom, Subject } from "rxjs";
 import { WadRayMath } from "@morpho-labs/ethers-utils/lib/maths";
 import { maxBN } from "@morpho-labs/ethers-utils/lib/utils";
 
+import sdk from "..";
 import { MorphoAaveV3Adapter } from "../MorphoAaveV3Adapter";
 import { MorphoAaveV3DataHolder } from "../MorphoAaveV3DataHolder";
 import addresses from "../contracts/addresses";
@@ -691,8 +692,8 @@ export default class BulkerTxHandler
 
       if (wstethMissing.gt(0)) {
         // we need to wrap some stETH
-        // To be sure that  , we add 1e8 to the amount wrapped
-        const WRAP_BUFFER = BigNumber.from(1e8);
+        // To be sure that  , we add a buffer to the amount wrapped
+        const WRAP_BUFFER = sdk.configuration.bulkerWrapBuffer;
         const amountToWrap = WadRayMath.wadMul(
           wstethMissing.add(WRAP_BUFFER),
           userData.stEthData.stethPerWsteth
