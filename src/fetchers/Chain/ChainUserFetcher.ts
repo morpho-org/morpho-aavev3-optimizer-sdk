@@ -32,6 +32,7 @@ export class ChainUserFetcher extends ChainFetcher implements UserFetcher {
   }
 
   protected async _init(blockTag: BlockTag): Promise<boolean> {
+    if (this._isInitialized) return true;
     try {
       this._morpho = MorphoAaveV3__factory.connect(
         CONTRACT_ADDRESSES.morphoAaveV3,

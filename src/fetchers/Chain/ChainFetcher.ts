@@ -6,6 +6,7 @@ import { Fetcher } from "../Fetcher";
 export abstract class ChainFetcher extends Fetcher {
   private _isChainFetcher = true;
   protected _provider: providers.BaseProvider;
+  protected _isInitialized: boolean = false;
 
   static isChainFetcher(fetcher: any): fetcher is ChainFetcher {
     return !!(fetcher && fetcher._isChainFetcher);
@@ -17,11 +18,13 @@ export abstract class ChainFetcher extends Fetcher {
   }
 
   protected async _init(blockTag: providers.BlockTag) {
+    this._isInitialized = true;
     return true;
   }
 
   public async setProvider(provider: ethers.providers.BaseProvider) {
     this._provider = MulticallWrapper.wrap(provider);
+    this._isInitialized = false;
     return this;
   }
 

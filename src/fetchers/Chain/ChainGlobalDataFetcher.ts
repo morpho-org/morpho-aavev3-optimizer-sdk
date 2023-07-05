@@ -40,6 +40,7 @@ export class ChainGlobalDataFetcher
   }
 
   protected async _init(blockTag: providers.BlockTag): Promise<boolean> {
+    if (this._isInitialized) return true;
     try {
       const overrides = { blockTag };
       const addressesProvider = AaveV3AddressesProvider__factory.connect(
