@@ -127,12 +127,14 @@ export default class BulkerTxHandler
 
   public async addOperations(operations: Operation[]): Promise<void> {
     this.#done$ = new Subject();
-    this.simulatorOperations$.next([
-      ...this.simulatorOperations$.getValue(),
-      ...operations,
-    ]);
 
-    await firstValueFrom(this.#done$);
+    await new Promise((resolve) => {
+      this.#done$?.subscribe(resolve);
+      this.simulatorOperations$.next([
+        ...this.simulatorOperations$.getValue(),
+        ...operations,
+      ]);
+    });
   }
 
   public clearAllOperations(): void {
