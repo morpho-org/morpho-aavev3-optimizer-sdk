@@ -45,7 +45,6 @@ export interface ISimpleTxHandler
 
 export interface IBatchTxHandler {
   addOperations: (operations: TxOperation[]) => void;
-  clearAllOperations: () => void;
   removeLastOperation: () => void;
   reset: () => void;
   close: () => any;

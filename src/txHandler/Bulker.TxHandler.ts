@@ -89,7 +89,6 @@ export default class BulkerTxHandler
   implements IBatchTxHandler
 {
   #adapter: MorphoAaveV3Adapter;
-  _value = constants.Zero;
 
   #done$?: Subject<boolean>;
 
@@ -98,10 +97,6 @@ export default class BulkerTxHandler
   >([]);
 
   public readonly signatures$ = new BehaviorSubject<BulkerSignature[]>([]);
-
-  public getValue(): BigNumber {
-    return BigNumber.from(this._value);
-  }
 
   public getBulkerTransactions(): Bulker.Transactions[] {
     return this.bulkerOperations$.getValue().flat();
@@ -113,13 +108,19 @@ export default class BulkerTxHandler
     parentAdapter.setBatchTxHandler(this);
   }
 
+  public getValue(): BigNumber {
+    return this.bulkerOperations$
+      .getValue()
+      .flat()
+      .reduce((curr, { value }) => curr.add(value ?? 0), constants.Zero);
+  }
+
   public disconnect(): void {
     this.reset();
     super.disconnect();
   }
 
   reset() {
-    this._value = constants.Zero;
     this.bulkerOperations$.next([]);
     this.signatures$.next([]);
     super.reset();
@@ -135,11 +136,6 @@ export default class BulkerTxHandler
         ...operations,
       ]);
     });
-  }
-
-  public clearAllOperations(): void {
-    this.simulatorOperations$.next([]);
-    this.signatures$.next([]);
   }
 
   public removeLastOperation(): void {
@@ -265,12 +261,15 @@ export default class BulkerTxHandler
     const remainingPermit2Approvals: Record<string, BigNumber> = {};
     const missingSignatures: Bulker.Transactions[] = [];
     const abiCoder = new AbiCoder();
+    let value = constants.Zero;
 
     bulkerTransactions.forEach((transactions, index) => {
       transactions.forEach((transaction) => {
         const iMorpho = MorphoAaveV3__factory.createInterface();
         const userData = this.getUserData();
         if (!userData) throw Error(`Missing user data`);
+
+        value = value.add(transaction.value ?? 0);
 
         switch (transaction.type) {
           case BulkerTx.approve2: {
@@ -523,9 +522,20 @@ export default class BulkerTxHandler
       signer
     );
 
-    console.debug(actions, data);
+    console.debug({ actions, data, value: value.toString() });
 
-    await bulker.execute(actions, data);
+    const resp = await bulker.execute(actions, data, {
+      ...options?.overrides,
+      value,
+    });
+
+    try {
+      await resp.wait();
+      this.reset();
+      await this.#adapter.refetchData("latest");
+    } catch (e: any) {
+      throw e;
+    }
   }
 
   protected _applySupplyOperation(
@@ -546,7 +556,6 @@ export default class BulkerTxHandler
     const {
       batch: transferBatch,
       defers,
-      value,
       data: dataAfterTransfer,
     } = transferData;
 
@@ -568,7 +577,6 @@ export default class BulkerTxHandler
       amount,
     });
     if (defers.length > 0) batch.push(...defers);
-    this._value = this._value.add(value);
     this.bulkerOperations$.next([...this.bulkerOperations$.getValue(), batch]);
 
     return dataAfterSupply;
@@ -592,7 +600,6 @@ export default class BulkerTxHandler
     const {
       batch: transferBatch,
       defers,
-      value,
       data: dataAfterTransfer,
     } = transferData;
 
@@ -614,7 +621,6 @@ export default class BulkerTxHandler
       amount,
     });
     if (defers.length > 0) batch.push(...defers);
-    this._value = this._value.add(value);
     this.bulkerOperations$.next([...this.bulkerOperations$.getValue(), batch]);
 
     return dataAfterSupply;
@@ -638,7 +644,6 @@ export default class BulkerTxHandler
     const {
       batch: transferBatch,
       defers,
-      value,
       data: dataAfterTransfer,
     } = transferData;
 
@@ -660,7 +665,6 @@ export default class BulkerTxHandler
       amount,
     });
     if (defers.length > 0) batch.push(...defers);
-    this._value = this._value.add(value);
     this.bulkerOperations$.next([...this.bulkerOperations$.getValue(), batch]);
 
     return dataAfterRepay;
@@ -956,14 +960,12 @@ export default class BulkerTxHandler
     amount: BigNumber,
     index: number
   ): {
-    value: BigNumber;
     batch: Bulker.Transactions[];
     defers: Bulker.Transactions[];
     data: MorphoAaveV3DataHolder | null;
   } | null {
     const batch: Bulker.Transactions[] = [];
     const defers: Bulker.Transactions[] = [];
-    let value = constants.Zero;
     let simulatedData: MorphoAaveV3DataHolder | null = data;
 
     const userMarketsData = simulatedData.getUserMarketsData();
@@ -1042,11 +1044,11 @@ export default class BulkerTxHandler
       );
 
       if (wethMissing.gt(0)) {
-        value = value.add(wethMissing); // Add value to the tx
         batch.push({
           type: BulkerTx.wrap,
           asset: addresses.weth,
           amount: wethMissing,
+          value: wethMissing,
         });
         simulatedData = this._applyOperation(
           simulatedData,
@@ -1091,6 +1093,6 @@ export default class BulkerTxHandler
         amount: toTransfer,
       });
     }
-    return { value, batch, defers, data: simulatedData };
+    return { batch, defers, data: simulatedData };
   }
 }

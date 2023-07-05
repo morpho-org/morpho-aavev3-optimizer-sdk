@@ -1,5 +1,3 @@
-import { constants } from "ethers";
-
 const CONTRACT_ADDRESSES = {
   morphoAaveV3: "0x33333aea097c193e66081e930c33020272b33333",
   weth: "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",

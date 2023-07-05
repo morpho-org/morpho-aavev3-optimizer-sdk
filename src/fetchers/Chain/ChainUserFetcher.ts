@@ -138,6 +138,8 @@ export class ChainUserFetcher extends ChainFetcher implements UserFetcher {
     userAddress: Address,
     blockTag: BlockTag = "latest"
   ) {
+    const successfulInit = await this._init(blockTag);
+    if (!successfulInit) throw new Error("Error during initialisation");
     return this._provider.getBalance(userAddress, blockTag);
   }
 
@@ -146,9 +148,13 @@ export class ChainUserFetcher extends ChainFetcher implements UserFetcher {
     managerAddress: Address,
     blockTag: BlockTag = "latest"
   ) {
+    const successfulInit = await this._init(blockTag);
+    const overrides = { blockTag };
+    if (!successfulInit) throw new Error("Error during initialisation");
+
     const [isBulkerManaging, nonce] = await Promise.all([
-      this._morpho!.isManagedBy(userAddress, managerAddress, { blockTag }),
-      this._morpho!.userNonce(userAddress, { blockTag }),
+      this._morpho!.isManagedBy(userAddress, managerAddress, overrides),
+      this._morpho!.userNonce(userAddress, overrides),
     ]);
     return { isBulkerManaging, nonce };
   }

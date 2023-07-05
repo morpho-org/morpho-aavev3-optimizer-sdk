@@ -279,14 +279,17 @@ export class MorphoAaveV3DataHolder {
 
     if (allowWrapping) {
       if (getAddress(underlyingAddress) === addresses.wsteth) {
-        walletBalance = walletBalance
-          .add(
-            WadRayMath.wadDiv(
-              this._userData.stEthData.balance,
-              this._userData.stEthData.stethPerWsteth
+        walletBalance = maxBN(
+          0,
+          walletBalance
+            .add(
+              WadRayMath.wadDiv(
+                this._userData.stEthData.balance,
+                this._userData.stEthData.stethPerWsteth
+              )
             )
-          )
-          .sub(sdk.configuration.bulkerWrapBuffer);
+            .sub(sdk.configuration.bulkerWrapBuffer)
+        );
       }
       if (getAddress(underlyingAddress) === addresses.weth) {
         walletBalance = walletBalance.add(this._userData.ethBalance);

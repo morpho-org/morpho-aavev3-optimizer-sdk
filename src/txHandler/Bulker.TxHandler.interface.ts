@@ -54,81 +54,85 @@ export namespace Bulker {
     CLAIM_REWARDS,
   }
 
-  export interface Approve2Transaction {
+  interface BaseTransaction {
+    value?: BigNumber;
+  }
+
+  export interface Approve2Transaction extends BaseTransaction {
     type: TransactionType.approve2;
     asset: Address;
     amount: BigNumber;
   }
 
-  export interface TransferFrom2Transaction {
+  export interface TransferFrom2Transaction extends BaseTransaction {
     type: TransactionType.transferFrom2;
     asset: Address;
     amount: BigNumber;
   }
 
-  export interface ApproveManagerTransaction {
+  export interface ApproveManagerTransaction extends BaseTransaction {
     type: TransactionType.approveManager;
     isAllowed: boolean;
   }
 
-  export interface SupplyTransaction {
+  export interface SupplyTransaction extends BaseTransaction {
     type: TransactionType.supply;
     asset: Address;
     amount: BigNumber;
   }
 
-  export interface SupplyCollateralTransaction {
+  export interface SupplyCollateralTransaction extends BaseTransaction {
     type: TransactionType.supplyCollateral;
     asset: Address;
     amount: BigNumber;
   }
 
-  export interface BorrowTransaction {
+  export interface BorrowTransaction extends BaseTransaction {
     type: TransactionType.borrow;
     asset: Address;
     amount: BigNumber;
     to: Address;
   }
 
-  export interface RepayTransaction {
+  export interface RepayTransaction extends BaseTransaction {
     type: TransactionType.repay;
     asset: Address;
     amount: BigNumber;
   }
 
-  export interface WithdrawTransaction {
+  export interface WithdrawTransaction extends BaseTransaction {
     type: TransactionType.withdraw;
     asset: Address;
     amount: BigNumber;
     receiver: Address;
   }
 
-  export interface WithdrawCollateralTransaction {
+  export interface WithdrawCollateralTransaction extends BaseTransaction {
     type: TransactionType.withdrawCollateral;
     asset: Address;
     amount: BigNumber;
     receiver: Address;
   }
 
-  export interface WrapTransaction {
+  export interface WrapTransaction extends BaseTransaction {
     type: TransactionType.wrap;
     asset: Address;
     amount: BigNumber;
   }
 
-  export interface UnwrapTransaction {
+  export interface UnwrapTransaction extends BaseTransaction {
     type: TransactionType.unwrap;
     asset: Address;
     amount: BigNumber;
     receiver: Address;
   }
 
-  export interface SkimTransaction {
+  export interface SkimTransaction extends BaseTransaction {
     type: TransactionType.skim;
     asset: Address;
   }
 
-  export interface ClaimRewardsTransaction {
+  export interface ClaimRewardsTransaction extends BaseTransaction {
     type: TransactionType.claimRewards;
     assets: Address[];
   }
