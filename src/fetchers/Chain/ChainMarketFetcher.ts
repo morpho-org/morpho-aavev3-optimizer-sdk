@@ -39,7 +39,7 @@ export class ChainMarketFetcher extends ChainFetcher implements MarketFetcher {
   }
 
   protected async _init(blockTag: BlockTag): Promise<boolean> {
-    if (this._poolDataProvider) return true;
+    if (this._isInitialized) return true;
     try {
       const overrides = { blockTag };
 

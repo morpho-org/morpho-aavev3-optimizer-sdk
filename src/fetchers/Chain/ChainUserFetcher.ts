@@ -31,6 +31,24 @@ export class ChainUserFetcher extends ChainFetcher implements UserFetcher {
     );
   }
 
+  protected async _init(blockTag: BlockTag): Promise<boolean> {
+    if (this._isInitialized) return true;
+    try {
+      this._morpho = MorphoAaveV3__factory.connect(
+        CONTRACT_ADDRESSES.morphoAaveV3,
+        this._provider
+      );
+      this._permit2 = Permit2__factory.connect(
+        CONTRACT_ADDRESSES.permit2,
+        this._provider
+      );
+
+      return super._init(blockTag);
+    } catch {
+      return false;
+    }
+  }
+
   async fetchUserMarketData(
     underlyingAddress: Address,
     userAddress: Address,

@@ -37,13 +37,10 @@ export class ChainGlobalDataFetcher
 
   constructor(protected _provider: ethers.providers.BaseProvider) {
     super(_provider);
-    this._rewardsDistributor = RewardsDistributor__factory.connect(
-      addresses.morphoDao.rewardsDistributor,
-      this._provider
-    );
   }
 
   protected async _init(blockTag: providers.BlockTag): Promise<boolean> {
+    if (this._isInitialized) return true;
     try {
       const overrides = { blockTag };
       const addressesProvider = AaveV3AddressesProvider__factory.connect(
