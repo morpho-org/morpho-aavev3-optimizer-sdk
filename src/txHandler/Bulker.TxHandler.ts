@@ -265,7 +265,6 @@ export default class BulkerTxHandler
 
     bulkerTransactions.forEach((transactions, index) => {
       transactions.forEach((transaction) => {
-        const iMorpho = MorphoAaveV3__factory.createInterface();
         const userData = this.getUserData();
         if (!userData) throw Error(`Missing user data`);
 
@@ -631,21 +630,63 @@ export default class BulkerTxHandler
     operation: TxOperation,
     index: number
   ): MorphoAaveV3DataHolder | null {
-    const { underlyingAddress, formattedAmount, amount } = operation;
+    const { underlyingAddress, amount } = operation;
+    const defers: Bulker.Transactions[] = [];
+
+    let toTransfer: BigNumber | undefined = amount;
+    // In case of a repay max, we artificially increase the borrow position to anticipate block latency
+    if (amount.eq(constants.MaxUint256)) {
+      const userMarketsData = data.getUserMarketsData();
+      const userMarketData = userMarketsData[underlyingAddress];
+      if (!userMarketData) {
+        return this._raiseError(index, ErrorCode.missingData, operation);
+      }
+      const projectedData = new MorphoAaveV3DataHolder(
+        data.getMarketsConfigs(),
+        data.getMarketsData(),
+        data.getMarketsList(),
+        data.getGlobalData(),
+        data.getUserData(),
+        {
+          ...userMarketsData,
+          [underlyingAddress]: {
+            ...userMarketData,
+            totalBorrow: this.__MATH__.percentMul(
+              userMarketData.totalBorrow,
+              1_0001
+            ),
+          },
+        }
+      );
+
+      toTransfer = projectedData.getUserMaxCapacity(
+        operation.underlyingAddress,
+        operation.type,
+        this._allowWrapping
+      )?.amount;
+
+      defers.push({ type: BulkerTx.skim, asset: underlyingAddress });
+    }
+
+    if (!toTransfer) {
+      return this._raiseError(index, ErrorCode.missingData, operation);
+    }
 
     const transferData = this.#transferToBulker(
       data,
       underlyingAddress,
-      formattedAmount!,
+      toTransfer,
       index
     );
     if (!transferData) return null;
 
     const {
       batch: transferBatch,
-      defers,
+      defers: transferDefers,
       data: dataAfterTransfer,
     } = transferData;
+
+    defers.push(...transferDefers);
 
     if (!dataAfterTransfer) return null;
 

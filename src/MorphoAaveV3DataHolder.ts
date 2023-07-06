@@ -1,5 +1,5 @@
 import { constants } from "ethers";
-import { deepCopy, getAddress } from "ethers/lib/utils";
+import { deepCopy, getAddress, parseEther } from "ethers/lib/utils";
 
 import { PercentMath, WadRayMath } from "@morpho-labs/ethers-utils/lib/maths";
 import { maxBN, minBNS, pow10 } from "@morpho-labs/ethers-utils/lib/utils";
@@ -292,7 +292,9 @@ export class MorphoAaveV3DataHolder {
         );
       }
       if (getAddress(underlyingAddress) === addresses.weth) {
-        walletBalance = walletBalance.add(this._userData.ethBalance);
+        walletBalance = walletBalance.add(
+          maxBN(this._userData.ethBalance.sub(parseEther("0.1")), 0) // Keeping 0.1ETH for gas fees
+        );
       }
     }
 
