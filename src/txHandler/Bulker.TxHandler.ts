@@ -92,6 +92,8 @@ export default class BulkerTxHandler
 
   #done$?: Subject<boolean>;
 
+  autosign = false;
+
   public readonly bulkerOperations$ = new UpdatableBehaviorSubject<
     Bulker.Transactions[][]
   >([]);
@@ -183,7 +185,12 @@ export default class BulkerTxHandler
     if (existingSignature) {
       return this.signatures$.next(oldSignatures);
     }
-    return this.signatures$.next([...oldSignatures, signature]);
+
+    this.signatures$.next([...oldSignatures, signature]);
+
+    if (this.autosign) {
+      this.sign(signature);
+    }
   }
 
   public addSignatures(signatures: BulkerSignature<true>[]): void {
