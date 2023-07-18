@@ -25,7 +25,7 @@ describe("Simulator", () => {
     sender = Wallet.createRandom().address;
     receiver = Wallet.createRandom().address;
     await adapter.connect(sender);
-    simulator = adapter.getSimulator(0);
+    simulator = adapter.getSimulator(1000);
     await adapter.refreshAll(); // to set up simulator subjects
     await new Promise((resolve) => setTimeout(resolve, 100));
   });
