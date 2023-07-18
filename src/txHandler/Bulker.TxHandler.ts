@@ -1047,6 +1047,13 @@ export default class BulkerTxHandler
           });
         }
 
+        simulatedData = this.#consumeApproval(
+          simulatedData,
+          addresses.steth,
+          amountToWrap,
+          index
+        );
+
         this.#askForSignature({
           type: BulkerSignatureType.transfer,
           underlyingAddress: addresses.steth,
@@ -1125,6 +1132,14 @@ export default class BulkerTxHandler
           amount: toTransfer,
         });
       }
+
+      simulatedData = this.#consumeApproval(
+        simulatedData,
+        underlyingAddress,
+        toTransfer,
+        index
+      );
+
       this.#askForSignature({
         type: BulkerSignatureType.transfer,
         underlyingAddress: underlyingAddress,
@@ -1142,5 +1157,98 @@ export default class BulkerTxHandler
       });
     }
     return { batch, defers, data: simulatedData };
+  }
+
+  #consumeApproval(
+    data: MorphoAaveV3DataHolder | null,
+    underlyingAddress: string,
+    amount: BigNumber,
+    index: number
+  ): MorphoAaveV3DataHolder | null {
+    if (!data) return data;
+    const userMarketsData = data.getUserMarketsData();
+    const userData = data.getUserData();
+    const marketsConfigs = data.getMarketsConfigs();
+    const marketsData = data.getMarketsData();
+    const marketsList = data.getMarketsList();
+    const globalData = data.getGlobalData();
+
+    if (!userData || !userMarketsData)
+      return this._raiseError(index, ErrorCode.missingData);
+
+    if (getAddress(underlyingAddress) === addresses.steth) {
+      const bulkerApproval = userData.stEthData.bulkerApproval;
+      if (bulkerApproval.eq(constants.MaxUint256)) return data;
+      if (bulkerApproval.gte(amount)) {
+        return new MorphoAaveV3DataHolder(
+          marketsConfigs,
+          marketsData,
+          marketsList,
+          globalData,
+          {
+            ...userData,
+            stEthData: {
+              ...userData.stEthData,
+              bulkerApproval: bulkerApproval.sub(amount),
+            },
+          },
+          userMarketsData
+        );
+      }
+      const permit2Approval = userData.stEthData.permit2Approval;
+      if (permit2Approval.eq(constants.MaxUint256)) return data;
+      return new MorphoAaveV3DataHolder(
+        marketsConfigs,
+        marketsData,
+        marketsList,
+        globalData,
+        {
+          ...userData,
+          stEthData: {
+            ...userData.stEthData,
+            permit2Approval: permit2Approval.sub(amount),
+          },
+        },
+        userMarketsData
+      );
+    }
+
+    const userMarketData = userMarketsData[underlyingAddress];
+    if (!userMarketData) return this._raiseError(index, ErrorCode.missingData);
+
+    const bulkerApproval = userMarketData.bulkerApproval;
+    if (bulkerApproval.eq(constants.MaxUint256)) return data;
+    if (bulkerApproval.gte(amount)) {
+      return new MorphoAaveV3DataHolder(
+        marketsConfigs,
+        marketsData,
+        marketsList,
+        globalData,
+        userData,
+        {
+          ...userMarketsData,
+          [underlyingAddress]: {
+            ...userMarketData,
+            bulkerApproval: bulkerApproval.sub(amount),
+          },
+        }
+      );
+    }
+    const permit2Approval = userData.stEthData.permit2Approval;
+    if (permit2Approval.eq(constants.MaxUint256)) return data;
+    return new MorphoAaveV3DataHolder(
+      marketsConfigs,
+      marketsData,
+      marketsList,
+      globalData,
+      userData,
+      {
+        ...userMarketsData,
+        [underlyingAddress]: {
+          ...userMarketData,
+          permit2Approval: permit2Approval.sub(amount),
+        },
+      }
+    );
   }
 }

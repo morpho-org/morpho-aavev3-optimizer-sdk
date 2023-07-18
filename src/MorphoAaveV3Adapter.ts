@@ -58,6 +58,7 @@ import {
   Address,
   MaxCapacityLimiter,
   StEthData,
+  Token,
   TransactionOptions,
   TransactionType,
   UserData,
@@ -431,11 +432,17 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
   ) {
     if (!this._user || !this._txHandler) return;
 
-    const token = this._marketsConfigs[underlyingAddress];
+    let token: Token;
+    let nonce: BigNumber;
 
-    if (!token) throw Error(`Unknown token: ${underlyingAddress}`);
-
-    const nonce = this._userMarketsData[underlyingAddress]!.nonce;
+    if (getAddress(underlyingAddress) === addresses.steth) {
+      token = { symbol: "stETH", address: addresses.steth, decimals: 18 };
+      nonce = this._userData!.stEthData.bulkerNonce;
+    } else {
+      token = this._marketsConfigs[underlyingAddress]!;
+      if (!token) throw Error(`Unknown token: ${underlyingAddress}`);
+      nonce = this._userMarketsData[underlyingAddress]!.nonce;
+    }
 
     const refreshNotifier = {
       onSuccess: async () => {
