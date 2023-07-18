@@ -1,4 +1,4 @@
-import { BigNumber, constants, Signature } from "ethers";
+import { BigNumber, constants, ContractReceipt, Signature } from "ethers";
 import {
   AbiCoder,
   getAddress,
@@ -83,6 +83,17 @@ export interface BulkerApprovalSignature<
 export type BulkerSignature<Fullfilled extends boolean | null = null> =
   | BulkerTransferSignature<Fullfilled>
   | BulkerApprovalSignature<Fullfilled>;
+
+export enum NotificationCode {
+  transferSignatureStart = "TRANSFER_SIGNATURE_START",
+  transferSignatureEnd = "TRANSFER_SIGNATURE_END",
+  managerSignatureStart = "MANAGER_SIGNATURE_START",
+  managerSignatureEnd = "MANAGER_SIGNATURE_END",
+  batchExecStart = "BATCH_EXEC_START",
+  batchExecSuccess = "BATCH_EXEC_SUCCESS",
+  batchExecError = "BATCH_EXEC_ERROR",
+  batchExecPending = "BATCH_EXEC_PENDING",
+}
 
 export default class BulkerTxHandler
   extends NotifierManager(Connectable(MorphoAaveV3Simulator))
@@ -221,47 +232,95 @@ export default class BulkerTxHandler
 
   public async sign(toSign: BulkerSignature<false>): Promise<void> {
     if (!this._signer) return;
-
-    let permit2Message: SignatureMessage;
-    const deadline = constants.MaxUint256;
-
-    if (toSign.type === BulkerSignatureType.transfer) {
-      permit2Message = getPermit2Message(
-        toSign.underlyingAddress,
-        toSign.amount,
-        toSign.nonce,
-        deadline,
-        addresses.bulker
-      );
-    } else {
-      const userData = this.getUserData();
-      if (!userData) {
-        console.error(`Missing user data`);
-        return;
-      }
-      permit2Message = getManagerApprovalMessage(
-        userData.address,
-        addresses.bulker,
-        toSign.nonce,
-        deadline
-      );
+    const userData = this.getUserData();
+    const marketsConfig = this.getMarketsConfigs();
+    if (!userData) {
+      console.error(`Missing user data`);
+      return;
     }
 
-    const signature = await safeSignTypedData(
-      this._signer,
-      permit2Message.data.domain,
-      permit2Message.data.types,
-      permit2Message.data.message
-    );
+    const notifier = this.notifier;
+    const notificationId = Date.now().toString();
 
-    this.addSignatures([{ ...toSign, signature: { signature, deadline } }]);
+    let success: boolean;
+
+    try {
+      let sigMessage: SignatureMessage;
+      const deadline = constants.MaxUint256;
+
+      if (toSign.type === BulkerSignatureType.transfer) {
+        const { symbol } = marketsConfig?.[toSign.underlyingAddress] ?? {};
+        if (!symbol) {
+          console.error(`Missing market data`);
+          return;
+        }
+        await notifier?.notify?.(
+          notificationId,
+          NotificationCode.transferSignatureStart,
+          { ...toSign, symbol }
+        );
+        sigMessage = getPermit2Message(
+          toSign.underlyingAddress,
+          toSign.amount,
+          toSign.nonce,
+          deadline,
+          addresses.bulker
+        );
+      } else {
+        await notifier?.notify?.(
+          notificationId,
+          NotificationCode.managerSignatureStart
+        );
+        sigMessage = getManagerApprovalMessage(
+          userData.address,
+          addresses.bulker,
+          toSign.nonce,
+          deadline
+        );
+      }
+
+      const signature = await safeSignTypedData(
+        this._signer,
+        sigMessage.data.domain,
+        sigMessage.data.types,
+        sigMessage.data.message
+      );
+
+      this.addSignatures([{ ...toSign, signature: { signature, deadline } }]);
+
+      if (toSign.type === BulkerSignatureType.transfer) {
+        await notifier?.notify?.(
+          notificationId,
+          NotificationCode.transferSignatureEnd
+        );
+      } else {
+        await notifier?.notify?.(
+          notificationId,
+          NotificationCode.managerSignatureEnd
+        );
+      }
+
+      success = true;
+    } catch (e: any) {
+      notifier?.notify?.(notificationId, NotificationCode.batchExecError, {
+        error: e,
+      });
+      success = false;
+    }
+    await notifier?.close?.(notificationId, success);
   }
 
   async executeBatch(options?: BulkerTransactionOptions): Promise<any> {
     const signer = this._signer;
     if (!signer) return;
+
     const bulkerTransactions = this.bulkerOperations$.getValue();
     if (bulkerTransactions.length === 0) return;
+
+    const notifier = this.notifier;
+    const notificationId = Date.now().toString();
+
+    await notifier?.notify?.(notificationId, NotificationCode.batchExecStart);
 
     const actions: Bulker.ActionType[] = [];
     const data: string[] = [];
@@ -281,11 +340,13 @@ export default class BulkerTxHandler
           case BulkerTx.approve2: {
             if (!remainingPermit2Approvals[transaction.asset]) {
               if (getAddress(transaction.asset) === addresses.steth) {
+                const initialUserData = this.#adapter.getUserData();
+                if (!initialUserData) throw Error(`Missing user data`);
                 remainingPermit2Approvals[transaction.asset] =
-                  userData.stEthData.permit2Approval;
+                  initialUserData.stEthData.permit2Approval;
               } else {
                 const userMarketData =
-                  this.getUserMarketsData()?.[transaction.asset];
+                  this.#adapter.getUserMarketsData()?.[transaction.asset];
                 if (!userMarketData)
                   throw Error(`Missing data for asset ${transaction.asset}`);
                 remainingPermit2Approvals[transaction.asset] =
@@ -523,25 +584,42 @@ export default class BulkerTxHandler
       }
     }
 
-    const bulker = MorphoBulkerGateway__factory.connect(
-      addresses.bulker,
-      signer
-    );
-
-    console.debug({ actions, data, value: value.toString() });
-
-    const resp = await bulker.execute(actions, data, {
-      ...options?.overrides,
-      value,
-    });
+    let success: boolean;
+    let receipt: ContractReceipt | undefined;
 
     try {
-      await resp.wait();
-      this.reset();
+      const bulker = MorphoBulkerGateway__factory.connect(
+        addresses.bulker,
+        signer
+      );
+
+      const resp = await bulker.execute(actions, data, {
+        ...options?.overrides,
+        value,
+      });
+
+      await notifier?.notify?.(
+        notificationId,
+        NotificationCode.batchExecPending,
+        { hash: resp.hash }
+      );
+      receipt = await resp.wait();
       await this.#adapter.refetchData("latest");
+      await notifier?.notify?.(
+        notificationId,
+        NotificationCode.batchExecSuccess,
+        { hash: receipt.transactionHash }
+      );
+      success = true;
     } catch (e: any) {
-      throw e;
+      await notifier?.notify?.(
+        notificationId,
+        NotificationCode.batchExecError,
+        { error: e, hash: receipt?.transactionHash }
+      );
+      success = false;
     }
+    await notifier?.close?.(notificationId, success);
   }
 
   protected _applySupplyOperation(

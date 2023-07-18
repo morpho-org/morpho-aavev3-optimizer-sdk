@@ -68,4 +68,14 @@ export default class CompositeNotifier implements ITransactionNotifier {
       this.notifiers.map((notifier) => notifier.close?.(id, success))
     );
   }
+
+  async notify(
+    id: string,
+    code: string,
+    params?: Record<string, any>
+  ): Promise<void> {
+    await Promise.all(
+      this.notifiers.map((notifier) => notifier.notify?.(id, code, params))
+    );
+  }
 }
