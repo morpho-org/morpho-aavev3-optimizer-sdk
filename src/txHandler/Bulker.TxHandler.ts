@@ -324,7 +324,6 @@ export default class BulkerTxHandler
 
     const actions: Bulker.ActionType[] = [];
     const data: string[] = [];
-    const remainingPermit2Approvals: Record<string, BigNumber> = {};
     const missingSignatures: Bulker.Transactions[] = [];
     const abiCoder = new AbiCoder();
     let value = constants.Zero;
@@ -338,26 +337,6 @@ export default class BulkerTxHandler
 
         switch (transaction.type) {
           case BulkerTx.approve2: {
-            if (!remainingPermit2Approvals[transaction.asset]) {
-              if (getAddress(transaction.asset) === addresses.steth) {
-                const initialUserData = this.#adapter.getUserData();
-                if (!initialUserData) throw Error(`Missing user data`);
-                remainingPermit2Approvals[transaction.asset] =
-                  initialUserData.stEthData.permit2Approval;
-              } else {
-                const userMarketData =
-                  this.#adapter.getUserMarketsData()?.[transaction.asset];
-                if (!userMarketData)
-                  throw Error(`Missing data for asset ${transaction.asset}`);
-                remainingPermit2Approvals[transaction.asset] =
-                  userMarketData.permit2Approval;
-              }
-            }
-            remainingPermit2Approvals[transaction.asset] =
-              remainingPermit2Approvals[transaction.asset].sub(
-                transaction.amount
-              );
-
             const signature = this.signatures$.getValue().find((sig) => {
               return (
                 sig.transactionIndex === index &&
@@ -571,17 +550,6 @@ export default class BulkerTxHandler
     if (missingSignatures.length > 0) {
       console.error(`Missing signatures: ${JSON.stringify(missingSignatures)}`);
       return;
-    }
-
-    const missingPermit2Approvals = Object.keys(
-      remainingPermit2Approvals
-    ).filter((asset) => remainingPermit2Approvals[asset].isNegative());
-
-    if (missingPermit2Approvals.length > 0) {
-      for (const asset of missingPermit2Approvals) {
-        const erc20 = ERC20__factory.connect(asset, signer);
-        await erc20.approve(addresses.permit2, constants.MaxUint256);
-      }
     }
 
     let success: boolean;
