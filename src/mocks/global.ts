@@ -69,7 +69,7 @@ export const MARKETS_REWARDS_DISTRIBUTION: MorphoEpochDistribution = {
       morphoRatePerSecondSupplySide: "0.037948737095378422",
       morphoRatePerSecondBorrowSide: "0.01354303245194668",
     },
-    [Underlying.stEth]: {
+    [Underlying.wsteth]: {
       morphoRatePerSecondSupplySide: "0.041615226337448559",
       morphoRatePerSecondBorrowSide: "0.0",
     },

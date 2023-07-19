@@ -1,13 +1,16 @@
 import { constants } from "ethers";
-import { deepCopy } from "ethers/lib/utils";
+import { deepCopy, getAddress, parseEther } from "ethers/lib/utils";
 
-import { PercentMath } from "@morpho-labs/ethers-utils/lib/maths";
+import { PercentMath, WadRayMath } from "@morpho-labs/ethers-utils/lib/maths";
 import { maxBN, minBNS, pow10 } from "@morpho-labs/ethers-utils/lib/utils";
 
+import sdk from ".";
 import { MarketsConfigs, MarketsData, UserMarketsData } from "./adapter.types";
 import { LT_LOWER_BOUND } from "./constants";
+import addresses from "./contracts/addresses";
 import { MorphoAaveMath } from "./maths/AaveV3.maths";
 import {
+  Address,
   FetchedStatic,
   FetchedUpdated,
   GlobalData,
@@ -20,6 +23,10 @@ import {
 export class MorphoAaveV3DataHolder {
   protected __MATH__ = new MorphoAaveMath();
 
+  protected _user: Address | null = null;
+
+  protected _allowWrapping = false;
+
   constructor(
     protected _marketsConfigs: MarketsConfigs = {},
     protected _marketsData: MarketsData = {},
@@ -27,7 +34,9 @@ export class MorphoAaveV3DataHolder {
     protected _globalData: FetchedUpdated<GlobalData> = null,
     protected _userData: FetchedUpdated<UserData> = null,
     protected _userMarketsData: UserMarketsData = {}
-  ) {}
+  ) {
+    this._user = _userData?.address ?? null;
+  }
 
   /* Getters */
   public getMarketsConfigs() {
@@ -49,7 +58,10 @@ export class MorphoAaveV3DataHolder {
     return deepCopy(this._globalData);
   }
 
-  public computeUserData(): Omit<UserData, "ethBalance" | "morphoRewards"> {
+  public computeUserData(): Omit<
+    UserData,
+    "ethBalance" | "morphoRewards" | "stEthData" | "isBulkerManaging" | "nonce"
+  > {
     let liquidationValue = constants.Zero;
     let borrowCapacity = constants.Zero;
     let totalSupplyOnPool = constants.Zero;
@@ -221,6 +233,7 @@ export class MorphoAaveV3DataHolder {
     }
 
     return {
+      address: this._user ?? constants.AddressZero,
       liquidationValue,
       borrowCapacity,
       totalBorrowInP2P,
@@ -252,7 +265,8 @@ export class MorphoAaveV3DataHolder {
 
   public getUserMaxCapacity(
     underlyingAddress: string,
-    txType: TransactionType
+    txType: TransactionType,
+    allowWrapping = this._allowWrapping
   ): MaxCapacity | null {
     const userMarketData = this._userMarketsData[underlyingAddress];
     const marketData = this._marketsData[underlyingAddress];
@@ -260,6 +274,29 @@ export class MorphoAaveV3DataHolder {
 
     if (!userMarketData || !marketData || !this._userData || !marketConfig)
       return null;
+
+    let walletBalance = userMarketData.walletBalance;
+
+    if (allowWrapping) {
+      if (getAddress(underlyingAddress) === addresses.wsteth) {
+        walletBalance = maxBN(
+          0,
+          walletBalance
+            .add(
+              WadRayMath.wadDiv(
+                this._userData.stEthData.balance,
+                this._userData.stEthData.stethPerWsteth
+              )
+            )
+            .sub(sdk.configuration.bulkerWrapBuffer)
+        );
+      }
+      if (getAddress(underlyingAddress) === addresses.weth) {
+        walletBalance = walletBalance.add(
+          maxBN(this._userData.ethBalance.sub(parseEther("0.1")), 0) // Keeping 0.1ETH for gas fees
+        );
+      }
+    }
 
     if (marketData.usdPrice.isZero())
       return { amount: constants.Zero, limiter: MaxCapacityLimiter.zeroPrice };
@@ -277,7 +314,7 @@ export class MorphoAaveV3DataHolder {
             limiter: MaxCapacityLimiter.operationPaused,
           };
 
-        const maxSupplyFromWallet = userMarketData.walletBalance;
+        const maxSupplyFromWallet = walletBalance;
         const maxSupplyFromSupplyCap = marketConfig.supplyCap.isZero()
           ? constants.MaxUint256
           : maxBN(
@@ -362,7 +399,7 @@ export class MorphoAaveV3DataHolder {
             limiter: MaxCapacityLimiter.operationPaused,
           };
 
-        const maxRepayFromWallet = userMarketData.walletBalance;
+        const maxRepayFromWallet = walletBalance;
         const maxRepayFromBorrowBalance = userMarketData.totalBorrow;
 
         const maxRepay = minBNS(maxRepayFromWallet, maxRepayFromBorrowBalance);

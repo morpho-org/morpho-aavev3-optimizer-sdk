@@ -1,6 +1,14 @@
-import { BigNumber } from "ethers";
+import { BigNumber, constants } from "ethers";
 
-import { Address, MarketMapping, ScaledUserMarketData } from "../../types";
+import { BlockTag } from "@ethersproject/abstract-provider";
+import { WadRayMath } from "@morpho-labs/ethers-utils/lib/maths";
+
+import {
+  Address,
+  MarketMapping,
+  ScaledUserMarketData,
+  StEthData,
+} from "../../types";
 import { delay } from "../../utils/promises";
 import { UserFetcher } from "../fetchers.interfaces";
 
@@ -8,7 +16,10 @@ import { StaticFetcher } from "./StaticFetcher";
 
 export class StaticUserFetcher extends StaticFetcher implements UserFetcher {
   constructor(
-    private _ethBalance: BigNumber,
+    private _userData: {
+      ethBalance: BigNumber;
+      stEthData: StEthData;
+    },
     private _userMarketsData: MarketMapping<ScaledUserMarketData>,
     _longDelay: number,
     _shortDelay?: number
@@ -21,6 +32,16 @@ export class StaticUserFetcher extends StaticFetcher implements UserFetcher {
   }
 
   async fetchUserETHBalance() {
-    return delay(this._ethBalance, this._longDelay);
+    return delay(this._userData.ethBalance, this._longDelay);
+  }
+  async fetchManagerApproval(userAddress: Address, managerAddress: Address) {
+    return delay(
+      { isBulkerManaging: true, nonce: constants.Zero },
+      this._longDelay
+    );
+  }
+
+  fetchStethData(userAddress: Address, blockTag?: BlockTag) {
+    return delay(this._userData.stEthData, this._shortDelay);
   }
 }

@@ -3,16 +3,18 @@ import { _TypedDataEncoder } from "ethers/lib/utils";
 
 import { minBN } from "@morpho-labs/ethers-utils/lib/utils";
 
-import { MAX_UINT_160, MAX_UINT_48 } from "../constants";
-import morphoAaveV3Addresses from "../contracts/addresses";
-import { Address } from "../types";
+import { MAX_UINT_160, MAX_UINT_48 } from "../../constants";
+import morphoAaveV3Addresses from "../../contracts/addresses";
+
+import { SignatureMessage } from "./types";
 
 export const getPermit2Message = (
-  tokenAddress: Address,
+  tokenAddress: string,
   amount: BigNumber,
   nonce: BigNumber,
-  deadline: BigNumber
-) => {
+  deadline: BigNumber,
+  spender = morphoAaveV3Addresses.morphoAaveV3
+): SignatureMessage => {
   const data = {
     domain: {
       name: "Permit2",
@@ -62,7 +64,7 @@ export const getPermit2Message = (
         expiration: MAX_UINT_48,
         nonce,
       },
-      spender: morphoAaveV3Addresses.morphoAaveV3,
+      spender,
       sigDeadline: deadline,
     },
   };

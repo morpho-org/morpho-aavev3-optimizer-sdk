@@ -2,6 +2,7 @@ import { BigNumber, constants, Wallet } from "ethers";
 import { Subscription } from "rxjs";
 
 import { MorphoAaveV3Adapter } from "../../src/MorphoAaveV3Adapter";
+import { Underlying } from "../../src/mocks/markets";
 import { MorphoAaveV3Simulator } from "../../src/simulation/MorphoAaveV3Simulator";
 import {
   ErrorCode,
@@ -9,7 +10,6 @@ import {
 } from "../../src/simulation/SimulationError";
 import { Operation } from "../../src/simulation/simulation.types";
 import { TransactionType } from "../../src/types";
-import { Underlying } from "../mocks/markets";
 import { ADAPTER_MOCK } from "../mocks/mock";
 
 describe("Simulator", () => {
@@ -25,7 +25,7 @@ describe("Simulator", () => {
     sender = Wallet.createRandom().address;
     receiver = Wallet.createRandom().address;
     await adapter.connect(sender);
-    simulator = adapter.getSimulator(0);
+    simulator = adapter.getSimulator(1000);
     await adapter.refreshAll(); // to set up simulator subjects
     await new Promise((resolve) => setTimeout(resolve, 100));
   });

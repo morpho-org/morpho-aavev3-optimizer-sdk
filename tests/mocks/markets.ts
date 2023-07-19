@@ -1,22 +1,8 @@
 import { BigNumber, constants } from "ethers";
 import { parseUnits } from "ethers/lib/utils";
 
-import {
-  MarketConfig,
-  MarketMapping,
-  ScaledMarketData,
-  ScaledMarketSupply,
-} from "../../src/types";
-
-export enum Underlying {
-  usdc = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
-  dai = "0x6B175474E89094C44Da98b954EedeAC495271d0F",
-  wbtc = "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599",
-  stEth = "0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84",
-  uni = "0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984",
-  usdt = "0xdAC17F958D2ee523a2206206994597C13D831ec7",
-  weth = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
-}
+import { Underlying } from "../../src/mocks/markets";
+import { MarketConfig, MarketMapping, ScaledMarketData } from "../../src/types";
 
 export const MARKETS_CONFIGS: MarketMapping<MarketConfig> = {
   [Underlying.dai]: {
@@ -142,7 +128,7 @@ export const MARKETS_CONFIGS: MarketMapping<MarketConfig> = {
   [Underlying.weth]: {
     symbol: "WETH",
     address: Underlying.weth,
-    eModeCategoryId: constants.Zero,
+    eModeCategoryId: BigNumber.from(1),
     decimals: 18,
     name: "Wrapped Ether",
     isBorrowPaused: false,
@@ -162,6 +148,30 @@ export const MARKETS_CONFIGS: MarketMapping<MarketConfig> = {
     borrowCap: constants.Zero,
     supplyCap: constants.Zero,
     isCollateral: false,
+  },
+  [Underlying.wsteth]: {
+    symbol: "WSTETH",
+    address: Underlying.wsteth,
+    eModeCategoryId: BigNumber.from(1),
+    decimals: 18,
+    name: "Wrapped Staked Ether",
+    isBorrowPaused: false,
+    isP2PDisabled: false,
+    isRepayPaused: false,
+    isSupplyCollateralPaused: false,
+    isSupplyPaused: false,
+    isLiquidateCollateralPaused: false,
+    isLiquidateBorrowPaused: false,
+    isDeprecated: false,
+    isWithdrawCollateralPaused: false,
+    isWithdrawPaused: false,
+    collateralFactor: parseUnits("0.74", 4),
+    p2pReserveFactor: constants.Zero,
+    borrowableFactor: parseUnits("0.73", 4),
+    p2pIndexCursor: BigNumber.from(3333),
+    borrowCap: constants.Zero,
+    supplyCap: constants.Zero,
+    isCollateral: true,
   },
 };
 
@@ -388,31 +398,41 @@ export const MARKETS_DATA: MarketMapping<ScaledMarketData> = {
       },
     },
   },
-};
-
-export const MARKETS_SUPPLY_DATA: MarketMapping<ScaledMarketSupply> = {
-  [Underlying.dai]: {
-    scaledMorphoSupplyOnPool: parseUnits("43214231", 18),
-    scaledMorphoCollateral: parseUnits("435345", 18),
-  },
-  [Underlying.usdc]: {
-    scaledMorphoSupplyOnPool: parseUnits("43214231", 6),
-    scaledMorphoCollateral: parseUnits("43534345", 6),
-  },
-  [Underlying.wbtc]: {
-    scaledMorphoSupplyOnPool: parseUnits("43214231", 8),
-    scaledMorphoCollateral: parseUnits("3453", 8),
-  },
-  [Underlying.uni]: {
-    scaledMorphoSupplyOnPool: parseUnits("43214231", 18),
-    scaledMorphoCollateral: parseUnits("1245856", 18),
-  },
-  [Underlying.usdt]: {
-    scaledMorphoSupplyOnPool: parseUnits("4321486214", 6),
-    scaledMorphoCollateral: parseUnits("467321", 6),
-  },
-  [Underlying.weth]: {
-    scaledMorphoSupplyOnPool: parseUnits("42142314", 18),
-    scaledMorphoCollateral: parseUnits("5674652", 18),
+  [Underlying.wsteth]: {
+    address: Underlying.wsteth,
+    chainUsdPrice: parseUnits("1643.435645", 8),
+    idleSupply: constants.Zero,
+    poolLiquidity: parseUnits("1004300", 18),
+    poolStableBorrow: constants.Zero,
+    scaledPoolSupply: parseUnits("432142315", 18),
+    scaledMorphoBorrowInP2P: parseUnits("123455234", 18),
+    scaledMorphoBorrowOnPool: parseUnits("1232414124", 18),
+    scaledMorphoSupplyInP2P: parseUnits("21343214234", 18),
+    scaledMorphoGlobalPoolSupply: parseUnits("47816966", 18),
+    scaledPoolBorrow: parseUnits("132431432", 18),
+    indexes: {
+      lastUpdateTimestamp: BigNumber.from(1679584232),
+      p2pBorrowIndex: parseUnits("1.31218", 27),
+      p2pSupplyIndex: parseUnits("1.12314", 27),
+      poolBorrowIndex: parseUnits("1.12312", 27),
+      poolSupplyIndex: parseUnits("1.12321", 27),
+    },
+    aaveIndexes: {
+      lastUpdateTimestamp: BigNumber.from(1679584232),
+      liquidityIndex: parseUnits("1.7564", 27),
+      liquidityRate: parseUnits("1.0589", 27 - 2), // in percent
+      variableBorrowIndex: parseUnits("1.2675", 27),
+      variableBorrowRate: parseUnits("1.2675", 27 - 2), // in percent
+    },
+    deltas: {
+      supply: {
+        scaledP2PTotal: constants.Zero,
+        scaledDelta: constants.Zero,
+      },
+      borrow: {
+        scaledDelta: constants.Zero,
+        scaledP2PTotal: constants.Zero,
+      },
+    },
   },
 };

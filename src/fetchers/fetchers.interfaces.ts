@@ -13,6 +13,7 @@ import {
   ScaledMarketData,
   ScaledUserMarketData,
   ScaledMarketSupply,
+  StEthData,
 } from "../types";
 
 import { Fetcher } from "./Fetcher";
@@ -43,6 +44,17 @@ export interface UserFetcher extends Fetcher {
     userAddress: Address,
     blockTag?: BlockTag
   ) => Promise<BigNumber>;
+
+  fetchManagerApproval: (
+    userAddress: Address,
+    managerAddress: Address,
+    blockTag?: BlockTag
+  ) => Promise<{ isBulkerManaging: boolean; nonce: BigNumber }>;
+
+  fetchStethData: (
+    userAddress: Address,
+    blockTag?: BlockTag
+  ) => Promise<StEthData>;
 }
 
 export interface GlobalDataFetcher extends Fetcher {

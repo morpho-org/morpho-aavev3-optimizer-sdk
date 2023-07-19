@@ -26,8 +26,8 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 
 import { MorphoAaveV3Adapter } from "../../src";
 import CONTRACT_ADDRESSES from "../../src/contracts/addresses";
+import { Underlying } from "../../src/mocks/markets";
 import { MaxCapacityLimiter, TransactionType } from "../../src/types";
-import { Underlying } from "../mocks/markets";
 
 describe("MorphoAaveV3", () => {
   let snapshot: SnapshotRestorer;

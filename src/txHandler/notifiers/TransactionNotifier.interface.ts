@@ -6,7 +6,7 @@ import {
 } from "@ethersproject/providers";
 
 import { Address } from "../../types";
-import { getPermit2Message } from "../../utils/permit2";
+import { getPermit2Message } from "../../utils/signatures/permit2";
 
 export interface ITransactionNotifier {
   /** Transcation started */
@@ -48,6 +48,13 @@ export interface ITransactionNotifier {
   onError?: (id: string, error: Error) => Promise<void>;
   /** Close notifier failed or success */
   close?: (id: string, success: boolean) => Promise<void>;
+
+  /** Generic notification */
+  notify?: (
+    id: string,
+    code: string,
+    params?: Record<string, any>
+  ) => Promise<void>;
 }
 
 export interface ApprovalSignedPayload {

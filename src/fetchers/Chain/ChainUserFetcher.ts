@@ -1,15 +1,18 @@
 import { BigNumber, ethers } from "ethers";
 
 import { BlockTag } from "@ethersproject/providers";
+import { WadRayMath } from "@morpho-labs/ethers-utils/lib/maths";
 import {
   ERC20__factory,
   MorphoAaveV3,
   MorphoAaveV3__factory,
   Permit2,
   Permit2__factory,
+  StEth__factory,
 } from "@morpho-labs/morpho-ethers-contract";
 
 import CONTRACT_ADDRESSES from "../../contracts/addresses";
+import addresses from "../../contracts/addresses";
 import { Address } from "../../types";
 import { UserFetcher } from "../fetchers.interfaces";
 
@@ -63,6 +66,7 @@ export class ChainUserFetcher extends ChainFetcher implements UserFetcher {
     const [
       walletBalance,
       approval,
+      bulkerApproval,
       scaledCollateral,
       scaledSupplyInP2P,
       scaledSupplyOnPool,
@@ -70,9 +74,11 @@ export class ChainUserFetcher extends ChainFetcher implements UserFetcher {
       scaledBorrowOnPool,
       permit2Approval,
       { nonce },
+      { nonce: bulkerNonce },
     ] = await Promise.all([
       erc20.balanceOf(userAddress, overrides),
       erc20.allowance(userAddress, CONTRACT_ADDRESSES.morphoAaveV3, overrides),
+      erc20.allowance(userAddress, CONTRACT_ADDRESSES.bulker),
       this._morpho!.scaledCollateralBalance(
         underlyingAddress,
         userAddress,
@@ -105,6 +111,11 @@ export class ChainUserFetcher extends ChainFetcher implements UserFetcher {
         CONTRACT_ADDRESSES.morphoAaveV3,
         overrides
       ),
+      this._permit2!.allowance(
+        userAddress,
+        underlyingAddress,
+        CONTRACT_ADDRESSES.bulker
+      ),
     ]);
 
     return {
@@ -117,6 +128,8 @@ export class ChainUserFetcher extends ChainFetcher implements UserFetcher {
       walletBalance,
       approval,
       nonce: BigNumber.from(nonce),
+      bulkerNonce: BigNumber.from(bulkerNonce),
+      bulkerApproval,
       permit2Approval,
     };
   }
@@ -125,6 +138,55 @@ export class ChainUserFetcher extends ChainFetcher implements UserFetcher {
     userAddress: Address,
     blockTag: BlockTag = "latest"
   ) {
+    const successfulInit = await this._init(blockTag);
+    if (!successfulInit) throw new Error("Error during initialisation");
     return this._provider.getBalance(userAddress, blockTag);
+  }
+
+  async fetchManagerApproval(
+    userAddress: Address,
+    managerAddress: Address,
+    blockTag: BlockTag = "latest"
+  ) {
+    const successfulInit = await this._init(blockTag);
+    const overrides = { blockTag };
+    if (!successfulInit) throw new Error("Error during initialisation");
+
+    const [isBulkerManaging, nonce] = await Promise.all([
+      this._morpho!.isManagedBy(userAddress, managerAddress, overrides),
+      this._morpho!.userNonce(userAddress, overrides),
+    ]);
+    return { isBulkerManaging, nonce };
+  }
+
+  async fetchStethData(userAddress: Address, blockTag: BlockTag = "latest") {
+    const stEth = StEth__factory.connect(addresses.steth, this._provider);
+    const [
+      balance,
+      stethPerWsteth,
+      permit2Approval,
+      bulkerApproval,
+      { nonce: bulkerNonce },
+    ] = await Promise.all([
+      stEth.balanceOf(userAddress, {
+        blockTag,
+      }),
+      stEth.getPooledEthByShares(WadRayMath.WAD, { blockTag }),
+      stEth.allowance(userAddress, CONTRACT_ADDRESSES.permit2),
+      stEth.allowance(userAddress, CONTRACT_ADDRESSES.bulker),
+      this._permit2!.allowance(
+        userAddress,
+        addresses.steth,
+        CONTRACT_ADDRESSES.bulker
+      ),
+    ]);
+
+    return {
+      balance,
+      stethPerWsteth,
+      permit2Approval,
+      bulkerApproval,
+      bulkerNonce: BigNumber.from(bulkerNonce),
+    };
   }
 }

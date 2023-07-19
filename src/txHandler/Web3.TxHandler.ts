@@ -1,14 +1,7 @@
-import {
-  BigNumber,
-  constants,
-  PopulatedTransaction,
-  Signer,
-  utils,
-} from "ethers";
+import { BigNumber, constants, PopulatedTransaction, utils } from "ethers";
 import { getAddress, splitSignature } from "ethers/lib/utils";
 
 import { JsonRpcSigner } from "@ethersproject/providers";
-
 import { PercentMath } from "@morpho-labs/ethers-utils/lib/maths";
 import { minBN } from "@morpho-labs/ethers-utils/lib/utils";
 import {
@@ -30,31 +23,22 @@ import {
   TransactionOptions,
   TransactionType,
 } from "../types";
-import { getPermit2Message } from "../utils/permit2";
+import { Base } from "../utils/mixins/Base";
+import { Connectable } from "../utils/mixins/Connectable";
+import { getPermit2Message } from "../utils/signatures/permit2";
 
 import { ApprovalHandlerOptions } from "./ApprovalHandler.interface";
-import BaseTxHandler from "./Base.TxHandler";
+import { ISimpleTxHandler } from "./TxHandler.interface";
 import { waitTransaction } from "./helpers/waitTransaction";
+import { NotifierManager } from "./mixins/NotifierManager";
 import { ITransactionNotifier } from "./notifiers/TransactionNotifier.interface";
 
-export default class Web3TxHandler extends BaseTxHandler {
-  private _isWeb3TxHandler = true;
-  static isWeb3TxHandler(txHandler: any): txHandler is Web3TxHandler {
-    return !!(txHandler && txHandler._isWeb3TxHandler);
-  }
-
-  private _signer: Signer | null = null;
-
+export default class Web3TxHandler
+  extends Connectable(NotifierManager(Base))
+  implements ISimpleTxHandler
+{
   constructor(private readonly _txSignature?: string) {
     super();
-  }
-
-  public connect(signer: Signer | null) {
-    this._signer = signer;
-  }
-
-  public disconnect() {
-    this._signer = null;
   }
 
   public async handleMorphoTransaction(

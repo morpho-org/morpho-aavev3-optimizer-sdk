@@ -4,12 +4,22 @@ import { Address } from "./common";
 
 /** All the aggregated user data, should be updated after each user interaction */
 export interface UserData {
+  /** The address of the user */
+  readonly address: Address;
+
   /** The ETH balance of the user
    *
    * Number of decimals:
    * `18` _(WEI)_
    */
   readonly ethBalance: BigNumber;
+
+  /**
+   * Whether the user has approved the bulker as manager or not
+   */
+  readonly isBulkerManaging: boolean;
+
+  stEthData: StEthData;
 
   /** Liquidation value of the user
    *
@@ -175,6 +185,8 @@ export interface UserData {
      */
     current: BigNumber;
   } | null;
+
+  readonly nonce: BigNumber;
 }
 
 /** Scaled user data on the market, should be updated after each user interaction.
@@ -244,6 +256,13 @@ export interface ScaledUserMarketData {
    */
   readonly approval: BigNumber;
 
+  /** Underlying approval to the bulker
+   *
+   * Number of decimals:
+   * `MarketConfig.decimals`
+   */
+  readonly bulkerApproval: BigNumber;
+
   /** Underlying approval to the Permit2 contract
    *
    * Number of decimals:
@@ -253,6 +272,9 @@ export interface ScaledUserMarketData {
 
   /** The permit2 nonce of the user */
   readonly nonce: BigNumber;
+
+  /** The permit2 nonce of the user for the bulker contract */
+  readonly bulkerNonce: BigNumber;
 }
 
 /** Exploitable user data for the given market, computed using the current indexes.
@@ -385,4 +407,38 @@ export interface UserMarketData
    * `MarketConfig.decimals`
    */
   readonly borrowInP2P: BigNumber;
+}
+
+export interface StEthData {
+  /**
+   * The amount of stETH for a one wstETH
+   *
+   * Number of decimals:
+   * `18` _(WEI)_
+   */
+  readonly stethPerWsteth: BigNumber;
+
+  /** StEth balance of the user
+   *
+   * Number of decimals:
+   * `18` _(WEI)_
+   */
+  readonly balance: BigNumber;
+
+  /** The amount of stETH that the user has  approved to the permit2
+   *
+   * Number of decimals:
+   * `18` _(WEI)_
+   */
+  readonly permit2Approval: BigNumber;
+
+  /** The amount of stETH that the user has  approved to the bulker
+   *
+   * Number of decimals:
+   * `18` _(WEI)_
+   */
+  readonly bulkerApproval: BigNumber;
+
+  /** The permit2 nonce of the user for the bulker contract */
+  readonly bulkerNonce: BigNumber;
 }

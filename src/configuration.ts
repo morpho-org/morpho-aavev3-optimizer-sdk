@@ -41,6 +41,11 @@ interface Configuration {
    * A metadata added to the transaction calldata.
    */
   readonly txSignature?: string;
+
+  /**
+   * We're adding a buffer to the amount wrapped to anticipate slippage
+   */
+  readonly bulkerWrapBuffer: BigNumber;
 }
 
 class MorphoAaveV3Sdk {
@@ -53,6 +58,7 @@ class MorphoAaveV3Sdk {
       supply: 4,
       borrow: 4,
     },
+    bulkerWrapBuffer: BigNumber.from(1e8),
   } as const;
 
   public get configuration() {

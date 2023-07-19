@@ -1,21 +1,12 @@
 import { BigNumber, constants } from "ethers";
 import { parseUnits } from "ethers/lib/utils";
 
-import {
-  GlobalData,
-  MarketConfig,
-  MarketMapping,
-  ScaledMarketData,
-  ScaledUserMarketData,
-} from "../../src/types";
+import { AdapterMock } from "../../src/mocks";
+import { Underlying } from "../../src/mocks/markets";
+import { MarketMapping, ScaledUserMarketData } from "../../src/types";
 
 import { GLOBAL_DATA, MARKETS_REWARDS_DISTRIBUTION } from "./global";
-import {
-  MARKETS_CONFIGS,
-  MARKETS_DATA,
-  MARKETS_SUPPLY_DATA,
-  Underlying,
-} from "./markets";
+import { MARKETS_CONFIGS, MARKETS_DATA } from "./markets";
 
 const USER_MARKETS_DATA: MarketMapping<ScaledUserMarketData> = {
   [Underlying.dai]: {
@@ -26,9 +17,11 @@ const USER_MARKETS_DATA: MarketMapping<ScaledUserMarketData> = {
     scaledSupplyInP2P: parseUnits("654", 18),
     scaledSupplyOnPool: parseUnits("3567", 18),
     walletBalance: parseUnits("7356756", 18),
+    bulkerApproval: parseUnits("7356756", 18),
     approval: constants.Zero,
     permit2Approval: constants.MaxUint256,
     nonce: BigNumber.from(0),
+    bulkerNonce: BigNumber.from(0),
   },
   [Underlying.usdc]: {
     underlyingAddress: Underlying.usdc,
@@ -38,9 +31,11 @@ const USER_MARKETS_DATA: MarketMapping<ScaledUserMarketData> = {
     scaledSupplyInP2P: parseUnits("0", 6),
     scaledSupplyOnPool: parseUnits("0", 6),
     walletBalance: parseUnits("42134241", 6),
+    bulkerApproval: constants.Zero,
     approval: constants.MaxUint256,
     permit2Approval: constants.Zero,
     nonce: BigNumber.from(0),
+    bulkerNonce: BigNumber.from(0),
   },
   [Underlying.wbtc]: {
     underlyingAddress: Underlying.wbtc,
@@ -50,9 +45,11 @@ const USER_MARKETS_DATA: MarketMapping<ScaledUserMarketData> = {
     scaledSupplyInP2P: parseUnits("1.2", 8),
     scaledSupplyOnPool: parseUnits("2", 8),
     walletBalance: parseUnits("123", 8),
+    bulkerApproval: constants.Zero,
     approval: constants.MaxUint256,
     permit2Approval: constants.Zero,
     nonce: BigNumber.from(0),
+    bulkerNonce: BigNumber.from(0),
   },
   [Underlying.uni]: {
     underlyingAddress: Underlying.uni,
@@ -62,9 +59,11 @@ const USER_MARKETS_DATA: MarketMapping<ScaledUserMarketData> = {
     scaledSupplyInP2P: parseUnits("576", 18),
     scaledSupplyOnPool: parseUnits("0", 18),
     walletBalance: parseUnits("12686743", 18),
+    bulkerApproval: constants.Zero,
     approval: constants.MaxUint256,
     permit2Approval: constants.Zero,
     nonce: BigNumber.from(0),
+    bulkerNonce: BigNumber.from(0),
   },
   [Underlying.usdt]: {
     underlyingAddress: Underlying.usdt,
@@ -75,8 +74,10 @@ const USER_MARKETS_DATA: MarketMapping<ScaledUserMarketData> = {
     scaledSupplyOnPool: parseUnits("0", 6),
     walletBalance: parseUnits("12350435", 6),
     approval: constants.MaxUint256,
+    bulkerApproval: constants.Zero,
     permit2Approval: constants.Zero,
     nonce: BigNumber.from(0),
+    bulkerNonce: BigNumber.from(0),
   },
   [Underlying.weth]: {
     underlyingAddress: Underlying.weth,
@@ -87,8 +88,24 @@ const USER_MARKETS_DATA: MarketMapping<ScaledUserMarketData> = {
     scaledSupplyOnPool: parseUnits("0", 18),
     walletBalance: parseUnits("0", 18),
     approval: constants.Zero,
+    bulkerApproval: constants.Zero,
     permit2Approval: constants.Zero,
     nonce: BigNumber.from(0),
+    bulkerNonce: BigNumber.from(0),
+  },
+  [Underlying.wsteth]: {
+    underlyingAddress: Underlying.wsteth,
+    scaledBorrowInP2P: parseUnits("0", 18),
+    scaledBorrowOnPool: parseUnits("0", 18),
+    scaledCollateral: parseUnits("0", 18),
+    scaledSupplyInP2P: parseUnits("0", 18),
+    scaledSupplyOnPool: parseUnits("0", 18),
+    walletBalance: parseUnits("0", 18),
+    approval: constants.Zero,
+    bulkerApproval: constants.Zero,
+    permit2Approval: constants.Zero,
+    nonce: BigNumber.from(0),
+    bulkerNonce: BigNumber.from(0),
   },
 };
 
@@ -121,16 +138,7 @@ export const USER_REWARDS_DATA = {
   },
 };
 
-export interface AdapterMock {
-  marketsList: Underlying[];
-  marketsConfigs: MarketMapping<MarketConfig>;
-  marketsData: MarketMapping<ScaledMarketData>;
-  ethBalance: BigNumber;
-  userMarketsData: MarketMapping<ScaledUserMarketData>;
-  globalData: Omit<GlobalData, "lastFetchTimestamp" | "currentBlock">;
-}
-
-export const ADAPTER_MOCK = {
+export const ADAPTER_MOCK: AdapterMock = {
   marketsList: [
     Underlying.dai,
     Underlying.usdc,
@@ -138,11 +146,20 @@ export const ADAPTER_MOCK = {
     Underlying.uni,
     Underlying.usdt,
     Underlying.weth,
+    Underlying.wsteth,
   ],
   marketsConfigs: MARKETS_CONFIGS,
   marketsData: MARKETS_DATA,
-  marketsSupply: MARKETS_SUPPLY_DATA,
-  ethBalance: parseUnits("1023.423", 18),
+  userData: {
+    ethBalance: parseUnits("1023.423", 18),
+    stEthData: {
+      bulkerApproval: constants.Zero,
+      stethPerWsteth: constants.WeiPerEther,
+      permit2Approval: constants.MaxUint256,
+      bulkerNonce: BigNumber.from(0),
+      balance: parseUnits("50"),
+    },
+  },
   userMarketsData: USER_MARKETS_DATA,
   globalData: GLOBAL_DATA,
   userRewardsData: USER_REWARDS_DATA,

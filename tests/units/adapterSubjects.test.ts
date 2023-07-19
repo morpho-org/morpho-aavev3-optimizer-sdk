@@ -1,6 +1,6 @@
 import { Subscription } from "rxjs";
 
-import { MorphoAaveV3Adapter } from "../../src/MorphoAaveV3Adapter";
+import { MorphoAaveV3Adapter } from "../../src";
 import { ADAPTER_MOCK } from "../mocks/mock";
 
 describe("Adapter subjects", () => {
@@ -80,7 +80,11 @@ describe("Adapter subjects", () => {
       });
 
       await adapter.refreshAll();
-      expect(spy).toHaveBeenLastCalledWith(
+
+      expect(spy).toHaveBeenCalledTimes(2);
+      expect(spy).toHaveBeenNthCalledWith(1, null);
+      expect(spy).toHaveBeenNthCalledWith(
+        2,
         expect.objectContaining(ADAPTER_MOCK.marketsList)
       );
     });
@@ -90,9 +94,20 @@ describe("Adapter subjects", () => {
       subscription = adapter.marketsConfigs$.subscribe((data) => {
         spy(data);
       });
-
       await adapter.refreshAll();
-      expect(spy).toHaveBeenLastCalledWith(
+
+      expect(spy.mock.calls[7][0]).toEqual(ADAPTER_MOCK.marketsConfigs);
+      expect(spy).toHaveBeenCalledTimes(8); // 1st call with nnulml for each market, and then 1 call for each market
+      expect(spy).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining(
+          Object.fromEntries(
+            ADAPTER_MOCK.marketsList.map((m) => [m, null] as const)
+          )
+        )
+      );
+      expect(spy).toHaveBeenNthCalledWith(
+        8,
         expect.objectContaining(ADAPTER_MOCK.marketsConfigs)
       );
     });
