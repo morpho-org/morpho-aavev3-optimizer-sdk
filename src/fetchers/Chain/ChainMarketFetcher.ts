@@ -1,6 +1,7 @@
 import { BigNumber, ethers } from "ethers";
 
 import { BlockTag } from "@ethersproject/providers";
+import { WadRayMath } from "@morpho-labs/ethers-utils/lib/maths";
 import { pow10 } from "@morpho-labs/ethers-utils/lib/utils";
 import {
   AaveV3AddressesProvider__factory,
@@ -174,7 +175,7 @@ export class ChainMarketFetcher extends ChainFetcher implements MarketFetcher {
     const poolLiquidity =
       borrowCap.isZero() || availableLiquidity.lt(borrowCap)
         ? availableLiquidity
-        : borrowCap;
+        : borrowCap.sub(WadRayMath.rayMul(poolBorrow, variableBorrowIndex));
 
     return {
       address: underlyingAddress,
