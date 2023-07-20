@@ -249,7 +249,10 @@ export default class BulkerTxHandler
       const deadline = constants.MaxUint256;
 
       if (toSign.type === BulkerSignatureType.transfer) {
-        const { symbol } = marketsConfig?.[toSign.underlyingAddress] ?? {};
+        const { symbol } =
+          getAddress(toSign.underlyingAddress) === addresses.steth
+            ? { symbol: "stETH" }
+            : marketsConfig?.[toSign.underlyingAddress] ?? {};
         if (!symbol) {
           console.error(`Missing market data`);
           return;
