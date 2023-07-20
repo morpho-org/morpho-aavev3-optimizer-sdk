@@ -315,7 +315,29 @@ export default class BulkerTxHandler
     if (!signer) return;
 
     const bulkerTransactions = this.bulkerOperations$.getValue();
+    const operations = this.simulatorOperations$.getValue();
+
     if (bulkerTransactions.length === 0) return;
+
+    if (operations.length === 1) {
+      if (
+        [
+          TransactionType.borrow,
+          TransactionType.withdraw,
+          TransactionType.withdrawCollateral,
+        ].includes(operations[0].type as TransactionType)
+      ) {
+        const [operation] = operations as TxOperation[];
+        if (!operation.unwrap) {
+          // No need for the bulker
+          return this.#adapter.handleMorphoTransaction(
+            operation.type,
+            operation.underlyingAddress,
+            operation.amount
+          );
+        }
+      }
+    }
 
     const notifier = this.notifier;
     const notificationId = Date.now().toString();
@@ -593,7 +615,8 @@ export default class BulkerTxHandler
   protected _applySupplyOperation(
     data: MorphoAaveV3DataHolder,
     operation: TxOperation,
-    index: number
+    index: number,
+    _operations: Operation[]
   ): MorphoAaveV3DataHolder | null {
     const { underlyingAddress, formattedAmount, amount } = operation;
 
@@ -601,7 +624,8 @@ export default class BulkerTxHandler
       data,
       underlyingAddress,
       formattedAmount!,
-      index
+      index,
+      _operations
     );
     if (!transferData) return null;
 
@@ -616,7 +640,8 @@ export default class BulkerTxHandler
     const dataAfterSupply = super._applySupplyOperation(
       dataAfterTransfer,
       operation,
-      index
+      index,
+      _operations
     );
 
     if (!dataAfterSupply) return null;
@@ -637,7 +662,8 @@ export default class BulkerTxHandler
   protected _applySupplyCollateralOperation(
     data: MorphoAaveV3DataHolder,
     operation: TxOperation,
-    index: number
+    index: number,
+    _operations: Operation[]
   ): MorphoAaveV3DataHolder | null {
     const { underlyingAddress, formattedAmount, amount } = operation;
 
@@ -645,7 +671,8 @@ export default class BulkerTxHandler
       data,
       underlyingAddress,
       formattedAmount!,
-      index
+      index,
+      _operations
     );
     if (!transferData) return null;
 
@@ -660,7 +687,8 @@ export default class BulkerTxHandler
     const dataAfterSupply = super._applySupplyCollateralOperation(
       dataAfterTransfer,
       operation,
-      index
+      index,
+      _operations
     );
 
     if (!dataAfterSupply) return null;
@@ -681,7 +709,8 @@ export default class BulkerTxHandler
   protected _applyRepayOperation(
     data: MorphoAaveV3DataHolder,
     operation: TxOperation,
-    index: number
+    index: number,
+    _operations: Operation[]
   ): MorphoAaveV3DataHolder | null {
     const { underlyingAddress, amount } = operation;
     const defers: Bulker.Transactions[] = [];
@@ -729,7 +758,8 @@ export default class BulkerTxHandler
       data,
       underlyingAddress,
       toTransfer,
-      index
+      index,
+      _operations
     );
     if (!transferData) return null;
 
@@ -746,7 +776,8 @@ export default class BulkerTxHandler
     const dataAfterRepay = super._applyRepayOperation(
       dataAfterTransfer,
       operation,
-      index
+      index,
+      _operations
     );
 
     if (!dataAfterRepay) return null;
@@ -764,45 +795,54 @@ export default class BulkerTxHandler
     return dataAfterRepay;
   }
 
-  #approveManager(data: MorphoAaveV3DataHolder, index: number) {
+  #approveManager(
+    data: MorphoAaveV3DataHolder,
+    index: number,
+    _operations: Operation[]
+  ) {
     const userData = data.getUserData();
     const batch: Bulker.Transactions[] = [];
     if (!userData) throw new Error("No user data");
-    if (!userData.isBulkerManaging) {
-      this.#askForSignature({
-        type: BulkerSignatureType.managerApproval,
-        manager: addresses.bulker,
-        signature: undefined,
-        nonce: userData.nonce,
-        transactionIndex: index,
-      });
-      const newUserData: UserData = {
-        ...userData,
-        isBulkerManaging: true,
-      };
-      batch.push({
-        type: BulkerTx.approveManager,
-        isAllowed: true,
-      });
-      return {
-        batch,
-        data: new MorphoAaveV3DataHolder(
-          data.getMarketsConfigs(),
-          data.getMarketsData(),
-          data.getMarketsList(),
-          data.getGlobalData(),
-          newUserData,
-          data.getUserMarketsData()
-        ),
-      };
-    }
-    return { batch, data };
+    // No need to use the bulker if only one borrow/withdraw without unwrap
+    if (
+      userData.isBulkerManaging ||
+      (_operations.length === 1 && !(_operations[index] as TxOperation).unwrap)
+    )
+      return { batch, data };
+
+    this.#askForSignature({
+      type: BulkerSignatureType.managerApproval,
+      manager: addresses.bulker,
+      signature: undefined,
+      nonce: userData.nonce,
+      transactionIndex: index,
+    });
+    const newUserData: UserData = {
+      ...userData,
+      isBulkerManaging: true,
+    };
+    batch.push({
+      type: BulkerTx.approveManager,
+      isAllowed: true,
+    });
+    return {
+      batch,
+      data: new MorphoAaveV3DataHolder(
+        data.getMarketsConfigs(),
+        data.getMarketsData(),
+        data.getMarketsList(),
+        data.getGlobalData(),
+        newUserData,
+        data.getUserMarketsData()
+      ),
+    };
   }
 
   protected _applyBorrowOperation(
     data: MorphoAaveV3DataHolder,
     operation: TxOperation,
-    index: number
+    index: number,
+    _operations: Operation[]
   ): MorphoAaveV3DataHolder | null {
     const underlyingAddress = getAddress(operation.underlyingAddress);
 
@@ -822,7 +862,7 @@ export default class BulkerTxHandler
     }
 
     const { data: stateAfterManagerApproval, batch: approvalBatch } =
-      this.#approveManager(data, index);
+      this.#approveManager(data, index, _operations);
 
     batch.push(...approvalBatch);
 
@@ -838,7 +878,8 @@ export default class BulkerTxHandler
     const stateAfterBorrow = super._applyBorrowOperation(
       stateAfterManagerApproval,
       operation,
-      index
+      index,
+      _operations
     );
     if (!stateAfterBorrow) return null;
 
@@ -863,7 +904,12 @@ export default class BulkerTxHandler
         batch,
       ]);
 
-      return this._applyOperation(stateAfterBorrow, unwrapOp, index);
+      return this._applyOperation(
+        stateAfterBorrow,
+        unwrapOp,
+        index,
+        _operations
+      );
     }
     this.bulkerOperations$.next([...this.bulkerOperations$.getValue(), batch]);
 
@@ -873,7 +919,8 @@ export default class BulkerTxHandler
   protected _applyWithdrawOperation(
     data: MorphoAaveV3DataHolder,
     operation: TxOperation,
-    index: number
+    index: number,
+    _operations: Operation[]
   ): MorphoAaveV3DataHolder | null {
     const underlyingAddress = getAddress(operation.underlyingAddress);
 
@@ -900,7 +947,7 @@ export default class BulkerTxHandler
     const receiver = operation.unwrap ? addresses.bulker : userData.address;
 
     const { data: stateAfterManagerApproval, batch: approvalBatch } =
-      this.#approveManager(data, index);
+      this.#approveManager(data, index, _operations);
 
     batch.push(...approvalBatch);
 
@@ -919,7 +966,8 @@ export default class BulkerTxHandler
     const stateAfterWithdraw = super._applyWithdrawOperation(
       stateAfterManagerApproval,
       operation,
-      index
+      index,
+      _operations
     );
     if (!stateAfterWithdraw) return null;
 
@@ -945,7 +993,12 @@ export default class BulkerTxHandler
         batch,
       ]);
 
-      return this._applyOperation(stateAfterWithdraw, unwrapOp, index);
+      return this._applyOperation(
+        stateAfterWithdraw,
+        unwrapOp,
+        index,
+        _operations
+      );
     }
 
     this.bulkerOperations$.next([...this.bulkerOperations$.getValue(), batch]);
@@ -956,7 +1009,8 @@ export default class BulkerTxHandler
   protected _applyWithdrawCollateralOperation(
     data: MorphoAaveV3DataHolder,
     operation: TxOperation,
-    index: number
+    index: number,
+    _operations: Operation[]
   ): MorphoAaveV3DataHolder | null {
     const underlyingAddress = getAddress(operation.underlyingAddress);
 
@@ -985,7 +1039,7 @@ export default class BulkerTxHandler
     const receiver = operation.unwrap ? addresses.bulker : userData.address;
 
     const { data: stateAfterManagerApproval, batch: approvalBatch } =
-      this.#approveManager(data, index);
+      this.#approveManager(data, index, _operations);
 
     batch.push(...approvalBatch);
 
@@ -1004,7 +1058,8 @@ export default class BulkerTxHandler
     const stateAfterWithdraw = super._applyWithdrawCollateralOperation(
       stateAfterManagerApproval,
       operation,
-      index
+      index,
+      _operations
     );
     if (!stateAfterWithdraw) return null;
 
@@ -1030,7 +1085,12 @@ export default class BulkerTxHandler
         batch,
       ]);
 
-      return this._applyOperation(stateAfterWithdraw, unwrapOp, index);
+      return this._applyOperation(
+        stateAfterWithdraw,
+        unwrapOp,
+        index,
+        _operations
+      );
     }
 
     this.bulkerOperations$.next([...this.bulkerOperations$.getValue(), batch]);
@@ -1052,7 +1112,8 @@ export default class BulkerTxHandler
     data: MorphoAaveV3DataHolder,
     underlyingAddress: string,
     amount: BigNumber,
-    index: number
+    index: number,
+    _operations: Operation[]
   ): {
     batch: Bulker.Transactions[];
     defers: Bulker.Transactions[];
@@ -1129,7 +1190,8 @@ export default class BulkerTxHandler
             amount: amountToWrap,
             underlyingAddress: addresses.wsteth,
           },
-          index
+          index,
+          _operations
         );
         //  defer the skim to the end of the batch
         defers.push({
@@ -1158,7 +1220,8 @@ export default class BulkerTxHandler
             amount: wethMissing,
             underlyingAddress: addresses.weth,
           },
-          index
+          index,
+          _operations
         );
 
         // no skim needed since the eth wrapping is a 1:1 operation

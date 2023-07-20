@@ -195,7 +195,8 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
   protected _applyOperation(
     data: MorphoAaveV3DataHolder | null,
     operation: Operation,
-    index: number
+    index: number,
+    _operations: Operation[]
   ) {
     if (!data) return null;
     let simulatedState: MorphoAaveV3DataHolder | null;
@@ -206,37 +207,68 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
 
     switch (operation.type) {
       case TransactionType.borrow:
-        simulatedState = this._applyBorrowOperation(data, operation, index);
+        simulatedState = this._applyBorrowOperation(
+          data,
+          operation,
+          index,
+          _operations
+        );
         break;
       case TransactionType.supply:
-        simulatedState = this._applySupplyOperation(data, operation, index);
+        simulatedState = this._applySupplyOperation(
+          data,
+          operation,
+          index,
+          _operations
+        );
         break;
       case TransactionType.supplyCollateral:
         simulatedState = this._applySupplyCollateralOperation(
           data,
           operation,
-          index
+          index,
+          _operations
         );
         break;
       case TransactionType.repay:
-        simulatedState = this._applyRepayOperation(data, operation, index);
+        simulatedState = this._applyRepayOperation(
+          data,
+          operation,
+          index,
+          _operations
+        );
         break;
       case TransactionType.withdraw:
-        simulatedState = this._applyWithdrawOperation(data, operation, index);
+        simulatedState = this._applyWithdrawOperation(
+          data,
+          operation,
+          index,
+          _operations
+        );
         break;
       case TransactionType.withdrawCollateral:
         simulatedState = this._applyWithdrawCollateralOperation(
           data,
           operation,
-          index
+          index,
+          _operations
         );
         break;
 
       case OperationType.claimMorpho:
-        simulatedState = this._applyClaimMorphoOperation(data, index);
+        simulatedState = this._applyClaimMorphoOperation(
+          data,
+          index,
+          _operations
+        );
         break;
       case OperationType.wrap:
-        simulatedState = this._applyWrapOperation(data, operation, index);
+        simulatedState = this._applyWrapOperation(
+          data,
+          operation,
+          index,
+          _operations
+        );
         if (
           simulatedState &&
           getAddress(operation.underlyingAddress) === addresses.wsteth
@@ -251,7 +283,12 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
         }
         break;
       case OperationType.unwrap:
-        simulatedState = this._applyUnwrapOperation(data, operation, index);
+        simulatedState = this._applyUnwrapOperation(
+          data,
+          operation,
+          index,
+          _operations
+        );
     }
 
     if (!simulatedState) return simulatedState;
@@ -311,7 +348,8 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
   protected _applySupplyOperation(
     data: MorphoAaveV3DataHolder,
     operation: TxOperation,
-    index: number
+    index: number,
+    _operations: Operation[]
   ): MorphoAaveV3DataHolder | null {
     if (operation.amount.isZero())
       return this._raiseError(index, ErrorCode.zeroAmount, operation);
@@ -457,7 +495,8 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
   protected _applyBorrowOperation(
     data: MorphoAaveV3DataHolder,
     operation: TxOperation,
-    index: number
+    index: number,
+    _operations: Operation[]
   ): MorphoAaveV3DataHolder | null {
     if (operation.amount.isZero())
       return this._raiseError(index, ErrorCode.zeroAmount, operation);
@@ -605,7 +644,8 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
   protected _applySupplyCollateralOperation(
     data: MorphoAaveV3DataHolder,
     operation: TxOperation,
-    index: number
+    index: number,
+    _operations: Operation[]
   ): MorphoAaveV3DataHolder | null {
     if (operation.amount.isZero())
       return this._raiseError(index, ErrorCode.zeroAmount, operation);
@@ -699,7 +739,8 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
   protected _applyWithdrawOperation(
     data: MorphoAaveV3DataHolder,
     operation: TxOperation,
-    index: number
+    index: number,
+    _operations: Operation[]
   ): MorphoAaveV3DataHolder | null {
     if (operation.amount.isZero())
       return this._raiseError(index, ErrorCode.zeroAmount, operation);
@@ -845,7 +886,8 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
   protected _applyRepayOperation(
     data: MorphoAaveV3DataHolder,
     operation: TxOperation,
-    index: number
+    index: number,
+    _operations: Operation[]
   ): MorphoAaveV3DataHolder | null {
     if (operation.amount.isZero())
       return this._raiseError(index, ErrorCode.zeroAmount, operation);
@@ -988,7 +1030,8 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
   protected _applyWithdrawCollateralOperation(
     data: MorphoAaveV3DataHolder,
     operation: TxOperation,
-    index: number
+    index: number,
+    _operations: Operation[]
   ): MorphoAaveV3DataHolder | null {
     if (operation.amount.isZero())
       return this._raiseError(index, ErrorCode.zeroAmount, operation);
@@ -1073,7 +1116,8 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
 
   protected _applyClaimMorphoOperation(
     data: MorphoAaveV3DataHolder,
-    index: number
+    index: number,
+    _operations: Operation[]
   ): MorphoAaveV3DataHolder | null {
     //TODO
     return null;
@@ -1082,7 +1126,8 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
   protected _applyWrapOperation(
     data: MorphoAaveV3DataHolder,
     operation: WrapOperation,
-    index: number
+    index: number,
+    _operations: Operation[]
   ): MorphoAaveV3DataHolder | null {
     if (operation.amount.isZero())
       return this._raiseError(index, ErrorCode.zeroAmount, operation);
@@ -1153,7 +1198,8 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
   protected _applyUnwrapOperation(
     data: MorphoAaveV3DataHolder,
     operation: UnwrapOperation,
-    index: number
+    index: number,
+    _operations: Operation[]
   ): MorphoAaveV3DataHolder | null {
     if (operation.amount.isZero())
       return this._raiseError(index, ErrorCode.zeroAmount, operation);
