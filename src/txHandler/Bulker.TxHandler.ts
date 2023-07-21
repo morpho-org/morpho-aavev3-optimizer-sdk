@@ -345,7 +345,9 @@ export default class BulkerTxHandler
     const notifier = this.notifier;
     const notificationId = Date.now().toString();
 
-    await notifier?.notify?.(notificationId, NotificationCode.batchExecStart);
+    await notifier?.notify?.(notificationId, NotificationCode.batchExecStart, {
+      operationsCount: operations.length,
+    });
 
     const actions: Bulker.ActionType[] = [];
     const data: string[] = [];
