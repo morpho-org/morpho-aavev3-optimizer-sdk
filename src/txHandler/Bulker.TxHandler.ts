@@ -14,6 +14,7 @@ import { MorphoBulkerGateway__factory } from "@morpho-labs/morpho-ethers-contrac
 import sdk from "..";
 import { MorphoAaveV3Adapter } from "../MorphoAaveV3Adapter";
 import { MorphoAaveV3DataHolder } from "../MorphoAaveV3DataHolder";
+import { MAX_UINT_160 } from "../constants";
 import addresses from "../contracts/addresses";
 import { safeSignTypedData } from "../helpers/signatures";
 import { Underlying } from "../mocks/markets";
@@ -52,22 +53,24 @@ type FullfillableSignature<Fullfilled extends boolean = boolean> =
     ? { deadline: BigNumber; signature: Signature }
     : undefined;
 
-export interface BulkerTransferSignature<Fullfilled extends boolean = boolean> {
+interface BaseBulkerSignature<Fullfilled extends boolean> {
+  signature: FullfillableSignature<Fullfilled>;
+  transactionIndex: number;
+  nonce: BigNumber;
+  getMessage: () => SignatureMessage;
+}
+export interface BulkerTransferSignature<Fullfilled extends boolean>
+  extends BaseBulkerSignature<Fullfilled> {
   type: BulkerSignatureType.transfer;
   underlyingAddress: Address;
   amount: BigNumber;
   to: Address;
-  nonce: BigNumber;
-  signature: FullfillableSignature<Fullfilled>;
-  transactionIndex: number;
 }
 
-export interface BulkerApprovalSignature<Fullfilled extends boolean = boolean> {
+export interface BulkerApprovalSignature<Fullfilled extends boolean>
+  extends BaseBulkerSignature<Fullfilled> {
   type: BulkerSignatureType.managerApproval;
   manager: Address;
-  nonce: BigNumber;
-  signature: FullfillableSignature<Fullfilled>;
-  transactionIndex: number;
 }
 
 export type BulkerSignature<Fullfilled extends boolean = boolean> =
@@ -821,6 +824,13 @@ export default class BulkerTxHandler
       signature: undefined,
       nonce: userData.nonce,
       transactionIndex: index,
+      getMessage: () =>
+        getManagerApprovalMessage(
+          userData.address,
+          addresses.bulker,
+          userData.nonce,
+          MAX_UINT_160
+        ),
     });
     const newUserData: UserData = {
       ...userData,
@@ -1174,6 +1184,14 @@ export default class BulkerTxHandler
           nonce: userData.stEthData.bulkerNonce,
           signature: undefined,
           transactionIndex: index,
+          getMessage: () =>
+            getPermit2Message(
+              addresses.steth,
+              amountToWrap,
+              userData.stEthData.bulkerNonce,
+              MAX_UINT_160,
+              addresses.bulker
+            ),
         });
 
         batch.push(
@@ -1262,6 +1280,14 @@ export default class BulkerTxHandler
         nonce: userMarketsData[underlyingAddress]!.bulkerNonce,
         signature: undefined,
         transactionIndex: index,
+        getMessage: () =>
+          getPermit2Message(
+            underlyingAddress,
+            toTransfer,
+            userMarketsData[underlyingAddress]!.bulkerNonce,
+            MAX_UINT_160,
+            addresses.bulker
+          ),
       });
       // transfer
       batch.push({
