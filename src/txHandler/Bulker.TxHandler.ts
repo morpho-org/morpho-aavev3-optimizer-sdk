@@ -318,12 +318,16 @@ export default class BulkerTxHandler
 
   async executeBatch(options?: BulkerTransactionOptions): Promise<any> {
     const signer = this._signer;
-    if (!signer) return;
+    if (!signer) throw Error(`No signer provided`);
 
     const bulkerTransactions = this.bulkerOperations$.getValue();
     const operations = this.simulatorOperations$.getValue();
 
-    if (bulkerTransactions.length === 0) return;
+    if (bulkerTransactions.length === 0)
+      throw Error(`No transactions to execute`);
+
+    if (this.error$.getValue())
+      throw Error(`Error in the batch, cannot execute`);
 
     if (operations.length === 1) {
       if (
@@ -577,10 +581,8 @@ export default class BulkerTxHandler
       });
     });
 
-    if (missingSignatures.length > 0) {
-      console.error(`Missing signatures: ${JSON.stringify(missingSignatures)}`);
-      return;
-    }
+    if (missingSignatures.length > 0)
+      throw new Error(`missing  ${missingSignatures.length} signatures`);
 
     let success: boolean;
     let receipt: ContractReceipt | undefined;
