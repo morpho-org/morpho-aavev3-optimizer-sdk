@@ -93,6 +93,7 @@ export enum NotificationCode {
   batchExecSuccess = "BATCH_EXEC_SUCCESS",
   batchExecError = "BATCH_EXEC_ERROR",
   batchExecPending = "BATCH_EXEC_PENDING",
+  signatureError = "SIGNATURE_ERROR",
 }
 
 export default class BulkerTxHandler
@@ -305,7 +306,7 @@ export default class BulkerTxHandler
 
       success = true;
     } catch (e: any) {
-      notifier?.notify?.(notificationId, NotificationCode.batchExecError, {
+      notifier?.notify?.(notificationId, NotificationCode.signatureError, {
         error: e,
       });
       success = false;
