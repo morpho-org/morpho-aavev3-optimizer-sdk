@@ -229,6 +229,52 @@ describe("MorphoAaveV3 Bulker", () => {
         });
       });
 
+      it("Should supply collateral DAI twice", async () => {
+        await approve(contractAddress, async () => {
+          const amount = utils.parseEther("50");
+          const total = amount.mul(2);
+
+          await bulker.addOperations([
+            {
+              type: TransactionType.supplyCollateral,
+              amount,
+              underlyingAddress: Underlying.dai,
+            },
+            {
+              type: TransactionType.supplyCollateral,
+              amount,
+              underlyingAddress: Underlying.dai,
+            },
+          ]);
+
+          for (const signature of bulker.signatures$.getValue()) {
+            // @ts-ignore
+            await bulker.sign(signature);
+          }
+          await bulker.executeBatch();
+
+          const daiBalanceLeft = await dai.balanceOf(morphoUser.address);
+          expect(daiBalanceLeft).to.be.equal(
+            initialDaiBalance.sub(total),
+            "dai balance left is not initialDaiBalance - 50 * 2"
+          );
+
+          const ma3Balance = await morphoAaveV3.collateralBalance(
+            dai.address,
+            morphoUser.address
+          );
+          expect(
+            approxEqual(ma3Balance, total),
+            `ma3 balance (${ma3Balance}) is not equal to ${total}`
+          ).to.be.true;
+
+          expect(await dai.balanceOf(addresses.bulker)).to.be.equal(
+            constants.Zero,
+            "bulker dai balance is not 0"
+          );
+        });
+      });
+
       it("Should supply only WETH without ETH to wrap", async () => {
         await approve(contractAddress, async () => {
           const maxWethCapacity = bulker.getUserMaxCapacity(
