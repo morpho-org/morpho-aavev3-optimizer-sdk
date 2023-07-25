@@ -744,13 +744,82 @@ describe("MorphoAaveV3 Bulker", () => {
 
           expect(await weth.balanceOf(addresses.bulker)).to.be.equal(
             constants.Zero,
-            "dai balance left is not 0"
+            "weth balance left is not 0"
           );
 
           const wethBalance = await weth.balanceOf(morphoUser.address);
           expect(wethBalance).to.equal(
             initialWethBalance,
             `weth balance (${wethBalance}) is not initialWethBalance (${initialWethBalance})`
+          );
+        });
+      });
+
+      it("should repay WETH with ETH", async () => {
+        await approve(contractAddress, async () => {
+          const oneEth = utils.parseEther("1");
+          await morphoAaveV3.supplyCollateral(
+            Underlying.dai,
+            initialDaiBalance,
+            morphoUser.address
+          );
+          await morphoAaveV3.borrow(
+            Underlying.weth,
+            oneEth,
+            morphoUser.address,
+            morphoUser.address,
+            10
+          );
+          await weth.withdraw(await weth.balanceOf(morphoUser.address));
+          await morphoAdapter.refreshAll("latest");
+          const oldBalance = await morphoUser.getBalance();
+          expect(await weth.balanceOf(morphoUser.address)).to.equal(
+            constants.Zero,
+            "weth balance should be 0"
+          );
+
+          await bulker.addOperations([
+            {
+              type: TransactionType.repay,
+              amount: oneEth,
+              underlyingAddress: Underlying.weth,
+            },
+          ]);
+
+          for (const signature of bulker.signatures$.getValue()) {
+            // @ts-ignore
+            await bulker.sign(signature);
+          }
+          await bulker.executeBatch();
+
+          const ma3Balance = await morphoAaveV3.borrowBalance(
+            weth.address,
+            morphoUser.address
+          );
+          expect(ma3Balance).to.be.lessThan(
+            dust,
+            "ma3 balance should be 0 (ignoring interests)"
+          );
+
+          expect(await weth.balanceOf(addresses.bulker)).to.be.equal(
+            constants.Zero,
+            "weth balance left is not 0"
+          );
+
+          const wethBalance = await weth.balanceOf(morphoUser.address);
+          expect(wethBalance).to.equal(
+            constants.Zero,
+            "weth balance should be unchanged"
+          );
+          // Expect oldBalance - 2 ETH < finalAmount < oldBalance - 1 ETH
+          const finalAmount = await morphoUser.getBalance();
+          expect(finalAmount).to.be.lessThan(
+            oldBalance.sub(oneEth),
+            "ETH balance should be less than oldBalance - 1"
+          );
+          expect(oldBalance.sub(oneEth).sub(oneEth)).to.be.lessThan(
+            finalAmount,
+            "ETH balance should be higher than oldBalance - 2 ETH"
           );
         });
       });
