@@ -75,12 +75,14 @@ describe("MorphoAaveV3 Bulker", () => {
       await steth.approve(address, constants.MaxUint256);
       await wsteth.approve(address, constants.MaxUint256);
       await steth.approve(addresses.wsteth, constants.MaxUint256);
+      await dai.approve(morphoAaveV3.address, constants.MaxUint256);
       await run();
       await weth.approve(address, 0);
       await dai.approve(address, 0);
       await steth.approve(address, 0);
       await wsteth.approve(address, 0);
       await steth.approve(addresses.wsteth, 0);
+      await dai.approve(morphoAaveV3.address, 0);
     };
 
     initialBlock = await time.latestBlock();
@@ -521,6 +523,53 @@ describe("MorphoAaveV3 Bulker", () => {
         expect(await dai.balanceOf(addresses.bulker)).to.be.equal(
           constants.Zero,
           "dai balance left is not 0"
+        );
+
+        const wethBalance = await weth.balanceOf(morphoUser.address);
+        const finalAmount = amountToBorrow.add(initialWethBalance);
+        expect(wethBalance).to.equal(
+          finalAmount,
+          `weth balance (${wethBalance}) is not amountToBorrow + initialWethBalance (${finalAmount})`
+        );
+      });
+    });
+  });
+
+  describe("Borrow", () => {
+    it("should borrow ETH with a previous collateral position", async () => {
+      await approve(CONTRACT_ADDRESSES.bulker, async () => {
+        await morphoAaveV3.supplyCollateral(
+          Underlying.dai,
+          initialDaiBalance,
+          morphoUser.address
+        );
+        await morphoAdapter.refreshAll("latest");
+        const amountToBorrow = utils.parseEther("1");
+        await bulker.addOperations([
+          {
+            type: TransactionType.borrow,
+            amount: amountToBorrow,
+            underlyingAddress: Underlying.weth,
+          },
+        ]);
+        for (const signature of bulker.signatures$.getValue()) {
+          // @ts-ignore
+          await bulker.sign(signature);
+        }
+        await bulker.executeBatch();
+
+        const ma3Balance = await morphoAaveV3.borrowBalance(
+          weth.address,
+          morphoUser.address
+        );
+        expect(ma3Balance).to.equal(
+          amountToBorrow,
+          "ma3 balance should be the borrowed amount"
+        );
+
+        expect(await weth.balanceOf(addresses.bulker)).to.be.equal(
+          constants.Zero,
+          "weth balance left is not 0"
         );
 
         const wethBalance = await weth.balanceOf(morphoUser.address);
