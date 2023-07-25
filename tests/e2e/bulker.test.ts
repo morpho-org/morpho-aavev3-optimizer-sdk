@@ -62,14 +62,19 @@ describe("MorphoAaveV3 Bulker", () => {
 
     await deal(weth.address, morphoUser.address, initialWethBalance);
     await deal(dai.address, morphoUser.address, initialDaiBalance);
-    // await deal(steth.address, morphoUser.address, initialStEthBalance);
+    await steth.submit(morphoUser.address, {
+      from: morphoUser.address,
+      value: initialStEthBalance,
+    });
 
     approve = async (address, run) => {
       await weth.approve(address, constants.MaxUint256);
       await dai.approve(address, constants.MaxUint256);
+      await steth.approve(address, constants.MaxUint256);
       await run();
       await weth.approve(address, 0);
       await dai.approve(address, 0);
+      await steth.approve(address, 0);
     };
 
     initialBlock = await time.latestBlock();
@@ -99,9 +104,12 @@ describe("MorphoAaveV3 Bulker", () => {
     const { address } = morphoUser;
     const wAllowance = () => weth.allowance(address, CONTRACT_ADDRESSES.bulker);
     const dAllowance = () => dai.allowance(address, CONTRACT_ADDRESSES.bulker);
+    const stAllowance = () =>
+      steth.allowance(address, CONTRACT_ADDRESSES.bulker);
 
     expect(await wAllowance()).to.be.equal(constants.Zero);
     expect(await dAllowance()).to.be.equal(constants.Zero);
+    expect(await stAllowance()).to.be.equal(constants.Zero);
 
     await approve(CONTRACT_ADDRESSES.bulker, async () => {
       expect(await ethers.provider.send("hardhat_getAutomine", [])).to.be.true;
@@ -134,14 +142,20 @@ describe("MorphoAaveV3 Bulker", () => {
         constants.MaxUint256,
         "impersonated user dai allowance is not maxUint256"
       );
-      // expect(await steth.balanceOf(address)).to.equal(
-      //   initialStEthBalance,
-      //   `steth balance is not ${initialStEthBalance}`
-      // );
+      expect(await stAllowance()).to.equal(
+        constants.MaxUint256,
+        "impersonated user steth allowance is not maxUint256"
+      );
+      const stEthBalance = await steth.balanceOf(address);
+      expect(
+        approxEqual(stEthBalance, initialStEthBalance),
+        `steth balance is not ${initialStEthBalance}`
+      ).to.be.true;
     });
 
     expect(await wAllowance()).to.be.equal(constants.Zero);
     expect(await dAllowance()).to.be.equal(constants.Zero);
+    expect(await stAllowance()).to.be.equal(constants.Zero);
   });
 
   [CONTRACT_ADDRESSES.bulker, CONTRACT_ADDRESSES.permit2].map(
@@ -176,17 +190,21 @@ describe("MorphoAaveV3 Bulker", () => {
             const daiBalanceLeft = await dai.balanceOf(morphoUser.address);
             expect(daiBalanceLeft).to.be.equal(
               constants.Zero,
-              "dai balance is not 0"
+              "dai balance left is not 0"
             );
 
             const ma3Balance = await morphoAaveV3.collateralBalance(
               dai.address,
               morphoUser.address
             );
-            expect(approxEqual(ma3Balance, maxDaiCapacity.amount)).to.be.true;
+            expect(
+              approxEqual(ma3Balance, maxDaiCapacity.amount),
+              `ma3 balance (${ma3Balance}) is not equal to ${maxDaiCapacity.amount}`
+            ).to.be.true;
 
             expect(await dai.balanceOf(addresses.bulker)).to.be.equal(
-              constants.Zero
+              constants.Zero,
+              "bulker dai balance is not 0"
             );
           });
         });
@@ -222,17 +240,21 @@ describe("MorphoAaveV3 Bulker", () => {
             const wethBalanceLeft = await weth.balanceOf(morphoUser.address);
             expect(wethBalanceLeft).to.be.equal(
               remaining,
-              "weth balance is not 0.5"
+              "weth balance left is not 0.5"
             );
 
             const ma3Balance = await morphoAaveV3.supplyBalance(
               weth.address,
               morphoUser.address
             );
-            expect(approxEqual(ma3Balance, balanceToSupply)).to.be.true;
+            expect(
+              approxEqual(ma3Balance, balanceToSupply),
+              `ma3 balance (${ma3Balance}) is not equal to ${balanceToSupply}`
+            ).to.be.true;
 
             expect(await weth.balanceOf(addresses.bulker)).to.be.equal(
-              constants.Zero
+              constants.Zero,
+              "bulker weth balance is not 0"
             );
           });
         });
@@ -271,10 +293,67 @@ describe("MorphoAaveV3 Bulker", () => {
               weth.address,
               morphoUser.address
             );
-            expect(approxEqual(ma3Balance, maxWethCapacity.amount)).to.be.true;
+            expect(
+              approxEqual(ma3Balance, maxWethCapacity.amount),
+              `ma3 balance (${ma3Balance}) is not equal to ${maxWethCapacity.amount}`
+            ).to.be.true;
 
             expect(await weth.balanceOf(addresses.bulker)).to.be.equal(
-              constants.Zero
+              constants.Zero,
+              "weth balance is not 0"
+            );
+          });
+        });
+
+        it("Should supply collateral wstETH with some stETH to wrap", async () => {
+          await approve(contractAddress, async () => {
+            const maxWstethCapacity = bulker.getUserMaxCapacity(
+              Underlying.wsteth,
+              TransactionType.supplyCollateral
+            )!;
+
+            await bulker.addOperations([
+              {
+                type: TransactionType.supplyCollateral,
+                amount: maxWstethCapacity.amount,
+                underlyingAddress: Underlying.wsteth,
+              },
+            ]);
+
+            for (const signature of bulker.signatures$.getValue()) {
+              // @ts-ignore
+              await bulker.sign(signature);
+            }
+            await bulker.executeBatch();
+
+            expect(maxWstethCapacity.limiter).to.equal(
+              MaxCapacityLimiter.walletBalance
+            );
+            const wstethBalanceLeft = await wsteth.balanceOf(
+              morphoUser.address
+            );
+            expect(wstethBalanceLeft).to.be.lessThan(
+              utils.parseEther("0.000001"),
+              "wsteth balance left is not less than 0.000001"
+            );
+            const stETHBalanceLeft = await steth.balanceOf(morphoUser.address);
+            expect(
+              approxEqual(stETHBalanceLeft, constants.Zero),
+              "steth balance left is not 0"
+            ).to.be.true;
+
+            const ma3Balance = await morphoAaveV3.collateralBalance(
+              wsteth.address,
+              morphoUser.address
+            );
+            expect(
+              approxEqual(ma3Balance, maxWstethCapacity.amount),
+              `ma3 balance (${ma3Balance}) is not equal to ${maxWstethCapacity.amount}`
+            ).to.be.true;
+
+            expect(await wsteth.balanceOf(addresses.bulker)).to.be.equal(
+              constants.Zero,
+              "bulker wsteth balance is not 0"
             );
           });
         });
@@ -323,14 +402,21 @@ describe("MorphoAaveV3 Bulker", () => {
           dai.address,
           morphoUser.address
         );
-        expect(approxEqual(ma3Balance, maxDaiCapacity.amount)).to.be.true;
+        expect(
+          approxEqual(ma3Balance, maxDaiCapacity.amount),
+          `ma3 balance (${ma3Balance}) is not equal to ${maxDaiCapacity.amount}`
+        ).to.be.true;
 
         expect(await dai.balanceOf(addresses.bulker)).to.be.equal(
-          constants.Zero
+          constants.Zero,
+          "dai balance left is not 0"
         );
 
-        expect(await weth.balanceOf(morphoUser.address)).to.equal(
-          amountToBorrow.add(initialWethBalance)
+        const wethBalance = await weth.balanceOf(morphoUser.address);
+        const finalAmount = amountToBorrow.add(initialWethBalance);
+        expect(wethBalance).to.equal(
+          finalAmount,
+          `weth balance (${wethBalance}) is not amountToBorrow + initialWethBalance (${finalAmount})`
         );
       });
     });
