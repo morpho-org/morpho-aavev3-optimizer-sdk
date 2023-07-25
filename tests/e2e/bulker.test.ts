@@ -319,7 +319,7 @@ describe("MorphoAaveV3 Bulker", () => {
         });
       });
 
-      it("Should supply collateral wstETH with some stETH to wrap", async () => {
+      it("Should supply collateral wstETH with all stETH to wrap (full wrap)", async () => {
         await approve(contractAddress, async () => {
           const maxWstethCapacity = bulker.getUserMaxCapacity(
             Underlying.wsteth,
