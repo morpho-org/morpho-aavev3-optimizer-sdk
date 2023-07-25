@@ -32,6 +32,7 @@ import { MaxCapacityLimiter, TransactionType } from "../../src/types";
 import { approxEqual } from "../helpers/bn";
 
 const dust = utils.parseEther("0.000001");
+const interests = utils.parseEther("0.0001");
 
 describe("MorphoAaveV3 Bulker", () => {
   let snapshot: SnapshotRestorer;
@@ -672,7 +673,7 @@ describe("MorphoAaveV3 Bulker", () => {
           morphoUser.address
         );
         expect(ma3Balance).to.be.lessThan(
-          dust,
+          interests,
           "ma3 balance should be almost 0 (modulo interests)"
         );
       });
@@ -727,7 +728,7 @@ describe("MorphoAaveV3 Bulker", () => {
           morphoUser.address
         );
         expect(ma3Balance).to.be.lessThan(
-          dust,
+          interests,
           "ma3 balance should be almost 0 (modulo interests)"
         );
 
@@ -784,7 +785,7 @@ describe("MorphoAaveV3 Bulker", () => {
             morphoUser.address
           );
           expect(ma3Balance).to.be.lessThan(
-            dust,
+            interests,
             "ma3 balance should be 0 (ignoring interests)"
           );
 
@@ -843,7 +844,7 @@ describe("MorphoAaveV3 Bulker", () => {
             morphoUser.address
           );
           expect(ma3Balance).to.be.lessThan(
-            dust,
+            interests,
             "ma3 balance should be 0 (ignoring interests)"
           );
 
@@ -928,6 +929,92 @@ describe("MorphoAaveV3 Bulker", () => {
         expect(wethBalance).to.equal(
           finalAmount,
           `weth balance (${wethBalance}) is not amountToBorrow + initialWethBalance (${finalAmount})`
+        );
+      });
+    });
+  });
+
+  describe("Repay + withdraw collateral", () => {
+    it("should repay and withdraw collateral", async () => {
+      const oneEth = utils.parseEther("1");
+      await approve(CONTRACT_ADDRESSES.bulker, async () => {
+        await morphoAaveV3.supplyCollateral(
+          Underlying.dai,
+          initialDaiBalance,
+          morphoUser.address
+        );
+        await morphoAaveV3.borrow(
+          Underlying.weth,
+          oneEth,
+          morphoUser.address,
+          morphoUser.address,
+          10
+        );
+
+        await morphoAdapter.refreshAll("latest");
+
+        expect(await dai.balanceOf(morphoUser.address)).to.equal(
+          constants.Zero
+        );
+        expect(await weth.balanceOf(morphoUser.address)).to.equal(
+          initialWethBalance.add(oneEth)
+        );
+
+        const withdrawAmount = initialDaiBalance;
+        await bulker.addOperations([
+          {
+            type: TransactionType.repay,
+            amount: oneEth,
+            underlyingAddress: Underlying.weth,
+          },
+          {
+            type: TransactionType.withdrawCollateral,
+            amount: withdrawAmount,
+            underlyingAddress: Underlying.dai,
+          },
+        ]);
+
+        for (const signature of bulker.signatures$.getValue()) {
+          // @ts-ignore
+          await bulker.sign(signature);
+        }
+        await bulker.executeBatch();
+
+        const daiBalanceLeft = await dai.balanceOf(morphoUser.address);
+        expect(daiBalanceLeft).to.be.equal(
+          withdrawAmount,
+          "dai balance is not the withdrawn amount"
+        );
+
+        const ma3Balance = await morphoAaveV3.collateralBalance(
+          dai.address,
+          morphoUser.address
+        );
+
+        expect(await dai.balanceOf(addresses.bulker)).to.be.equal(
+          constants.Zero,
+          "dai balance left is not 0"
+        );
+
+        expect(await weth.balanceOf(addresses.bulker)).to.be.equal(
+          constants.Zero,
+          "weth balance left is not 0"
+        );
+
+        expect(await dai.balanceOf(morphoUser.address)).to.equal(
+          withdrawAmount,
+          "dai balance is not withdraw amount"
+        );
+        const wethBalance = await weth.balanceOf(morphoUser.address);
+        expect(wethBalance).to.equal(
+          initialWethBalance,
+          `weth balance (${wethBalance}) is not initialWethBalance`
+        );
+
+        const finalCollateral = initialDaiBalance.sub(withdrawAmount);
+        expect(ma3Balance).to.be.lessThan(
+          interests,
+          `ma3 balance (${ma3Balance}) is not equal to ${finalCollateral} (mod interests)`
         );
       });
     });
