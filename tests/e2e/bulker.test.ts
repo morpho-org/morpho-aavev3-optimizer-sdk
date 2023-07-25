@@ -631,6 +631,67 @@ describe("MorphoAaveV3 Bulker", () => {
         );
       });
     });
+
+    it("should withdraw WETH and unwrap", async () => {
+      await approve(CONTRACT_ADDRESSES.bulker, async () => {
+        await morphoAaveV3.supply(
+          Underlying.weth,
+          initialWethBalance,
+          morphoUser.address,
+          10
+        );
+        await morphoAdapter.refreshAll("latest");
+        const oldBalance = await morphoUser.getBalance();
+        expect(await weth.balanceOf(morphoUser.address)).to.equal(
+          constants.Zero,
+          "weth balance should be 0"
+        );
+        const amountToWithdraw = await morphoAaveV3.supplyBalance(
+          Underlying.weth,
+          morphoUser.address
+        );
+
+        await bulker.addOperations([
+          {
+            type: TransactionType.withdraw,
+            amount: amountToWithdraw,
+            underlyingAddress: Underlying.weth,
+            unwrap: true,
+          },
+        ]);
+        for (const signature of bulker.signatures$.getValue()) {
+          // @ts-ignore
+          await bulker.sign(signature);
+        }
+        await bulker.executeBatch();
+
+        expect(await weth.balanceOf(addresses.bulker)).to.be.equal(
+          constants.Zero,
+          "weth balance left is not 0"
+        );
+
+        const wethBalance = await weth.balanceOf(morphoUser.address);
+        expect(wethBalance).to.equal(
+          constants.Zero,
+          "weth balance should be 0"
+        );
+
+        const ma3Balance = await morphoAaveV3.supplyBalance(
+          weth.address,
+          morphoUser.address
+        );
+        expect(ma3Balance).to.be.lessThan(
+          dust,
+          "ma3 balance should be almost 0 (modulo interests)"
+        );
+
+        // Expect oldBalance < finalAmount < oldBalance + amount
+        // Trick to avoid gas fees with ETH
+        const finalAmount = await morphoUser.getBalance();
+        expect(oldBalance).to.be.lessThan(finalAmount);
+        expect(finalAmount).to.be.lessThan(oldBalance.add(amountToWithdraw));
+      });
+    });
   });
 
   describe("Supply Collateral + Borrow", () => {
