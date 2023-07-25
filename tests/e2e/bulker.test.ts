@@ -694,6 +694,69 @@ describe("MorphoAaveV3 Bulker", () => {
     });
   });
 
+  toAllow.forEach((contractAddress) => {
+    const approval =
+      contractAddress === CONTRACT_ADDRESSES.bulker ? "Bulker" : "Permit2";
+    describe(`Repay with ${approval} approval`, () => {
+      it("should repay WETH", async () => {
+        await approve(contractAddress, async () => {
+          const oneEth = utils.parseEther("1");
+          await morphoAaveV3.supplyCollateral(
+            Underlying.dai,
+            initialDaiBalance,
+            morphoUser.address
+          );
+          await morphoAaveV3.borrow(
+            Underlying.weth,
+            oneEth,
+            morphoUser.address,
+            morphoUser.address,
+            10
+          );
+          await morphoAdapter.refreshAll("latest");
+          expect(await weth.balanceOf(morphoUser.address)).to.equal(
+            initialWethBalance.add(oneEth),
+            "weth balance should be initialBalance + 1 ETH"
+          );
+
+          await bulker.addOperations([
+            {
+              type: TransactionType.repay,
+              amount: oneEth,
+              underlyingAddress: Underlying.weth,
+            },
+          ]);
+
+          for (const signature of bulker.signatures$.getValue()) {
+            // @ts-ignore
+            await bulker.sign(signature);
+          }
+          await bulker.executeBatch();
+
+          const ma3Balance = await morphoAaveV3.borrowBalance(
+            weth.address,
+            morphoUser.address
+          );
+          expect(ma3Balance).to.be.lessThan(
+            dust,
+            "ma3 balance should be 0 (ignoring interests)"
+          );
+
+          expect(await weth.balanceOf(addresses.bulker)).to.be.equal(
+            constants.Zero,
+            "dai balance left is not 0"
+          );
+
+          const wethBalance = await weth.balanceOf(morphoUser.address);
+          expect(wethBalance).to.equal(
+            initialWethBalance,
+            `weth balance (${wethBalance}) is not initialWethBalance (${initialWethBalance})`
+          );
+        });
+      });
+    });
+  });
+
   describe("Supply Collateral + Borrow", () => {
     it("Should supply collateral and borrow", async () => {
       await approve(CONTRACT_ADDRESSES.permit2, async () => {
