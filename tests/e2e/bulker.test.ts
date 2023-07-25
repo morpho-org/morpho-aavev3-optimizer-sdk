@@ -31,6 +31,8 @@ import BulkerTxHandler from "../../src/txHandler/Bulker.TxHandler";
 import { MaxCapacityLimiter, TransactionType } from "../../src/types";
 import { approxEqual } from "../helpers/bn";
 
+const dust = utils.parseEther("0.000001");
+
 describe("MorphoAaveV3 Bulker", () => {
   let snapshot: SnapshotRestorer;
   let initialBlock: number;
@@ -76,6 +78,7 @@ describe("MorphoAaveV3 Bulker", () => {
       await wsteth.approve(address, constants.MaxUint256);
       await steth.approve(addresses.wsteth, constants.MaxUint256);
       await dai.approve(morphoAaveV3.address, constants.MaxUint256);
+      await weth.approve(morphoAaveV3.address, constants.MaxUint256);
       await run();
       await weth.approve(address, 0);
       await dai.approve(address, 0);
@@ -83,6 +86,7 @@ describe("MorphoAaveV3 Bulker", () => {
       await wsteth.approve(address, 0);
       await steth.approve(addresses.wsteth, 0);
       await dai.approve(morphoAaveV3.address, 0);
+      await weth.approve(morphoAaveV3.address, 0);
     };
 
     initialBlock = await time.latestBlock();
@@ -393,7 +397,7 @@ describe("MorphoAaveV3 Bulker", () => {
           );
           const wstethBalanceLeft = await wsteth.balanceOf(morphoUser.address);
           expect(wstethBalanceLeft).to.be.lessThan(
-            utils.parseEther("0.000001"),
+            dust,
             "wsteth balance left is less than 0.000001"
           );
           const stETHBalanceLeft = await steth.balanceOf(morphoUser.address);
@@ -569,6 +573,62 @@ describe("MorphoAaveV3 Bulker", () => {
         const finalAmount = await morphoUser.getBalance();
         expect(oldBalance).to.be.lessThan(finalAmount);
         expect(finalAmount).to.be.lessThan(oldBalance.add(amountToBorrow));
+      });
+    });
+  });
+
+  describe("Withdraw", () => {
+    it("should withdraw WETH", async () => {
+      await approve(CONTRACT_ADDRESSES.bulker, async () => {
+        await morphoAaveV3.supply(
+          Underlying.weth,
+          initialWethBalance,
+          morphoUser.address,
+          10
+        );
+        await morphoAdapter.refreshAll("latest");
+        expect(await weth.balanceOf(morphoUser.address)).to.equal(
+          constants.Zero,
+          "weth balance should be 0"
+        );
+        const amountToWithdraw = await morphoAaveV3.supplyBalance(
+          Underlying.weth,
+          morphoUser.address
+        );
+
+        await bulker.addOperations([
+          {
+            type: TransactionType.withdraw,
+            amount: amountToWithdraw,
+            underlyingAddress: Underlying.weth,
+            unwrap: false,
+          },
+        ]);
+        for (const signature of bulker.signatures$.getValue()) {
+          // @ts-ignore
+          await bulker.sign(signature);
+        }
+        await bulker.executeBatch();
+
+        expect(await weth.balanceOf(addresses.bulker)).to.be.equal(
+          constants.Zero,
+          "weth balance left is not 0"
+        );
+
+        const wethBalance = await weth.balanceOf(morphoUser.address);
+        expect(wethBalance).to.equal(
+          amountToWithdraw,
+          "weth balance should be amountToWithdraw"
+        );
+
+        const ma3Balance = await morphoAaveV3.supplyBalance(
+          weth.address,
+          morphoUser.address
+        );
+        expect(ma3Balance).to.be.lessThan(
+          dust,
+          "ma3 balance should be almost 0 (modulo interests)"
+        );
       });
     });
   });
