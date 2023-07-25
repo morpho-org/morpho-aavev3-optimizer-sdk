@@ -765,11 +765,14 @@ describe("MorphoAaveV3 Bulker", () => {
             initialWethBalance.add(oneEth),
             "weth balance should be initialBalance + 1 ETH"
           );
-
+          const toRepay = await morphoAaveV3.borrowBalance(
+            Underlying.weth,
+            morphoUser.address
+          );
           await bulker.addOperations([
             {
               type: TransactionType.repay,
-              amount: oneEth,
+              amount: toRepay,
               underlyingAddress: Underlying.weth,
             },
           ]);
@@ -824,11 +827,14 @@ describe("MorphoAaveV3 Bulker", () => {
             constants.Zero,
             "weth balance should be 0"
           );
-
+          const toRepay = await morphoAaveV3.borrowBalance(
+            Underlying.weth,
+            morphoUser.address
+          );
           await bulker.addOperations([
             {
               type: TransactionType.repay,
-              amount: oneEth,
+              amount: toRepay,
               underlyingAddress: Underlying.weth,
             },
           ]);
@@ -960,11 +966,18 @@ describe("MorphoAaveV3 Bulker", () => {
           initialWethBalance.add(oneEth)
         );
 
-        const withdrawAmount = initialDaiBalance;
+        const withdrawAmount = await morphoAaveV3.collateralBalance(
+          Underlying.dai,
+          morphoUser.address
+        );
+        const toRepay = await morphoAaveV3.borrowBalance(
+          Underlying.weth,
+          morphoUser.address
+        );
         await bulker.addOperations([
           {
             type: TransactionType.repay,
-            amount: oneEth,
+            amount: toRepay,
             underlyingAddress: Underlying.weth,
           },
           {
