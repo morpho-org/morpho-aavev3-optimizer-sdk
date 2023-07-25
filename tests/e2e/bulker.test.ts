@@ -474,67 +474,6 @@ describe("MorphoAaveV3 Bulker", () => {
     });
   });
 
-  describe("Supply Collateral + Borrow", () => {
-    it("Should supply collateral and borrow", async () => {
-      await approve(CONTRACT_ADDRESSES.permit2, async () => {
-        const maxDaiCapacity = bulker.getUserMaxCapacity(
-          Underlying.dai,
-          TransactionType.supplyCollateral
-        )!;
-        const amountToBorrow = utils.parseEther("1");
-
-        await bulker.addOperations([
-          {
-            type: TransactionType.supplyCollateral,
-            amount: maxDaiCapacity.amount,
-            underlyingAddress: Underlying.dai,
-          },
-          {
-            type: TransactionType.borrow,
-            amount: amountToBorrow,
-            underlyingAddress: Underlying.weth,
-          },
-        ]);
-
-        for (const signature of bulker.signatures$.getValue()) {
-          // @ts-ignore
-          await bulker.sign(signature);
-        }
-        await bulker.executeBatch();
-
-        expect(maxDaiCapacity.limiter).to.equal(
-          MaxCapacityLimiter.walletBalance
-        );
-        const daiBalanceLeft = await dai.balanceOf(morphoUser.address);
-        expect(daiBalanceLeft).to.be.equal(
-          constants.Zero,
-          "dai balance is not 0"
-        );
-
-        const ma3Balance = await morphoAaveV3.collateralBalance(
-          dai.address,
-          morphoUser.address
-        );
-        expect(
-          approxEqual(ma3Balance, maxDaiCapacity.amount),
-          `ma3 balance (${ma3Balance}) is not equal to ${maxDaiCapacity.amount}`
-        ).to.be.true;
-
-        expect(await dai.balanceOf(addresses.bulker)).to.be.equal(
-          constants.Zero,
-          "dai balance left is not 0"
-        );
-
-        const wethBalance = await weth.balanceOf(morphoUser.address);
-        const finalAmount = amountToBorrow.add(initialWethBalance);
-        expect(wethBalance).to.equal(
-          finalAmount,
-          `weth balance (${wethBalance}) is not amountToBorrow + initialWethBalance (${finalAmount})`
-        );
-      });
-    });
-  });
-
   describe("Borrow", () => {
     it("should borrow ETH with a previous collateral position", async () => {
       await approve(CONTRACT_ADDRESSES.bulker, async () => {
@@ -630,6 +569,67 @@ describe("MorphoAaveV3 Bulker", () => {
         const finalAmount = await morphoUser.getBalance();
         expect(oldBalance).to.be.lessThan(finalAmount);
         expect(finalAmount).to.be.lessThan(oldBalance.add(amountToBorrow));
+      });
+    });
+  });
+
+  describe("Supply Collateral + Borrow", () => {
+    it("Should supply collateral and borrow", async () => {
+      await approve(CONTRACT_ADDRESSES.permit2, async () => {
+        const maxDaiCapacity = bulker.getUserMaxCapacity(
+          Underlying.dai,
+          TransactionType.supplyCollateral
+        )!;
+        const amountToBorrow = utils.parseEther("1");
+
+        await bulker.addOperations([
+          {
+            type: TransactionType.supplyCollateral,
+            amount: maxDaiCapacity.amount,
+            underlyingAddress: Underlying.dai,
+          },
+          {
+            type: TransactionType.borrow,
+            amount: amountToBorrow,
+            underlyingAddress: Underlying.weth,
+          },
+        ]);
+
+        for (const signature of bulker.signatures$.getValue()) {
+          // @ts-ignore
+          await bulker.sign(signature);
+        }
+        await bulker.executeBatch();
+
+        expect(maxDaiCapacity.limiter).to.equal(
+          MaxCapacityLimiter.walletBalance
+        );
+        const daiBalanceLeft = await dai.balanceOf(morphoUser.address);
+        expect(daiBalanceLeft).to.be.equal(
+          constants.Zero,
+          "dai balance is not 0"
+        );
+
+        const ma3Balance = await morphoAaveV3.collateralBalance(
+          dai.address,
+          morphoUser.address
+        );
+        expect(
+          approxEqual(ma3Balance, maxDaiCapacity.amount),
+          `ma3 balance (${ma3Balance}) is not equal to ${maxDaiCapacity.amount}`
+        ).to.be.true;
+
+        expect(await dai.balanceOf(addresses.bulker)).to.be.equal(
+          constants.Zero,
+          "dai balance left is not 0"
+        );
+
+        const wethBalance = await weth.balanceOf(morphoUser.address);
+        const finalAmount = amountToBorrow.add(initialWethBalance);
+        expect(wethBalance).to.equal(
+          finalAmount,
+          `weth balance (${wethBalance}) is not amountToBorrow + initialWethBalance (${finalAmount})`
+        );
       });
     });
   });
