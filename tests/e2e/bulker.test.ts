@@ -319,6 +319,52 @@ describe("MorphoAaveV3 Bulker", () => {
         });
       });
 
+      it("Should supply only WETH with all ETH to wrap (full wrap)", async () => {
+        await approve(contractAddress, async () => {
+          await weth.withdraw(await weth.balanceOf(morphoUser.address));
+          await morphoAdapter.refreshAll("latest");
+          const oldBalance = await morphoUser.getBalance();
+          const amount = utils.parseEther("1");
+
+          await bulker.addOperations([
+            {
+              type: TransactionType.supply,
+              amount,
+              underlyingAddress: Underlying.weth,
+            },
+          ]);
+
+          for (const signature of bulker.signatures$.getValue()) {
+            // @ts-ignore
+            await bulker.sign(signature);
+          }
+          await bulker.executeBatch();
+
+          const ethBalanceLeft = await morphoUser.getBalance();
+          expect(ethBalanceLeft).to.be.lessThan(
+            oldBalance.sub(amount),
+            "eth balance is not oldBalance - 1 ETH - gas"
+          );
+
+          const ma3Balance = await morphoAaveV3.supplyBalance(
+            weth.address,
+            morphoUser.address
+          );
+          expect(
+            approxEqual(ma3Balance, amount),
+            `ma3 balance (${ma3Balance}) is not equal to ${amount}`
+          ).to.be.true;
+          expect(await weth.balanceOf(morphoUser.address)).to.equal(
+            constants.Zero,
+            "weth balance left is not 0"
+          );
+          expect(await weth.balanceOf(addresses.bulker)).to.be.equal(
+            constants.Zero,
+            "weth balance is not 0"
+          );
+        });
+      });
+
       it("Should supply collateral wstETH with all stETH to wrap (full wrap)", async () => {
         await approve(contractAddress, async () => {
           const maxWstethCapacity = bulker.getUserMaxCapacity(
@@ -370,33 +416,16 @@ describe("MorphoAaveV3 Bulker", () => {
         });
       });
 
-      it.skip("Should supply collateral wstETH with some stETH to wrap and wstETH in wallet", async () => {
+      it("Should supply collateral wstETH with some stETH to wrap and wstETH in wallet", async () => {
         await approve(contractAddress, async () => {
           await wsteth.wrap(utils.parseEther("1"));
-
+          await morphoAdapter.refreshAll("latest");
+          await morphoAdapter.refetchData("latest");
           const maxWstethCapacity = bulker.getUserMaxCapacity(
             Underlying.wsteth,
             TransactionType.supplyCollateral
           )!;
 
-          console.log(
-            "wsteth:",
-            (await wsteth.balanceOf(morphoUser.address)).toString()
-          );
-          console.log(
-            "steth:",
-            (await steth.balanceOf(morphoUser.address)).toString()
-          );
-          console.log("max capacity:", maxWstethCapacity.amount.toString());
-          console.log("morphoUser:", morphoUser.address);
-          console.log(
-            (
-              await steth.allowance(
-                morphoUser.address,
-                CONTRACT_ADDRESSES.bulker
-              )
-            ).toString()
-          );
           await bulker.addOperations([
             {
               type: TransactionType.supplyCollateral,
@@ -404,9 +433,6 @@ describe("MorphoAaveV3 Bulker", () => {
               underlyingAddress: Underlying.wsteth,
             },
           ]);
-
-          console.log(bulker.simulatorOperations$.getValue());
-          console.log(bulker.bulkerOperations$.getValue());
 
           for (const signature of bulker.signatures$.getValue()) {
             // @ts-ignore
