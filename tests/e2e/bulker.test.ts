@@ -191,7 +191,53 @@ describe("MorphoAaveV3 Bulker", () => {
           });
         });
 
-        it("Should supply only WETH", async () => {
+        it("Should supply only WETH without ETH to wrap", async () => {
+          await approve(contractAddress, async () => {
+            const maxWethCapacity = bulker.getUserMaxCapacity(
+              Underlying.weth,
+              TransactionType.supply
+            )!;
+
+            const remaining = utils.parseEther("0.5");
+            const balanceToSupply = initialWethBalance.sub(remaining);
+            expect(maxWethCapacity.amount).to.be.greaterThan(balanceToSupply);
+
+            await bulker.addOperations([
+              {
+                type: TransactionType.supply,
+                amount: balanceToSupply,
+                underlyingAddress: Underlying.weth,
+              },
+            ]);
+
+            for (const signature of bulker.signatures$.getValue()) {
+              // @ts-ignore
+              await bulker.sign(signature);
+            }
+            await bulker.executeBatch();
+
+            expect(maxWethCapacity.limiter).to.equal(
+              MaxCapacityLimiter.walletBalance
+            );
+            const wethBalanceLeft = await weth.balanceOf(morphoUser.address);
+            expect(wethBalanceLeft).to.be.equal(
+              remaining,
+              "weth balance is not 0.5"
+            );
+
+            const ma3Balance = await morphoAaveV3.supplyBalance(
+              weth.address,
+              morphoUser.address
+            );
+            expect(approxEqual(ma3Balance, balanceToSupply)).to.be.true;
+
+            expect(await weth.balanceOf(addresses.bulker)).to.be.equal(
+              constants.Zero
+            );
+          });
+        });
+
+        it("Should supply only WETH with some ETH to wrap", async () => {
           await approve(contractAddress, async () => {
             const maxWethCapacity = bulker.getUserMaxCapacity(
               Underlying.weth,
