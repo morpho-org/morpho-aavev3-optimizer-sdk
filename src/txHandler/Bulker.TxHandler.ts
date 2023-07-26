@@ -7,7 +7,7 @@ import {
 } from "ethers/lib/utils";
 import { BehaviorSubject, Subject } from "rxjs";
 
-import { WadRayMath } from "@morpho-labs/ethers-utils/lib/maths";
+import { PercentMath, WadRayMath } from "@morpho-labs/ethers-utils/lib/maths";
 import { maxBN } from "@morpho-labs/ethers-utils/lib/utils";
 import { MorphoBulkerGateway__factory } from "@morpho-labs/morpho-ethers-contract";
 
@@ -593,8 +593,17 @@ export default class BulkerTxHandler
         signer
       );
 
+      const gasLimit = await bulker.estimateGas.execute(actions, data, {
+        ...options?.overrides,
+        value,
+      });
+
       const resp = await bulker.execute(actions, data, {
         ...options?.overrides,
+        gasLimit: PercentMath.percentMul(
+          gasLimit,
+          sdk.configuration.gasLimitPercent
+        ),
         value,
       });
 
