@@ -5,15 +5,11 @@ import {
   isAddress,
   splitSignature,
 } from "ethers/lib/utils";
-import { BehaviorSubject, defer, firstValueFrom, Subject } from "rxjs";
+import { BehaviorSubject, Subject } from "rxjs";
 
 import { WadRayMath } from "@morpho-labs/ethers-utils/lib/maths";
-import { maxBN, minBN } from "@morpho-labs/ethers-utils/lib/utils";
-import {
-  ERC20__factory,
-  MorphoAaveV3__factory,
-  MorphoBulkerGateway__factory,
-} from "@morpho-labs/morpho-ethers-contract";
+import { maxBN } from "@morpho-labs/ethers-utils/lib/utils";
+import { MorphoBulkerGateway__factory } from "@morpho-labs/morpho-ethers-contract";
 
 import sdk from "..";
 import { MorphoAaveV3Adapter } from "../MorphoAaveV3Adapter";
@@ -27,8 +23,6 @@ import {
   Operation,
   OperationType,
   TxOperation,
-  UnwrapOperation,
-  WrapOperation,
 } from "../simulation/simulation.types";
 import {
   Address,
@@ -53,16 +47,12 @@ export enum BulkerSignatureType {
   transfer = "TRANSFER",
   managerApproval = "BULKER_APPROVAL",
 }
-type FullfillableSignature<Fullfilled extends boolean | null = null> =
+type FullfillableSignature<Fullfilled extends boolean = boolean> =
   Fullfilled extends true
     ? { deadline: BigNumber; signature: Signature }
-    : Fullfilled extends false
-    ? undefined
-    : { deadline: BigNumber; signature: Signature } | undefined;
+    : undefined;
 
-export interface BulkerTransferSignature<
-  Fullfilled extends boolean | null = null
-> {
+export interface BulkerTransferSignature<Fullfilled extends boolean = boolean> {
   type: BulkerSignatureType.transfer;
   underlyingAddress: Address;
   amount: BigNumber;
@@ -72,9 +62,7 @@ export interface BulkerTransferSignature<
   transactionIndex: number;
 }
 
-export interface BulkerApprovalSignature<
-  Fullfilled extends boolean | null = null
-> {
+export interface BulkerApprovalSignature<Fullfilled extends boolean = boolean> {
   type: BulkerSignatureType.managerApproval;
   manager: Address;
   nonce: BigNumber;
@@ -82,7 +70,7 @@ export interface BulkerApprovalSignature<
   transactionIndex: number;
 }
 
-export type BulkerSignature<Fullfilled extends boolean | null = null> =
+export type BulkerSignature<Fullfilled extends boolean = boolean> =
   | BulkerTransferSignature<Fullfilled>
   | BulkerApprovalSignature<Fullfilled>;
 
@@ -102,6 +90,12 @@ export default class BulkerTxHandler
   extends NotifierManager(Connectable(MorphoAaveV3Simulator))
   implements IBatchTxHandler
 {
+  static isSigned(
+    signature: BulkerSignature
+  ): signature is BulkerSignature<true> {
+    return !!signature.signature;
+  }
+
   #adapter: MorphoAaveV3Adapter;
 
   #done$?: Subject<boolean>;
