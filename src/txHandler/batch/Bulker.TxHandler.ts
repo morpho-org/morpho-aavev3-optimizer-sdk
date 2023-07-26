@@ -12,7 +12,7 @@ import addresses from "../../contracts/addresses";
 import { safeSignTypedData } from "../../helpers/signatures";
 import { Underlying } from "../../mocks/markets";
 import { ErrorCode } from "../../simulation/SimulationError";
-import { TxOperation } from "../../simulation/simulation.types";
+import { Operation, TxOperation } from "../../simulation/simulation.types";
 import { MaxCapacityLimiter, TransactionType, UserData } from "../../types";
 import { getManagerApprovalMessage } from "../../utils/signatures/manager";
 import { getPermit2Message } from "../../utils/signatures/permit2";
@@ -53,6 +53,24 @@ export default class BulkerTxHandler extends BaseBatchTxHandler {
     );
 
     return operationIndex;
+  }
+
+  public async addOperation(operation: Operation) {
+    const newOperation = await super.addOperation(operation);
+
+    if (newOperation !== undefined) {
+      this.signatures$.next(
+        this.signatures$
+          .getValue()
+          .filter(
+            (s) =>
+              s.transactionIndex !==
+              this.simulatorOperations$.getValue().length - 1
+          )
+      );
+    }
+
+    return newOperation;
   }
 
   protected _askForSignature(signature: BulkerSignature<false>) {

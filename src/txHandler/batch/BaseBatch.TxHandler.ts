@@ -2,13 +2,20 @@ import { BigNumber, constants } from "ethers";
 import { getAddress, isAddress } from "ethers/lib/utils";
 import { Subject } from "rxjs";
 
+import { minBN } from "@morpho-labs/ethers-utils/lib/utils";
+
 import { MorphoAaveV3Adapter } from "../../MorphoAaveV3Adapter";
 import { MorphoAaveV3DataHolder } from "../../MorphoAaveV3DataHolder";
 import { MorphoAaveV3Simulator } from "../../simulation/MorphoAaveV3Simulator";
 import { ErrorCode } from "../../simulation/SimulationError";
-import { Operation, TxOperation } from "../../simulation/simulation.types";
+import {
+  Operation,
+  OperationType,
+  TxOperation,
+} from "../../simulation/simulation.types";
 import { Connectable } from "../../utils/mixins/Connectable";
 import { UpdatableBehaviorSubject } from "../../utils/rxjs/UpdatableBehaviorSubject";
+import { reverseTransactionType } from "../../utils/transactions";
 import { IBatchTxHandler } from "../TxHandler.interface";
 import { NotifierManager } from "../mixins/NotifierManager";
 
@@ -55,15 +62,107 @@ export default abstract class BaseBatchTxHandler
     super.reset();
   }
 
-  public async addOperation(operation: Operation): Promise<void> {
+  public async addOperation(
+    operation: Operation
+  ): Promise<Operation | undefined | null> {
     this.#done$ = new Subject();
 
-    await new Promise((resolve) => {
-      this.#done$?.subscribe(resolve);
+    return await new Promise((resolve) => {
+      let operations = this.simulatorOperations$.getValue();
 
-      const operations = this.simulatorOperations$.getValue();
+      let newOperation: Operation | undefined | null;
 
-      this.simulatorOperations$.next([...operations, operation]);
+      const [lastOperation] = operations.slice(-1);
+
+      if (lastOperation) {
+        switch (lastOperation.type) {
+          case OperationType.claimMorpho: {
+            break;
+          }
+          case OperationType.wrap: {
+            if (
+              lastOperation.type === operation.type &&
+              lastOperation.underlyingAddress === operation.underlyingAddress
+            ) {
+              newOperation = {
+                ...operation,
+                amount: minBN(
+                  constants.MaxUint256,
+                  lastOperation.amount.add(operation.amount)
+                ),
+              };
+            }
+            break;
+          }
+          case OperationType.unwrap: {
+            if (
+              lastOperation.type === operation.type &&
+              lastOperation.underlyingAddress === operation.underlyingAddress
+            ) {
+              newOperation = {
+                ...operation,
+                amount: minBN(
+                  constants.MaxUint256,
+                  lastOperation.amount.add(operation.amount)
+                ),
+              };
+            }
+            break;
+          }
+          default: {
+            if (operation.type === lastOperation.type) {
+              if (
+                lastOperation.underlyingAddress ===
+                  operation.underlyingAddress &&
+                lastOperation.unwrap === operation.unwrap
+              ) {
+                newOperation = {
+                  type: operation.type,
+                  underlyingAddress: operation.underlyingAddress,
+                  unwrap: operation.unwrap,
+                  amount: minBN(
+                    constants.MaxUint256,
+                    lastOperation.amount.add(operation.amount)
+                  ),
+                };
+              }
+            }
+            if (operation.type === reverseTransactionType(lastOperation.type)) {
+              if (
+                lastOperation.underlyingAddress === operation.underlyingAddress
+              ) {
+                if (lastOperation.amount.eq(operation.amount)) {
+                  newOperation = null;
+                } else {
+                  const mainOperation = lastOperation.amount.gt(
+                    operation.amount
+                  )
+                    ? lastOperation
+                    : operation;
+                  newOperation = {
+                    type: mainOperation.type,
+                    amount: lastOperation.amount.sub(operation.amount).abs(),
+                    underlyingAddress: mainOperation.underlyingAddress,
+                    unwrap: mainOperation.unwrap,
+                  };
+                }
+              }
+            }
+            break;
+          }
+        }
+      }
+      if (newOperation !== undefined) {
+        operations = operations.slice(0, -1);
+        if (newOperation) {
+          operations.push(newOperation);
+        }
+      } else {
+        operations.push(operation);
+      }
+      this.simulatorOperations$.next(operations);
+
+      this.#done$?.subscribe(() => resolve(newOperation));
     });
   }
 
