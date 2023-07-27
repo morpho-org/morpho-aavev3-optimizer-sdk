@@ -6,7 +6,6 @@ import {
   Observable,
   Subscription,
   combineLatest,
-  identity,
   map,
   sample,
   timer,
@@ -354,6 +353,7 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
     if (operation.amount.isZero())
       return this._raiseError(index, ErrorCode.zeroAmount, operation);
     const marketConfig = data.getMarketsConfigs()[operation.underlyingAddress];
+    const globalData = data.getGlobalData();
 
     /* Market is unknown */
     if (
@@ -374,9 +374,22 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
     const amount = operation.formattedAmount;
 
     /* Market- or User data can't be found */
-    if (!marketData || !userMarketData || !data.getUserData() || !amount) {
+    if (
+      !marketData ||
+      !userMarketData ||
+      !data.getUserData() ||
+      !amount ||
+      !globalData
+    ) {
       return this._raiseError(index, ErrorCode.missingData, operation);
     }
+
+    /* If market is in EMode, the user can't supply */
+    const { eModeId } = globalData.eModeCategoryData;
+    const isEModeActivated = !eModeId.isZero();
+    const isEModeMarket = eModeId.eq(marketConfig.eModeCategoryId);
+    if (isEModeActivated && !isEModeMarket)
+      return this._raiseError(index, ErrorCode.operationDisabled, operation);
 
     /******************************/
     /* Simulated Data Computation */
