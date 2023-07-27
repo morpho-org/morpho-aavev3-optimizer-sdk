@@ -200,18 +200,14 @@ describe("MorphoAaveV3 Bulker", () => {
           TransactionType.supplyCollateral
         )!;
 
-        await bulker.addOperations([
-          {
-            type: TransactionType.supplyCollateral,
-            amount: maxDaiCapacity.amount,
-            underlyingAddress: Underlying.dai,
-          },
-        ]);
+        await bulker.addOperation({
+          type: TransactionType.supplyCollateral,
+          amount: maxDaiCapacity.amount,
+          underlyingAddress: Underlying.dai,
+        });
 
-        for (const signature of bulker.signatures$.getValue()) {
-          // @ts-ignore
+        for (const signature of bulker.signatures$.getValue())
           await bulker.sign(signature);
-        }
         await bulker.executeBatch();
 
         expect(maxDaiCapacity.limiter).to.equal(
@@ -245,23 +241,19 @@ describe("MorphoAaveV3 Bulker", () => {
         const amount = utils.parseEther("50");
         const total = amount.mul(2);
 
-        await bulker.addOperations([
-          {
-            type: TransactionType.supplyCollateral,
-            amount,
-            underlyingAddress: Underlying.dai,
-          },
-          {
-            type: TransactionType.supplyCollateral,
-            amount,
-            underlyingAddress: Underlying.dai,
-          },
-        ]);
+        await bulker.addOperation({
+          type: TransactionType.supplyCollateral,
+          amount,
+          underlyingAddress: Underlying.dai,
+        });
+        await bulker.addOperation({
+          type: TransactionType.supplyCollateral,
+          amount,
+          underlyingAddress: Underlying.dai,
+        });
 
-        for (const signature of bulker.signatures$.getValue()) {
-          // @ts-ignore
+        for (const signature of bulker.signatures$.getValue())
           await bulker.sign(signature);
-        }
         await bulker.executeBatch();
 
         const userDaiBalance = await dai.balanceOf(morphoUser.address);
@@ -298,18 +290,14 @@ describe("MorphoAaveV3 Bulker", () => {
         const balanceToSupply = initialWethBalance.sub(remaining);
         expect(maxWethCapacity.amount).to.be.greaterThan(balanceToSupply);
 
-        await bulker.addOperations([
-          {
-            type: TransactionType.supply,
-            amount: balanceToSupply,
-            underlyingAddress: Underlying.weth,
-          },
-        ]);
+        await bulker.addOperation({
+          type: TransactionType.supply,
+          amount: balanceToSupply,
+          underlyingAddress: Underlying.weth,
+        });
 
-        for (const signature of bulker.signatures$.getValue()) {
-          // @ts-ignore
+        for (const signature of bulker.signatures$.getValue())
           await bulker.sign(signature);
-        }
         await bulker.executeBatch();
 
         expect(maxWethCapacity.limiter).to.equal(
@@ -345,18 +333,14 @@ describe("MorphoAaveV3 Bulker", () => {
           TransactionType.supply
         )!;
 
-        await bulker.addOperations([
-          {
-            type: TransactionType.supply,
-            amount: maxWethCapacity.amount,
-            underlyingAddress: Underlying.weth,
-          },
-        ]);
+        await bulker.addOperation({
+          type: TransactionType.supply,
+          amount: maxWethCapacity.amount,
+          underlyingAddress: Underlying.weth,
+        });
 
-        for (const signature of bulker.signatures$.getValue()) {
-          // @ts-ignore
+        for (const signature of bulker.signatures$.getValue())
           await bulker.sign(signature);
-        }
         await bulker.executeBatch();
 
         expect(maxWethCapacity.limiter).to.equal(
@@ -392,18 +376,14 @@ describe("MorphoAaveV3 Bulker", () => {
         const initialUserEthBalance = await morphoUser.getBalance();
         const amount = utils.parseEther("1");
 
-        await bulker.addOperations([
-          {
-            type: TransactionType.supply,
-            amount,
-            underlyingAddress: Underlying.weth,
-          },
-        ]);
+        await bulker.addOperation({
+          type: TransactionType.supply,
+          amount,
+          underlyingAddress: Underlying.weth,
+        });
 
-        for (const signature of bulker.signatures$.getValue()) {
-          // @ts-ignore
+        for (const signature of bulker.signatures$.getValue())
           await bulker.sign(signature);
-        }
         await bulker.executeBatch();
 
         const finalUserEthBalance = await morphoUser.getBalance();
@@ -442,18 +422,14 @@ describe("MorphoAaveV3 Bulker", () => {
           TransactionType.supplyCollateral
         )!;
 
-        await bulker.addOperations([
-          {
-            type: TransactionType.supplyCollateral,
-            amount: maxWstethCapacity.amount,
-            underlyingAddress: Underlying.wsteth,
-          },
-        ]);
+        await bulker.addOperation({
+          type: TransactionType.supplyCollateral,
+          amount: maxWstethCapacity.amount,
+          underlyingAddress: Underlying.wsteth,
+        });
 
-        for (const signature of bulker.signatures$.getValue()) {
-          // @ts-ignore
+        for (const signature of bulker.signatures$.getValue())
           await bulker.sign(signature);
-        }
         await bulker.executeBatch();
 
         expect(maxWstethCapacity.limiter).to.equal(
@@ -498,18 +474,14 @@ describe("MorphoAaveV3 Bulker", () => {
           TransactionType.supplyCollateral
         )!;
 
-        await bulker.addOperations([
-          {
-            type: TransactionType.supplyCollateral,
-            amount: maxWstethCapacity.amount,
-            underlyingAddress: Underlying.wsteth,
-          },
-        ]);
+        await bulker.addOperation({
+          type: TransactionType.supplyCollateral,
+          amount: maxWstethCapacity.amount,
+          underlyingAddress: Underlying.wsteth,
+        });
 
-        for (const signature of bulker.signatures$.getValue()) {
-          // @ts-ignore
+        for (const signature of bulker.signatures$.getValue())
           await bulker.sign(signature);
-        }
         await bulker.executeBatch();
 
         expect(maxWstethCapacity.limiter).to.equal(
@@ -556,17 +528,13 @@ describe("MorphoAaveV3 Bulker", () => {
       );
       await morphoAdapter.refreshAll("latest");
       const amountToBorrow = utils.parseEther("1");
-      await bulker.addOperations([
-        {
-          type: TransactionType.borrow,
-          amount: amountToBorrow,
-          underlyingAddress: Underlying.weth,
-        },
-      ]);
-      for (const signature of bulker.signatures$.getValue()) {
-        // @ts-ignore
+      await bulker.addOperation({
+        type: TransactionType.borrow,
+        amount: amountToBorrow,
+        underlyingAddress: Underlying.weth,
+      });
+      for (const signature of bulker.signatures$.getValue())
         await bulker.sign(signature);
-      }
       await bulker.executeBatch();
 
       const ma3Balance = await morphoAaveV3.borrowBalance(
@@ -602,18 +570,14 @@ describe("MorphoAaveV3 Bulker", () => {
       await morphoAdapter.refreshAll("latest");
       const initialUserEthBalance = await morphoUser.getBalance();
       const amountToBorrow = utils.parseEther("1");
-      await bulker.addOperations([
-        {
-          type: TransactionType.borrow,
-          amount: amountToBorrow,
-          underlyingAddress: Underlying.weth,
-          unwrap: true,
-        },
-      ]);
-      for (const signature of bulker.signatures$.getValue()) {
-        // @ts-ignore
+      await bulker.addOperation({
+        type: TransactionType.borrow,
+        amount: amountToBorrow,
+        underlyingAddress: Underlying.weth,
+        unwrap: true,
+      });
+      for (const signature of bulker.signatures$.getValue())
         await bulker.sign(signature);
-      }
       await bulker.executeBatch();
 
       const ma3Balance = await morphoAaveV3.borrowBalance(
@@ -675,18 +639,14 @@ describe("MorphoAaveV3 Bulker", () => {
         morphoUser.address
       );
 
-      await bulker.addOperations([
-        {
-          type: TransactionType.withdraw,
-          amount: constants.MaxUint256,
-          underlyingAddress: Underlying.weth,
-          unwrap: false,
-        },
-      ]);
-      for (const signature of bulker.signatures$.getValue()) {
-        // @ts-ignore
+      await bulker.addOperation({
+        type: TransactionType.withdraw,
+        amount: constants.MaxUint256,
+        underlyingAddress: Underlying.weth,
+        unwrap: false,
+      });
+      for (const signature of bulker.signatures$.getValue())
         await bulker.sign(signature);
-      }
       await bulker.executeBatch();
 
       const bulkerWethBalance = await weth.balanceOf(addresses.bulker);
@@ -733,18 +693,14 @@ describe("MorphoAaveV3 Bulker", () => {
         morphoUser.address
       );
 
-      await bulker.addOperations([
-        {
-          type: TransactionType.withdraw,
-          amount: constants.MaxUint256,
-          underlyingAddress: Underlying.weth,
-          unwrap: true,
-        },
-      ]);
-      for (const signature of bulker.signatures$.getValue()) {
-        // @ts-ignore
+      await bulker.addOperation({
+        type: TransactionType.withdraw,
+        amount: constants.MaxUint256,
+        underlyingAddress: Underlying.weth,
+        unwrap: true,
+      });
+      for (const signature of bulker.signatures$.getValue())
         await bulker.sign(signature);
-      }
       await bulker.executeBatch();
 
       const bulkerWethBalance = await weth.balanceOf(addresses.bulker);
@@ -812,18 +768,14 @@ describe("MorphoAaveV3 Bulker", () => {
           `expected user weth balance is ${expectedWethBalance}, received ${userWethBalance}`
         );
 
-        await bulker.addOperations([
-          {
-            type: TransactionType.repay,
-            amount: constants.MaxUint256,
-            underlyingAddress: Underlying.weth,
-          },
-        ]);
+        await bulker.addOperation({
+          type: TransactionType.repay,
+          amount: constants.MaxUint256,
+          underlyingAddress: Underlying.weth,
+        });
 
-        for (const signature of bulker.signatures$.getValue()) {
-          // @ts-ignore
+        for (const signature of bulker.signatures$.getValue())
           await bulker.sign(signature);
-        }
         await bulker.executeBatch();
 
         const ma3Balance = await morphoAaveV3.borrowBalance(
@@ -878,18 +830,14 @@ describe("MorphoAaveV3 Bulker", () => {
           weth.address,
           morphoUser.address
         );
-        await bulker.addOperations([
-          {
-            type: TransactionType.repay,
-            amount: constants.MaxUint256,
-            underlyingAddress: Underlying.weth,
-          },
-        ]);
+        await bulker.addOperation({
+          type: TransactionType.repay,
+          amount: constants.MaxUint256,
+          underlyingAddress: Underlying.weth,
+        });
 
-        for (const signature of bulker.signatures$.getValue()) {
-          // @ts-ignore
+        for (const signature of bulker.signatures$.getValue())
           await bulker.sign(signature);
-        }
         await bulker.executeBatch();
 
         const ma3Balance = await morphoAaveV3.borrowBalance(
@@ -944,23 +892,19 @@ describe("MorphoAaveV3 Bulker", () => {
       )!;
       const amountToBorrow = utils.parseEther("1");
 
-      await bulker.addOperations([
-        {
-          type: TransactionType.supplyCollateral,
-          amount: maxDaiCapacity.amount,
-          underlyingAddress: Underlying.dai,
-        },
-        {
-          type: TransactionType.borrow,
-          amount: amountToBorrow,
-          underlyingAddress: Underlying.weth,
-        },
-      ]);
+      await bulker.addOperation({
+        type: TransactionType.supplyCollateral,
+        amount: maxDaiCapacity.amount,
+        underlyingAddress: Underlying.dai,
+      });
+      await bulker.addOperation({
+        type: TransactionType.borrow,
+        amount: amountToBorrow,
+        underlyingAddress: Underlying.weth,
+      });
 
-      for (const signature of bulker.signatures$.getValue()) {
-        // @ts-ignore
+      for (const signature of bulker.signatures$.getValue())
         await bulker.sign(signature);
-      }
       await bulker.executeBatch();
 
       expect(maxDaiCapacity.limiter).to.equal(MaxCapacityLimiter.walletBalance);
@@ -1029,23 +973,19 @@ describe("MorphoAaveV3 Bulker", () => {
         Underlying.dai,
         morphoUser.address
       );
-      await bulker.addOperations([
-        {
-          type: TransactionType.repay,
-          amount: constants.MaxUint256,
-          underlyingAddress: Underlying.weth,
-        },
-        {
-          type: TransactionType.withdrawCollateral,
-          amount: constants.MaxUint256,
-          underlyingAddress: Underlying.dai,
-        },
-      ]);
+      await bulker.addOperation({
+        type: TransactionType.repay,
+        amount: constants.MaxUint256,
+        underlyingAddress: Underlying.weth,
+      });
+      await bulker.addOperation({
+        type: TransactionType.withdrawCollateral,
+        amount: constants.MaxUint256,
+        underlyingAddress: Underlying.dai,
+      });
 
-      for (const signature of bulker.signatures$.getValue()) {
-        // @ts-ignore
+      for (const signature of bulker.signatures$.getValue())
         await bulker.sign(signature);
-      }
       await bulker.executeBatch();
 
       const finalUserDaiBalance = await dai.balanceOf(morphoUser.address);
