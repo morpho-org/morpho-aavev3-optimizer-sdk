@@ -138,8 +138,6 @@ describe("Simulator", () => {
       subscription = simulator.error$.subscribe(
         (error) => error && errors.push(error)
       );
-
-      const marketData = simulator.getUserMarketsData()[Underlying.dai]!;
       const amountToSupply = BigNumber.from(10);
 
       simulator.simulate([
@@ -240,6 +238,35 @@ describe("Simulator", () => {
         TransactionType.borrow
       )?.amount;
       expect(finalBorrowCapacity).toBnEq(initialBorrowCapacity);
+    });
+  });
+
+  describe("On Repay", () => {
+    it("Should increase borrowCapacity", async () => {
+      const initialBorrowCapacity = simulator.getUserMaxCapacity(
+        Underlying.dai,
+        TransactionType.borrow
+      )!.amount;
+
+      const amountToRepay = simulator.getUserMaxCapacity(
+        Underlying.dai,
+        TransactionType.repay
+      )!.amount;
+
+      simulator.simulate([
+        {
+          type: TransactionType.repay,
+          amount: amountToRepay,
+          underlyingAddress: Underlying.dai,
+        },
+      ]);
+      await sleep(100);
+
+      const finalBorrowCapacity = simulator.getUserMaxCapacity(
+        Underlying.dai,
+        TransactionType.borrow
+      )!.amount;
+      expect(finalBorrowCapacity).toBnGt(initialBorrowCapacity);
     });
   });
 });
