@@ -1,9 +1,10 @@
 import { expect } from "chai";
-import { utils, constants, Contract } from "ethers";
+import { utils, constants } from "ethers";
 import hre, { ethers } from "hardhat";
 import { deal } from "hardhat-deal";
 
 import { BaseProvider } from "@ethersproject/providers";
+import PercentMath from "@morpho-labs/ethers-utils/lib/maths/PercentMath";
 import {
   ERC20__factory,
   Weth__factory,
@@ -873,6 +874,10 @@ describe("MorphoAaveV3 Bulker", () => {
           `expected user weth balance is ${constants.Zero}, received ${userWethBalance}`
         );
 
+        const initialBorrowBalance = await morphoAaveV3.borrowBalance(
+          weth.address,
+          morphoUser.address
+        );
         await bulker.addOperations([
           {
             type: TransactionType.repay,
@@ -903,11 +908,15 @@ describe("MorphoAaveV3 Bulker", () => {
         );
 
         const wethBalance = await weth.balanceOf(morphoUser.address);
-        // TODO I don't know how to solve this test, there's always remaining weth in user wallet
-        // expect(wethBalance).to.be.lessThan(
-        //   dust,
-        //   "weth balance should be unchanged (modulo dust)"
-        // );
+        const expectedPercent = PercentMath.parsePercent("0.01");
+        const expectedDust = PercentMath.percentMul(
+          initialBorrowBalance,
+          expectedPercent
+        );
+        expect(wethBalance).to.be.lessThan(
+          expectedDust,
+          `expected user weth balance should be less than 0.01% of the borrow position, which is ${expectedDust}, but received ${wethBalance}`
+        );
 
         // Expect initialUserEthBalance - 2 ETH < finalUserEthBalance < initialUserEthBalance - 1 ETH
         const finalUserEthBalance = await morphoUser.getBalance();
