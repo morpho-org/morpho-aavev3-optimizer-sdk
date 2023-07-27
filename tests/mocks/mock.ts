@@ -86,7 +86,7 @@ const USER_MARKETS_DATA: MarketMapping<ScaledUserMarketData> = {
     scaledCollateral: parseUnits("0", 18),
     scaledSupplyInP2P: parseUnits("0", 18),
     scaledSupplyOnPool: parseUnits("0", 18),
-    walletBalance: parseUnits("0", 18),
+    walletBalance: parseUnits("1", 18),
     approval: constants.Zero,
     bulkerApproval: constants.Zero,
     permit2Approval: constants.Zero,

@@ -10,6 +10,7 @@ import {
 } from "../../src/simulation/SimulationError";
 import { Operation } from "../../src/simulation/simulation.types";
 import { TransactionType } from "../../src/types";
+import { sleep } from "../helpers/sleep";
 import { ADAPTER_MOCK } from "../mocks/mock";
 
 describe("Simulator", () => {
@@ -43,185 +44,202 @@ describe("Simulator", () => {
     simulator.close();
   });
 
-  it("should increase the totalSupply on supply operation", async () => {
-    let totalSupply;
-    subscription = simulator.userMarketsData$.subscribe({
-      next: (userMarketsData) => {
-        totalSupply = userMarketsData[Underlying.dai]?.totalSupply.toString();
-      },
+  describe("On supply only operation", () => {
+    it("Should increase the totalSupply", async () => {
+      let totalSupply;
+
+      subscription = simulator.userMarketsData$.subscribe({
+        next: (userMarketsData) => {
+          totalSupply = userMarketsData[Underlying.weth]?.totalSupply;
+        },
+      });
+
+      const initialTotalSupply = constants.Zero; // generated a first test run
+      const marketData = simulator.getUserMarketsData()[Underlying.weth]!;
+      expect(marketData.totalSupply).toBnEq(initialTotalSupply);
+
+      const walletBalance = marketData.walletBalance;
+      const amountToSupply = BigNumber.from("10");
+      expect(amountToSupply).toBnLte(walletBalance);
+
+      simulator.simulate([
+        {
+          type: TransactionType.supply,
+          amount: amountToSupply,
+          underlyingAddress: Underlying.weth,
+        },
+      ]);
+      // await for the simulation to be processed
+      await sleep(100);
+
+      const finalTotalSupply = initialTotalSupply.add(amountToSupply);
+      expect(totalSupply).toBnEq(finalTotalSupply);
     });
 
-    const initialTotalSupplySnapshot = "7094038561468053280148"; // generated a first test run
-    expect(
-      simulator.getUserMarketsData()[Underlying.dai]!.totalSupply.toString()
-    ).toMatchInlineSnapshot(`"${initialTotalSupplySnapshot}"`);
+    it("Should not increase borrowCapacity", async () => {
+      const initialBorrowCapacity = simulator.getUserMaxCapacity(
+        Underlying.weth,
+        TransactionType.borrow
+      )!.amount;
 
-    const walletBalance =
-      simulator.getUserMarketsData()[Underlying.dai]!.walletBalance;
+      const marketData = simulator.getUserMarketsData()[Underlying.dai]!;
+      const walletBalance = marketData.walletBalance;
+      const supplyAmount = BigNumber.from("11");
+      expect(supplyAmount).toBnLte(walletBalance);
 
-    const amountToSupply = BigNumber.from("10");
-    expect(amountToSupply).toBnLte(walletBalance);
+      simulator.simulate([
+        {
+          type: TransactionType.supply,
+          amount: supplyAmount,
+          underlyingAddress: Underlying.weth,
+        },
+      ]);
+      await sleep(100);
 
-    simulator.simulate([
-      {
-        type: TransactionType.supply,
-        amount: amountToSupply,
-        underlyingAddress: Underlying.dai,
-      },
-    ]);
-    // await for the simulation to be processed
-    await new Promise((resolve) => setTimeout(resolve, 100));
-
-    expect(totalSupply).toBnEq(
-      BigNumber.from(initialTotalSupplySnapshot).add(amountToSupply)
-    );
-  });
-
-  it("should increase totalCollateral on supply collateral operation", async () => {
-    const initialTotalCollateralSnapshot = "607183967200000000000000"; // generated a first test run
-    expect(
-      simulator.getUserMarketsData()[Underlying.dai]!.totalCollateral.toString()
-    ).toMatchInlineSnapshot(`"${initialTotalCollateralSnapshot}"`);
-
-    let totalCollateral;
-    subscription = simulator.userMarketsData$.subscribe({
-      next: (userMarketsData) => {
-        totalCollateral = userMarketsData[Underlying.dai]?.totalCollateral;
-      },
+      const finalBorrowCapacity = simulator.getUserMaxCapacity(
+        Underlying.weth,
+        TransactionType.borrow
+      )!.amount;
+      expect(finalBorrowCapacity).toBnEq(initialBorrowCapacity);
     });
 
-    const walletBalance =
-      simulator.getUserMarketsData()[Underlying.dai]!.walletBalance;
-    const supplyCollateralAmount = BigNumber.from("11");
-    expect(supplyCollateralAmount).toBnLte(walletBalance);
+    it("should not be able to supply more than wallet balance", async () => {
+      const errors: SimulationError[] = [];
+      subscription = simulator.error$.subscribe(
+        (error: SimulationError | null) => {
+          if (error) errors.push(error);
+        }
+      );
 
-    const operations: Operation[] = [
-      {
-        type: TransactionType.supplyCollateral,
-        amount: supplyCollateralAmount,
-        underlyingAddress: Underlying.dai,
-      },
-    ];
+      const marketData = simulator.getUserMarketsData()[Underlying.weth]!;
+      const walletBalance = marketData.walletBalance;
 
-    simulator.simulate(operations);
-    await new Promise((resolve) => setTimeout(resolve, 100));
+      simulator.simulate([
+        {
+          type: TransactionType.supply,
+          amount: walletBalance,
+          underlyingAddress: Underlying.weth,
+        },
+        {
+          type: TransactionType.supply,
+          amount: BigNumber.from("1"),
+          underlyingAddress: Underlying.weth,
+        },
+      ]);
+      await sleep(100);
 
-    expect(totalCollateral).toBnEq(
-      BigNumber.from(initialTotalCollateralSnapshot).add(supplyCollateralAmount)
-    );
-  });
-
-  it("should increase borrowCapacity on supply collateral", async () => {
-    const daiBorrowCapacity = simulator.getUserMaxCapacity(
-      Underlying.dai,
-      TransactionType.borrow
-    )!.amount;
-
-    const walletBalance =
-      simulator.getUserMarketsData()[Underlying.dai]!.walletBalance;
-
-    const supplyCollateralAmount = walletBalance.div(2);
-
-    simulator.simulate([
-      {
-        type: TransactionType.supplyCollateral,
-        amount: supplyCollateralAmount,
-        underlyingAddress: Underlying.dai,
-      },
-    ]);
-    await new Promise((resolve) => setTimeout(resolve, 100));
-
-    expect(
-      simulator.getUserMaxCapacity(Underlying.dai, TransactionType.borrow)!
-        .amount
-    ).toBnGte(daiBorrowCapacity);
-  });
-
-  it("should not increase borrowCapacity on supply", async () => {
-    const borrowCapacity = simulator.getUserMaxCapacity(
-      Underlying.weth,
-      TransactionType.borrow
-    );
-
-    const walletBalance =
-      simulator.getUserMarketsData()[Underlying.dai]!.walletBalance;
-
-    const supplyAmount = BigNumber.from("11");
-    expect(supplyAmount).toBnLte(walletBalance);
-
-    const operations: Operation[] = [
-      {
-        type: TransactionType.supply,
-        amount: supplyAmount,
-        underlyingAddress: Underlying.weth,
-      },
-    ];
-
-    simulator.simulate(operations);
-    await new Promise((resolve) => setTimeout(resolve, 100));
-
-    expect(
-      simulator.getUserMaxCapacity(Underlying.weth, TransactionType.borrow)
-        ?.amount
-    ).toBnEq(borrowCapacity!.amount);
-  });
-
-  it("borrowCapacity should not change when borrowing 0", async () => {
-    const borrowCapacity = simulator.getUserMaxCapacity(
-      Underlying.dai,
-      TransactionType.borrow
-    )!.amount;
-    expect(borrowCapacity.toString()).toMatchInlineSnapshot(
-      `"719016088337257425742574"`
-    );
-
-    const operations: Operation[] = [
-      {
-        type: TransactionType.borrow,
-        amount: constants.Zero,
-        underlyingAddress: Underlying.dai,
-      },
-    ];
-
-    simulator.simulate(operations);
-    await new Promise((resolve) => setTimeout(resolve, 100));
-
-    expect(
-      simulator.getUserMaxCapacity(Underlying.dai, TransactionType.borrow)
-        ?.amount
-    ).toBnEq(borrowCapacity);
-  });
-
-  it("should not be able to supply more than wallet balance", async () => {
-    const errors: SimulationError[] = [];
-    simulator.error$.subscribe((error: SimulationError | null) => {
-      if (error) errors.push(error);
+      expect(
+        errors.find((s) => s.errorCode === ErrorCode.insufficientWalletBalance)
+      ).toBeDefined();
     });
 
-    const walletBalance =
-      simulator.getUserMarketsData()[Underlying.dai]!.walletBalance;
+    it("Should not be able to supply when market is not EMode", async () => {
+      const errors: SimulationError[] = [];
+      subscription = simulator.error$.subscribe(
+        (error) => error && errors.push(error)
+      );
 
-    const operations: Operation[] = [
-      {
-        type: TransactionType.supply,
-        amount: walletBalance,
-        underlyingAddress: Underlying.dai,
-      },
-      {
-        type: TransactionType.supply,
-        amount: BigNumber.from("1"),
-        underlyingAddress: Underlying.dai,
-      },
-    ];
+      const marketData = simulator.getUserMarketsData()[Underlying.dai]!;
+      const amountToSupply = BigNumber.from(10);
 
-    simulator.simulate(operations);
-    await new Promise((resolve) => setTimeout(resolve, 100));
+      simulator.simulate([
+        {
+          type: TransactionType.supply,
+          amount: amountToSupply,
+          underlyingAddress: Underlying.dai,
+        },
+      ]);
+      await sleep(100);
 
-    expect(
-      errors.find(
-        (s: SimulationError) =>
-          s.errorCode == ErrorCode.insufficientWalletBalance
-      )
-    ).toBeDefined();
+      expect(
+        errors.find((e) => e.errorCode === ErrorCode.operationDisabled)
+      ).toBeDefined();
+    });
+  });
+
+  describe("On supply collateral operation", () => {
+    it("Should increase totalCollateral", async () => {
+      const initialTotalCollateral = BigNumber.from("607183967200000000000000"); // generated a first test run
+      const marketData = simulator.getUserMarketsData()[Underlying.dai]!;
+      expect(marketData.totalCollateral).toBnEq(initialTotalCollateral);
+
+      let totalCollateral;
+      subscription = simulator.userMarketsData$.subscribe({
+        next: (userMarketsData) => {
+          totalCollateral = userMarketsData[Underlying.dai]?.totalCollateral;
+        },
+      });
+
+      const walletBalance = marketData!.walletBalance;
+      const supplyCollateralAmount = BigNumber.from("11");
+      expect(supplyCollateralAmount).toBnLte(walletBalance);
+
+      simulator.simulate([
+        {
+          type: TransactionType.supplyCollateral,
+          amount: supplyCollateralAmount,
+          underlyingAddress: Underlying.dai,
+        },
+      ]);
+      await sleep(100);
+
+      const finalTotalCollateral = initialTotalCollateral.add(
+        supplyCollateralAmount
+      );
+      expect(totalCollateral).toBnEq(finalTotalCollateral);
+    });
+
+    it("Should increase borrowCapacity", async () => {
+      const initialDaiBorrowCapacity = simulator.getUserMaxCapacity(
+        Underlying.dai,
+        TransactionType.borrow
+      )!.amount;
+
+      const marketData = simulator.getUserMarketsData()[Underlying.dai]!;
+      const walletBalance = marketData.walletBalance;
+      const supplyCollateralAmount = walletBalance.div(2);
+
+      simulator.simulate([
+        {
+          type: TransactionType.supplyCollateral,
+          amount: supplyCollateralAmount,
+          underlyingAddress: Underlying.dai,
+        },
+      ]);
+      await sleep(100);
+
+      const finalDaiBorrowCapacity = simulator.getUserMaxCapacity(
+        Underlying.dai,
+        TransactionType.borrow
+      )!.amount;
+      expect(finalDaiBorrowCapacity).toBnGte(initialDaiBorrowCapacity);
+    });
+  });
+
+  describe("On Borrow", () => {
+    it("Should not change borrowCapacity when borrowing 0", async () => {
+      const initialBorrowCapacity = simulator.getUserMaxCapacity(
+        Underlying.dai,
+        TransactionType.borrow
+      )!.amount;
+
+      const expectedBorrowCapacity = BigNumber.from("719016088337257425742574");
+      expect(initialBorrowCapacity).toBnEq(expectedBorrowCapacity);
+
+      simulator.simulate([
+        {
+          type: TransactionType.borrow,
+          amount: constants.Zero,
+          underlyingAddress: Underlying.dai,
+        },
+      ]);
+      await sleep(100);
+
+      const finalBorrowCapacity = simulator.getUserMaxCapacity(
+        Underlying.dai,
+        TransactionType.borrow
+      )?.amount;
+      expect(finalBorrowCapacity).toBnEq(initialBorrowCapacity);
+    });
   });
 });
