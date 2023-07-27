@@ -57,7 +57,6 @@ interface BaseBulkerSignature<Fullfilled extends boolean> {
   signature: FullfillableSignature<Fullfilled>;
   transactionIndex: number;
   nonce: BigNumber;
-  getMessage: () => SignatureMessage;
 }
 export interface BulkerTransferSignature<Fullfilled extends boolean>
   extends BaseBulkerSignature<Fullfilled> {
@@ -835,13 +834,6 @@ export default class BulkerTxHandler
       signature: undefined,
       nonce: userData.nonce,
       transactionIndex: index,
-      getMessage: () =>
-        getManagerApprovalMessage(
-          userData.address,
-          addresses.bulker,
-          userData.nonce,
-          MAX_UINT_160
-        ),
     });
     const newUserData: UserData = {
       ...userData,
@@ -1195,14 +1187,6 @@ export default class BulkerTxHandler
           nonce: userData.stEthData.bulkerNonce,
           signature: undefined,
           transactionIndex: index,
-          getMessage: () =>
-            getPermit2Message(
-              addresses.steth,
-              amountToWrap,
-              userData.stEthData.bulkerNonce,
-              MAX_UINT_160,
-              addresses.bulker
-            ),
         });
 
         batch.push(
@@ -1291,14 +1275,6 @@ export default class BulkerTxHandler
         nonce: userMarketsData[underlyingAddress]!.bulkerNonce,
         signature: undefined,
         transactionIndex: index,
-        getMessage: () =>
-          getPermit2Message(
-            underlyingAddress,
-            toTransfer,
-            userMarketsData[underlyingAddress]!.bulkerNonce,
-            MAX_UINT_160,
-            addresses.bulker
-          ),
       });
       // transfer
       batch.push({
