@@ -294,6 +294,31 @@ describe("Simulator", () => {
         errors.find((e) => e.errorCode === ErrorCode.collateralCapacityReached)
       ).toBeDefined();
     });
+
+    it("Should decrease borrowCapacity", async () => {
+      const initialDaiBorrowCapacity = simulator.getUserMaxCapacity(
+        Underlying.weth,
+        TransactionType.borrow
+      )!.amount;
+
+      const marketData = simulator.getUserMarketsData()[Underlying.weth]!;
+      const amountToBorrow = utils.parseEther("1");
+
+      simulator.simulate([
+        {
+          type: TransactionType.borrow,
+          amount: amountToBorrow,
+          underlyingAddress: Underlying.weth,
+        },
+      ]);
+      await sleep(100);
+
+      const finalDaiBorrowCapacity = simulator.getUserMaxCapacity(
+        Underlying.weth,
+        TransactionType.borrow
+      )!.amount;
+      expect(finalDaiBorrowCapacity).toBnLte(initialDaiBorrowCapacity);
+    });
   });
 
   describe("On Repay", () => {
