@@ -491,7 +491,7 @@ describe("MorphoAaveV3 Bulker", () => {
         await approveBulkerOrPermit2(contractAddress);
         await wsteth.wrap(utils.parseEther("1"));
         await morphoAdapter.refreshAll("latest");
-        await morphoAdapter.refetchData("latest");
+        await delay(null, 1000);
         const maxWstethCapacity = bulker.getUserMaxCapacity(
           Underlying.wsteth,
           TransactionType.supplyCollateral
