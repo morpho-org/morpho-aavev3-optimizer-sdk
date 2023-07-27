@@ -193,7 +193,7 @@ describe("MorphoAaveV3 Bulker", () => {
       contractAddress === CONTRACT_ADDRESSES.bulker ? "Bulker" : "Permit2";
 
     describe(`Supply transaction with ${approvalType} approval`, () => {
-      it("Should supply collateral DAI", async () => {
+      it("Should supply DAI as collateral", async () => {
         await approveBulkerOrPermit2(contractAddress);
         const maxDaiCapacity = bulker.getUserMaxCapacity(
           Underlying.dai,
@@ -240,7 +240,7 @@ describe("MorphoAaveV3 Bulker", () => {
         );
       });
 
-      it("Should supply collateral DAI twice", async () => {
+      it("Should supply DAI as collateral twice", async () => {
         await approveBulkerOrPermit2(contractAddress);
         const amount = utils.parseEther("50");
         const total = amount.mul(2);
@@ -287,7 +287,7 @@ describe("MorphoAaveV3 Bulker", () => {
         );
       });
 
-      it("Should supply only WETH without ETH to wrap", async () => {
+      it("Should supply only full WETH", async () => {
         await approveBulkerOrPermit2(contractAddress);
         const maxWethCapacity = bulker.getUserMaxCapacity(
           Underlying.weth,
@@ -338,7 +338,7 @@ describe("MorphoAaveV3 Bulker", () => {
         );
       });
 
-      it("Should supply only WETH with some ETH to wrap", async () => {
+      it("Should partially wrap ETH and supply only WETH", async () => {
         await approveBulkerOrPermit2(contractAddress);
         const maxWethCapacity = bulker.getUserMaxCapacity(
           Underlying.weth,
@@ -385,7 +385,7 @@ describe("MorphoAaveV3 Bulker", () => {
         );
       });
 
-      it("Should supply only WETH with all ETH to wrap (full wrap)", async () => {
+      it("Should fully wrap ETH and supply only", async () => {
         await approveBulkerOrPermit2(contractAddress);
         await weth.withdraw(await weth.balanceOf(morphoUser.address));
         await morphoAdapter.refreshAll("latest");
@@ -435,7 +435,7 @@ describe("MorphoAaveV3 Bulker", () => {
         );
       });
 
-      it("Should supply collateral wstETH with all stETH to wrap (full wrap)", async () => {
+      it("Should fully wrap stETH and supply as collateral", async () => {
         await approveBulkerOrPermit2(contractAddress);
         const maxWstethCapacity = bulker.getUserMaxCapacity(
           Underlying.wsteth,
@@ -488,7 +488,7 @@ describe("MorphoAaveV3 Bulker", () => {
         );
       });
 
-      it("Should supply collateral wstETH with some stETH to wrap and wstETH in wallet", async () => {
+      it("Should partially wrap stETH and supply as collateral", async () => {
         await approveBulkerOrPermit2(contractAddress);
         await wsteth.wrap(utils.parseEther("1"));
         await morphoAdapter.refreshAll("latest");
@@ -547,7 +547,7 @@ describe("MorphoAaveV3 Bulker", () => {
   });
 
   describe("Borrow", () => {
-    it("should borrow ETH with a previous collateral position", async () => {
+    it("should borrow ETH", async () => {
       await approveBulkerOrPermit2(CONTRACT_ADDRESSES.bulker);
       await morphoAaveV3.supplyCollateral(
         Underlying.dai,
@@ -592,7 +592,7 @@ describe("MorphoAaveV3 Bulker", () => {
       );
     });
 
-    it("should borrow ETH with a previous collateral position and unwrap", async () => {
+    it("should borrow and unwrap ETH", async () => {
       await approveBulkerOrPermit2(CONTRACT_ADDRESSES.bulker);
       await morphoAaveV3.supplyCollateral(
         Underlying.dai,
@@ -711,7 +711,7 @@ describe("MorphoAaveV3 Bulker", () => {
       );
     });
 
-    it("should withdraw WETH and unwrap", async () => {
+    it("should withdraw and unwrap WETH", async () => {
       await approveBulkerOrPermit2(CONTRACT_ADDRESSES.bulker);
       await morphoAaveV3.supply(
         Underlying.weth,
@@ -850,7 +850,7 @@ describe("MorphoAaveV3 Bulker", () => {
         );
       });
 
-      it("should repay WETH with ETH", async () => {
+      it("should fully wrap ETH and repay WETH", async () => {
         await approveBulkerOrPermit2(contractAddress);
         await morphoAaveV3.supplyCollateral(
           Underlying.dai,
@@ -936,7 +936,7 @@ describe("MorphoAaveV3 Bulker", () => {
   });
 
   describe("Supply Collateral + Borrow", () => {
-    it("Should supply collateral and borrow", async () => {
+    it("Should supply DAI as collateral and borrow WETH", async () => {
       await approveBulkerOrPermit2(CONTRACT_ADDRESSES.permit2);
       const maxDaiCapacity = bulker.getUserMaxCapacity(
         Underlying.dai,
@@ -995,7 +995,7 @@ describe("MorphoAaveV3 Bulker", () => {
   });
 
   describe("Repay + withdraw collateral", () => {
-    it("should repay and withdraw collateral", async () => {
+    it("should repay WETH and withdraw DAI collateral", async () => {
       await approveBulkerOrPermit2(CONTRACT_ADDRESSES.bulker);
       await morphoAaveV3.supplyCollateral(
         Underlying.dai,
