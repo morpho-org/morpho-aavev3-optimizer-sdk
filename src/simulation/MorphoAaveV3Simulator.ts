@@ -551,6 +551,17 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
     /*** Errors are not blocking **/
     /******************************/
 
+    const borrowCapacity = data.getUserMaxCapacity(
+      operation.underlyingAddress,
+      operation.type
+    );
+    if (!borrowCapacity || borrowCapacity.amount.lt(operation.amount))
+      return this._raiseError(
+        index,
+        ErrorCode.collateralCapacityReached,
+        operation
+      );
+
     const p2pAmount = minBN(amount, marketData.morphoSupplyOnPool);
     const poolAmount = amount.sub(p2pAmount);
 

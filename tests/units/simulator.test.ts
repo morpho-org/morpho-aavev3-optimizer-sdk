@@ -239,6 +239,35 @@ describe("Simulator", () => {
       )?.amount;
       expect(finalBorrowCapacity).toBnEq(initialBorrowCapacity);
     });
+
+    it("Should not be able to borrow more than borrowCapacity", async () => {
+      const errors: SimulationError[] = [];
+      subscription = simulator.error$.subscribe(
+        (error: SimulationError | null) => {
+          if (error) errors.push(error);
+        }
+      );
+
+      const initialBorrowCapacity = simulator.getUserMaxCapacity(
+        Underlying.weth,
+        TransactionType.borrow
+      )!.amount;
+
+      const amountToBorrow = initialBorrowCapacity.add(1);
+
+      simulator.simulate([
+        {
+          type: TransactionType.borrow,
+          amount: amountToBorrow,
+          underlyingAddress: Underlying.weth,
+        },
+      ]);
+      await sleep(100);
+
+      expect(
+        errors.find((e) => e.errorCode === ErrorCode.collateralCapacityReached)
+      ).toBeDefined();
+    });
   });
 
   describe("On Repay", () => {
