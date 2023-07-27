@@ -39,13 +39,11 @@ describe("bulker", () => {
       expect(spy).toHaveBeenCalledTimes(1);
       expect(spy).toHaveBeenCalledWith([]);
       spy.mockClear();
-      await bulkerHandler.addOperations([
-        {
-          type: TransactionType.supplyCollateral,
-          underlyingAddress: Underlying.dai,
-          amount: parseUnits("100"),
-        },
-      ]);
+      await bulkerHandler.addOperation({
+        type: TransactionType.supplyCollateral,
+        underlyingAddress: Underlying.dai,
+        amount: parseUnits("100"),
+      });
       expect(spy).toHaveBeenCalledTimes(1);
       expect(spy).toHaveBeenCalledWith(
         expect.arrayContaining([
@@ -70,13 +68,11 @@ describe("bulker", () => {
       expect(spy).toHaveBeenCalledTimes(1);
       expect(spy).toHaveBeenCalledWith([]);
       spy.mockClear();
-      await bulkerHandler.addOperations([
-        {
-          type: TransactionType.supplyCollateral,
-          underlyingAddress: Underlying.dai,
-          amount: parseUnits("100"),
-        },
-      ]);
+      await bulkerHandler.addOperation({
+        type: TransactionType.supplyCollateral,
+        underlyingAddress: Underlying.dai,
+        amount: parseUnits("100"),
+      });
       expect(spy).toHaveBeenCalledTimes(1);
       spy.mockClear();
       await adapter.disconnect();
@@ -117,25 +113,21 @@ describe("bulker", () => {
       bulkerTxEth: Bulker.TransactionType;
     }) => {
       it(`should add operations to the batch for ${name}`, async () => {
-        await bulkerHandler.addOperations([
-          {
-            type,
-            underlyingAddress: Underlying.dai,
-            amount: parseUnits("100"),
-          },
-        ]);
+        await bulkerHandler.addOperation({
+          type,
+          underlyingAddress: Underlying.dai,
+          amount: parseUnits("100"),
+        });
         expect(bulkerHandler.getBulkerTransactions().length).toBnGt(0);
       });
       it(`should throw an error if amount is zero for ${name}`, async () => {
         const mockError = jest.fn();
         bulkerHandler.error$.subscribe(mockError);
-        await bulkerHandler.addOperations([
-          {
-            type,
-            underlyingAddress: Underlying.dai,
-            amount: constants.Zero,
-          },
-        ]);
+        await bulkerHandler.addOperation({
+          type,
+          underlyingAddress: Underlying.dai,
+          amount: constants.Zero,
+        });
         expect(mockError).toHaveBeenCalledTimes(2);
         expect(mockError).toHaveBeenNthCalledWith(1, null); // initialization
         expect(mockError).toHaveBeenNthCalledWith(
@@ -155,13 +147,11 @@ describe("bulker", () => {
       it(`should throw an error if amount is too high for ${name}`, async () => {
         const mockError = jest.fn();
         bulkerHandler.error$.subscribe(mockError);
-        await bulkerHandler.addOperations([
-          {
-            type,
-            underlyingAddress: Underlying.dai,
-            amount: constants.MaxUint256.sub(1), // sub 1 otherwise the value is replaced by the user max capacity
-          },
-        ]);
+        await bulkerHandler.addOperation({
+          type,
+          underlyingAddress: Underlying.dai,
+          amount: constants.MaxUint256.sub(1), // sub 1 otherwise the value is replaced by the user max capacity
+        });
         expect(mockError).toHaveBeenCalledTimes(2);
         expect(mockError).toHaveBeenNthCalledWith(1, null); // initialization
         expect(mockError).toHaveBeenNthCalledWith(
@@ -174,13 +164,11 @@ describe("bulker", () => {
       });
 
       it(`should use the bulker approval first for ${name}`, async () => {
-        await bulkerHandler.addOperations([
-          {
-            type,
-            underlyingAddress: Underlying.dai,
-            amount: parseUnits("100"),
-          },
-        ]);
+        await bulkerHandler.addOperation({
+          type,
+          underlyingAddress: Underlying.dai,
+          amount: parseUnits("100"),
+        });
         const operations = bulkerHandler.getBulkerTransactions();
         expect(operations).toHaveLength(2);
         expect(operations[0].type).toEqual(
@@ -200,13 +188,11 @@ describe("bulker", () => {
 
       it(`should add permit2 approval for ${name}`, async () => {
         const amount = parseUnits("100", 6);
-        await bulkerHandler.addOperations([
-          {
-            type,
-            underlyingAddress: Underlying.usdc,
-            amount,
-          },
-        ]);
+        await bulkerHandler.addOperation({
+          type,
+          underlyingAddress: Underlying.usdc,
+          amount,
+        });
         const operations = bulkerHandler.getBulkerTransactions();
         expect(operations).toHaveLength(3);
 
@@ -254,13 +240,11 @@ describe("bulker", () => {
         await adapter.refreshAll();
 
         const amount = parseUnits("100");
-        await bulkerHandler.addOperations([
-          {
-            type: typeEth,
-            underlyingAddress: Underlying.weth,
-            amount,
-          },
-        ]);
+        await bulkerHandler.addOperation({
+          type: typeEth,
+          underlyingAddress: Underlying.weth,
+          amount,
+        });
         const operations = bulkerHandler.getBulkerTransactions();
         expect(operations).toHaveLength(2);
 
@@ -302,13 +286,11 @@ describe("bulker", () => {
         await adapter.refreshAll();
 
         const amount = parseUnits("100");
-        await bulkerHandler.addOperations([
-          {
-            type: typeEth,
-            underlyingAddress: Underlying.weth,
-            amount,
-          },
-        ]);
+        await bulkerHandler.addOperation({
+          type: typeEth,
+          underlyingAddress: Underlying.weth,
+          amount,
+        });
         const operations = bulkerHandler.getBulkerTransactions();
         expect(operations).toHaveLength(4);
 
@@ -359,13 +341,11 @@ describe("bulker", () => {
         await adapter.refreshAll();
         const amount = parseUnits("40");
 
-        await bulkerHandler.addOperations([
-          {
-            type,
-            underlyingAddress: Underlying.wsteth,
-            amount,
-          },
-        ]);
+        await bulkerHandler.addOperation({
+          type,
+          underlyingAddress: Underlying.wsteth,
+          amount,
+        });
 
         const operations = bulkerHandler.getBulkerTransactions();
         expect(operations).toHaveLength(5);
@@ -425,13 +405,11 @@ describe("bulker", () => {
 
         const mockError = jest.fn();
         bulkerHandler.error$.subscribe(mockError);
-        await bulkerHandler.addOperations([
-          {
-            type: typeEth,
-            underlyingAddress: Underlying.weth,
-            amount,
-          },
-        ]);
+        await bulkerHandler.addOperation({
+          type: typeEth,
+          underlyingAddress: Underlying.weth,
+          amount,
+        });
         expect(mockError).toHaveBeenCalledTimes(2);
         expect(mockError).toHaveBeenNthCalledWith(1, null); // initial value
         expect(mockError).toHaveBeenNthCalledWith(
@@ -476,13 +454,11 @@ describe("bulker", () => {
         await adapter.refreshAll();
 
         const amount = parseUnits("40");
-        await bulkerHandler.addOperations([
-          {
-            type,
-            underlyingAddress: Underlying.wsteth,
-            amount,
-          },
-        ]);
+        await bulkerHandler.addOperation({
+          type,
+          underlyingAddress: Underlying.wsteth,
+          amount,
+        });
         const operations = bulkerHandler.getBulkerTransactions();
         expect(operations).toHaveLength(4);
 
@@ -518,13 +494,11 @@ describe("bulker", () => {
         await adapter.refreshAll();
 
         const amount = parseUnits("40");
-        await bulkerHandler.addOperations([
-          {
-            type,
-            underlyingAddress: Underlying.wsteth,
-            amount,
-          },
-        ]);
+        await bulkerHandler.addOperation({
+          type,
+          underlyingAddress: Underlying.wsteth,
+          amount,
+        });
         const operations = bulkerHandler.getBulkerTransactions();
         expect(operations).toHaveLength(7);
 
@@ -590,13 +564,11 @@ describe("bulker", () => {
 
         const mockError = jest.fn();
         bulkerHandler.error$.subscribe(mockError);
-        await bulkerHandler.addOperations([
-          {
-            type,
-            underlyingAddress: Underlying.wsteth,
-            amount,
-          },
-        ]);
+        await bulkerHandler.addOperation({
+          type,
+          underlyingAddress: Underlying.wsteth,
+          amount,
+        });
         expect(mockError).toHaveBeenCalledTimes(2);
         expect(mockError).toHaveBeenNthCalledWith(1, null); // initialization
         expect(mockError).toHaveBeenNthCalledWith(2, {
@@ -633,14 +605,12 @@ describe("bulker", () => {
       await adapter.connect(userAddress);
       await adapter.refreshAll();
       const amount = parseUnits("0.1");
-      await bulkerHandler.addOperations([
-        {
-          type,
-          underlyingAddress: Underlying.weth,
-          amount,
-          unwrap: false,
-        },
-      ]);
+      await bulkerHandler.addOperation({
+        type,
+        underlyingAddress: Underlying.weth,
+        amount,
+        unwrap: false,
+      });
       const operations = bulkerHandler.getBulkerTransactions();
       expect(operations).toHaveLength(1);
       expect(operations[0].type).toEqual(bulkerTx);
@@ -667,14 +637,12 @@ describe("bulker", () => {
       await adapter.connect(userAddress);
       await adapter.refreshAll();
       const amount = parseUnits("0.1");
-      await bulkerHandler.addOperations([
-        {
-          type,
-          underlyingAddress: Underlying.weth,
-          amount,
-          unwrap: true,
-        },
-      ]);
+      await bulkerHandler.addOperation({
+        type,
+        underlyingAddress: Underlying.weth,
+        amount,
+        unwrap: true,
+      });
       const operations = bulkerHandler.getBulkerTransactions();
       expect(operations).toHaveLength(2);
       expect(operations[0].type).toEqual(bulkerTx);
@@ -712,14 +680,12 @@ describe("bulker", () => {
 
       const mockError = jest.fn();
       bulkerHandler.error$.subscribe(mockError);
-      await bulkerHandler.addOperations([
-        {
-          type,
-          underlyingAddress: Underlying.weth,
-          amount,
-          unwrap: true,
-        },
-      ]);
+      await bulkerHandler.addOperation({
+        type,
+        underlyingAddress: Underlying.weth,
+        amount,
+        unwrap: true,
+      });
 
       expect(mockError).toHaveBeenCalledTimes(2);
       expect(mockError).toHaveBeenNthCalledWith(1, null); // initialization
@@ -755,14 +721,12 @@ describe("bulker", () => {
 
       const mockError = jest.fn();
       bulkerHandler.error$.subscribe(mockError);
-      await bulkerHandler.addOperations([
-        {
-          type,
-          underlyingAddress: Underlying.weth,
-          amount,
-          unwrap: true,
-        },
-      ]);
+      await bulkerHandler.addOperation({
+        type,
+        underlyingAddress: Underlying.weth,
+        amount,
+        unwrap: true,
+      });
       expect(mockError).toHaveBeenCalledTimes(2);
       expect(mockError).toHaveBeenNthCalledWith(1, null); // initialization
       expect(mockError).toHaveBeenNthCalledWith(
@@ -799,13 +763,11 @@ describe("bulker", () => {
       bulkerHandler = new BulkerTxHandler(adapter);
       await adapter.connect(userAddress);
       await adapter.refreshAll();
-      await bulkerHandler.addOperations([
-        {
-          type: TransactionType.withdraw,
-          underlyingAddress: Underlying.weth,
-          amount: parseUnits("0.1"),
-        },
-      ]);
+      await bulkerHandler.addOperation({
+        type: TransactionType.withdraw,
+        underlyingAddress: Underlying.weth,
+        amount: parseUnits("0.1"),
+      });
       const operations = bulkerHandler.getBulkerTransactions();
       expect(operations).toHaveLength(1);
       expect(operations[0].type).toEqual(Bulker.TransactionType.withdraw);
@@ -833,14 +795,12 @@ describe("bulker", () => {
 
       await adapter.connect(userAddress);
       await adapter.refreshAll();
-      await bulkerHandler.addOperations([
-        {
-          type: TransactionType.withdraw,
-          underlyingAddress: Underlying.weth,
-          amount: parseUnits("0.1"),
-          unwrap: true,
-        },
-      ]);
+      await bulkerHandler.addOperation({
+        type: TransactionType.withdraw,
+        underlyingAddress: Underlying.weth,
+        amount: parseUnits("0.1"),
+        unwrap: true,
+      });
       const operations = bulkerHandler.getBulkerTransactions();
       expect(operations).toHaveLength(2);
 
@@ -875,13 +835,11 @@ describe("bulker", () => {
       bulkerHandler = new BulkerTxHandler(adapter);
       await adapter.connect(userAddress);
       await adapter.refreshAll();
-      await bulkerHandler.addOperations([
-        {
-          type: TransactionType.withdraw,
-          underlyingAddress: Underlying.weth,
-          amount: constants.MaxUint256,
-        },
-      ]);
+      await bulkerHandler.addOperation({
+        type: TransactionType.withdraw,
+        underlyingAddress: Underlying.weth,
+        amount: constants.MaxUint256,
+      });
       const operations = bulkerHandler.getBulkerTransactions();
       expect(operations).toHaveLength(1);
       expect(operations[0].type).toEqual(Bulker.TransactionType.withdraw);
@@ -906,14 +864,12 @@ describe("bulker", () => {
       bulkerHandler = new BulkerTxHandler(adapter);
       await adapter.connect(userAddress);
       await adapter.refreshAll();
-      await bulkerHandler.addOperations([
-        {
-          type: TransactionType.withdraw,
-          underlyingAddress: Underlying.weth,
-          amount: constants.MaxUint256,
-          unwrap: true,
-        },
-      ]);
+      await bulkerHandler.addOperation({
+        type: TransactionType.withdraw,
+        underlyingAddress: Underlying.weth,
+        amount: constants.MaxUint256,
+        unwrap: true,
+      });
       const operations = bulkerHandler.getBulkerTransactions();
       expect(operations).toHaveLength(2);
       expect(operations[0].type).toEqual(Bulker.TransactionType.withdraw);
@@ -946,14 +902,12 @@ describe("bulker", () => {
       bulkerHandler = new BulkerTxHandler(adapter);
       await adapter.connect(userAddress);
       await adapter.refreshAll();
-      await bulkerHandler.addOperations([
-        {
-          type: TransactionType.withdrawCollateral,
-          underlyingAddress: Underlying.wsteth,
-          amount: parseUnits("1"),
-          unwrap: false,
-        },
-      ]);
+      await bulkerHandler.addOperation({
+        type: TransactionType.withdrawCollateral,
+        underlyingAddress: Underlying.wsteth,
+        amount: parseUnits("1"),
+        unwrap: false,
+      });
       const operations = bulkerHandler.getBulkerTransactions();
       expect(operations).toHaveLength(1);
       expect(operations[0].type).toEqual(
@@ -981,14 +935,12 @@ describe("bulker", () => {
       bulkerHandler = new BulkerTxHandler(adapter);
       await adapter.connect(userAddress);
       await adapter.refreshAll();
-      await bulkerHandler.addOperations([
-        {
-          type: TransactionType.withdrawCollateral,
-          underlyingAddress: Underlying.wsteth,
-          amount: parseUnits("1"),
-          unwrap: true,
-        },
-      ]);
+      await bulkerHandler.addOperation({
+        type: TransactionType.withdrawCollateral,
+        underlyingAddress: Underlying.wsteth,
+        amount: parseUnits("1"),
+        unwrap: true,
+      });
       const operations = bulkerHandler.getBulkerTransactions();
       expect(operations).toHaveLength(2);
       expect(operations[0].type).toEqual(
@@ -1027,14 +979,12 @@ describe("bulker", () => {
       bulkerHandler = new BulkerTxHandler(adapter);
       await adapter.connect(userAddress);
       await adapter.refreshAll();
-      await bulkerHandler.addOperations([
-        {
-          type: TransactionType.withdrawCollateral,
-          underlyingAddress: Underlying.wsteth,
-          amount: constants.MaxUint256,
-          unwrap: false,
-        },
-      ]);
+      await bulkerHandler.addOperation({
+        type: TransactionType.withdrawCollateral,
+        underlyingAddress: Underlying.wsteth,
+        amount: constants.MaxUint256,
+        unwrap: false,
+      });
       const operations = bulkerHandler.getBulkerTransactions();
       expect(operations).toHaveLength(1);
       expect(operations[0].type).toEqual(

@@ -5,15 +5,11 @@ import {
   isAddress,
   splitSignature,
 } from "ethers/lib/utils";
-import { BehaviorSubject, firstValueFrom, Subject } from "rxjs";
+import { BehaviorSubject, Subject } from "rxjs";
 
 import { WadRayMath } from "@morpho-labs/ethers-utils/lib/maths";
 import { maxBN } from "@morpho-labs/ethers-utils/lib/utils";
-import {
-  ERC20__factory,
-  MorphoAaveV3__factory,
-  MorphoBulkerGateway__factory,
-} from "@morpho-labs/morpho-ethers-contract";
+import { MorphoBulkerGateway__factory } from "@morpho-labs/morpho-ethers-contract";
 
 import sdk from "..";
 import { MorphoAaveV3Adapter } from "../MorphoAaveV3Adapter";
@@ -51,16 +47,12 @@ export enum BulkerSignatureType {
   transfer = "TRANSFER",
   managerApproval = "BULKER_APPROVAL",
 }
-type FullfillableSignature<Fullfilled extends boolean | null = null> =
+type FullfillableSignature<Fullfilled extends boolean = boolean> =
   Fullfilled extends true
     ? { deadline: BigNumber; signature: Signature }
-    : Fullfilled extends false
-    ? undefined
-    : { deadline: BigNumber; signature: Signature } | undefined;
+    : undefined;
 
-export interface BulkerTransferSignature<
-  Fullfilled extends boolean | null = null
-> {
+export interface BulkerTransferSignature<Fullfilled extends boolean = boolean> {
   type: BulkerSignatureType.transfer;
   underlyingAddress: Address;
   amount: BigNumber;
@@ -70,9 +62,7 @@ export interface BulkerTransferSignature<
   transactionIndex: number;
 }
 
-export interface BulkerApprovalSignature<
-  Fullfilled extends boolean | null = null
-> {
+export interface BulkerApprovalSignature<Fullfilled extends boolean = boolean> {
   type: BulkerSignatureType.managerApproval;
   manager: Address;
   nonce: BigNumber;
@@ -80,7 +70,7 @@ export interface BulkerApprovalSignature<
   transactionIndex: number;
 }
 
-export type BulkerSignature<Fullfilled extends boolean | null = null> =
+export type BulkerSignature<Fullfilled extends boolean = boolean> =
   | BulkerTransferSignature<Fullfilled>
   | BulkerApprovalSignature<Fullfilled>;
 
@@ -100,6 +90,12 @@ export default class BulkerTxHandler
   extends NotifierManager(Connectable(MorphoAaveV3Simulator))
   implements IBatchTxHandler
 {
+  static isSigned(
+    signature: BulkerSignature
+  ): signature is BulkerSignature<true> {
+    return !!signature.signature;
+  }
+
   #adapter: MorphoAaveV3Adapter;
 
   #done$?: Subject<boolean>;
@@ -140,15 +136,15 @@ export default class BulkerTxHandler
     super.reset();
   }
 
-  public async addOperations(operations: Operation[]): Promise<void> {
+  public async addOperation(operation: Operation): Promise<void> {
     this.#done$ = new Subject();
 
     await new Promise((resolve) => {
       this.#done$?.subscribe(resolve);
-      this.simulatorOperations$.next([
-        ...this.simulatorOperations$.getValue(),
-        ...operations,
-      ]);
+
+      const operations = this.simulatorOperations$.getValue();
+
+      this.simulatorOperations$.next([...operations, operation]);
     });
   }
 
@@ -205,30 +201,33 @@ export default class BulkerTxHandler
     }
   }
 
-  public addSignatures(signatures: BulkerSignature<true>[]): void {
-    const currentSignatures = this.signatures$
+  #addSignature(signature: BulkerSignature<true>): void {
+    let signatureUpdated = false;
+
+    const updatedSignatures = this.signatures$
       .getValue()
       .map((signatureRequest) => {
-        const fullfilledSignature = signatures.find((signature) => {
-          let match =
-            signature.transactionIndex === signatureRequest.transactionIndex &&
-            signature.type === signatureRequest.type;
-          if (
-            signature.type === BulkerSignatureType.transfer &&
-            signatureRequest.type === BulkerSignatureType.transfer
-          ) {
-            match &&=
-              signature.underlyingAddress ===
-              signatureRequest.underlyingAddress;
-          }
-          return match;
-        });
-        if (!fullfilledSignature) return signatureRequest;
+        if (signatureUpdated) return signatureRequest;
+        let match =
+          signature.transactionIndex === signatureRequest.transactionIndex &&
+          signature.type === signatureRequest.type;
+        if (
+          signature.type === BulkerSignatureType.transfer &&
+          signatureRequest.type === BulkerSignatureType.transfer
+        ) {
+          match &&=
+            signature.underlyingAddress === signatureRequest.underlyingAddress;
+        }
 
-        // TODO: add signature validation
-        return fullfilledSignature;
+        if (match) {
+          signatureUpdated = true;
+          return signature;
+        }
+
+        return signatureRequest;
       });
-    this.signatures$.next(currentSignatures);
+
+    this.signatures$.next(updatedSignatures);
   }
 
   public async sign(toSign: BulkerSignature<false>): Promise<void> {
@@ -290,7 +289,7 @@ export default class BulkerTxHandler
         sigMessage.data.message
       );
 
-      this.addSignatures([{ ...toSign, signature: { signature, deadline } }]);
+      this.#addSignature({ ...toSign, signature: { signature, deadline } });
 
       if (toSign.type === BulkerSignatureType.transfer) {
         await notifier?.notify?.(
