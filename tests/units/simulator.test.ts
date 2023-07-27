@@ -1,4 +1,4 @@
-import { BigNumber, constants, Wallet } from "ethers";
+import { BigNumber, constants, utils, Wallet } from "ethers";
 import { Subscription } from "rxjs";
 
 import { MorphoAaveV3Adapter } from "../../src/MorphoAaveV3Adapter";
@@ -267,6 +267,33 @@ describe("Simulator", () => {
         TransactionType.borrow
       )!.amount;
       expect(finalBorrowCapacity).toBnGt(initialBorrowCapacity);
+    });
+  });
+
+  describe("On withdraw", () => {
+    it("Should decrease borrowCapacity", async () => {
+      const initialBorrowCapacity = simulator.getUserMaxCapacity(
+        Underlying.weth,
+        TransactionType.borrow
+      )!.amount;
+
+      const amountToBorrow = utils.parseEther("1");
+
+      simulator.simulate([
+        {
+          type: TransactionType.borrow,
+          amount: amountToBorrow,
+          underlyingAddress: Underlying.weth,
+        },
+      ]);
+      await sleep(100);
+
+      const finalBorrowCapacity = simulator.getUserMaxCapacity(
+        Underlying.weth,
+        TransactionType.borrow
+      )!.amount;
+
+      expect(initialBorrowCapacity).toBnGt(finalBorrowCapacity);
     });
   });
 });
