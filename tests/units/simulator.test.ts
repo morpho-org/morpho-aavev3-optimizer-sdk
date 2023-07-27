@@ -212,6 +212,32 @@ describe("Simulator", () => {
       )!.amount;
       expect(finalDaiBorrowCapacity).toBnGte(initialDaiBorrowCapacity);
     });
+
+    it("Should not be able to supply more than wallet balance", async () => {
+      const errors: SimulationError[] = [];
+      subscription = simulator.error$.subscribe(
+        (error: SimulationError | null) => {
+          if (error) errors.push(error);
+        }
+      );
+
+      const marketData = simulator.getUserMarketsData()[Underlying.dai]!;
+      const walletBalance = marketData.walletBalance;
+      const amountToSupply = walletBalance.add(1);
+
+      simulator.simulate([
+        {
+          type: TransactionType.supplyCollateral,
+          amount: amountToSupply,
+          underlyingAddress: Underlying.dai,
+        },
+      ]);
+      await sleep(100);
+
+      expect(
+        errors.find((e) => e.errorCode === ErrorCode.insufficientWalletBalance)
+      ).toBeDefined();
+    });
   });
 
   describe("On Borrow", () => {
