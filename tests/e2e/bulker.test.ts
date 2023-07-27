@@ -2,6 +2,7 @@ import { expect } from "chai";
 import { utils, constants, Contract } from "ethers";
 import hre, { ethers } from "hardhat";
 import { deal } from "hardhat-deal";
+import { delay } from "src/utils/promises";
 
 import { BaseProvider } from "@ethersproject/providers";
 import {
@@ -106,7 +107,7 @@ describe("MorphoAaveV3 Bulker", () => {
     bulker.reset();
     await hre.network.provider.send("evm_revert", [snapshot]);
     await morphoAdapter.refreshAll(initialBlock); // adapter reset
-    await morphoAdapter.refetchData(initialBlock); // adapter reset
+    await delay(null, 1000);
   });
 
   it("setup is well initialized", async () => {
