@@ -131,7 +131,21 @@ export default abstract class BaseBatchTxHandler
               if (
                 lastOperation.underlyingAddress === operation.underlyingAddress
               ) {
-                if (lastOperation.amount.eq(operation.amount)) {
+                if (operation.amount.eq(constants.MaxUint256)) {
+                  if (
+                    lastOperation.formattedAmount &&
+                    this.getUserMaxCapacity(
+                      operation.underlyingAddress,
+                      operation.type
+                    )
+                      ?.amount.sub(lastOperation.formattedAmount)
+                      .gt(0)
+                  ) {
+                    newOperation = operation;
+                  } else {
+                    newOperation = null;
+                  }
+                } else if (lastOperation.amount.eq(operation.amount)) {
                   newOperation = null;
                 } else {
                   const mainOperation = lastOperation.amount.gt(
@@ -139,9 +153,26 @@ export default abstract class BaseBatchTxHandler
                   )
                     ? lastOperation
                     : operation;
+
+                  let amount: BigNumber;
+
+                  if (operation.amount.eq(constants.MaxUint256)) {
+                    amount = constants.MaxUint256;
+                  } else if (lastOperation.amount.eq(constants.MaxUint256)) {
+                    if (!lastOperation.formattedAmount) {
+                      amount = constants.MaxUint256;
+                    } else {
+                      amount = lastOperation.formattedAmount
+                        .sub(operation.amount)
+                        .abs();
+                    }
+                  } else {
+                    amount = lastOperation.amount.sub(operation.amount).abs();
+                  }
+
                   newOperation = {
                     type: mainOperation.type,
-                    amount: lastOperation.amount.sub(operation.amount).abs(),
+                    amount,
                     underlyingAddress: mainOperation.underlyingAddress,
                     unwrap: mainOperation.unwrap,
                   };
