@@ -54,7 +54,7 @@ describe("Simulator", () => {
     simulator.close();
   });
 
-  describe("On supply only operation", () => {
+  describe("On supply only", () => {
     it("Should increase the totalSupply", async () => {
       let totalSupply;
 
@@ -160,7 +160,7 @@ describe("Simulator", () => {
     });
   });
 
-  describe("On supply collateral operation", () => {
+  describe("On supply collateral", () => {
     it("Should increase totalCollateral", async () => {
       const initialTotalCollateral = BigNumber.from("607183967200000000000000"); // generated a first test run
       const marketData = simulator.getUserMarketsData()[Underlying.dai]!;
@@ -386,7 +386,7 @@ describe("Simulator", () => {
     });
   });
 
-  describe("On withdraw", () => {
+  describe("On Withdraw", () => {
     it("Should decrease borrowCapacity", async () => {
       const initialBorrowCapacity = simulator.getUserMaxCapacity(
         Underlying.weth,
@@ -412,7 +412,26 @@ describe("Simulator", () => {
       expect(initialBorrowCapacity).toBnGt(finalBorrowCapacity);
     });
 
-    it("Should not be able to withdraw more than collateralized position", async () => {
+    it("Should not be able to withdraw 0", async () => {
+      const errors = subscribeErrors();
+
+      simulator.simulate([
+        {
+          type: TransactionType.withdraw,
+          amount: constants.Zero,
+          underlyingAddress: Underlying.weth,
+        },
+      ]);
+      await sleep(100);
+
+      expect(
+        errors.find((e) => e.errorCode === ErrorCode.zeroAmount)
+      ).toBeDefined();
+    });
+  });
+
+  describe("On Withdraw Collateral", () => {
+    it("Should not be able to withdraw collateral more than collateralized position", async () => {
       const errors = subscribeErrors();
       const withdrawCollateralCapacity = simulator.getUserMaxCapacity(
         Underlying.dai,
@@ -497,14 +516,14 @@ describe("Simulator", () => {
       expect(errors).toHaveLength(0);
     });
 
-    it("Should not be able to withdraw 0", async () => {
+    it("Should not be able to withdraw collateral 0", async () => {
       const errors = subscribeErrors();
 
       simulator.simulate([
         {
-          type: TransactionType.withdraw,
+          type: TransactionType.withdrawCollateral,
           amount: constants.Zero,
-          underlyingAddress: Underlying.weth,
+          underlyingAddress: Underlying.dai,
         },
       ]);
       await sleep(100);
