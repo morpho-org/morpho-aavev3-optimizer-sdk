@@ -13,7 +13,7 @@ import { sleep } from "../helpers/sleep";
 import { ADAPTER_MOCK } from "../mocks/mock";
 
 describe("Simulator", () => {
-  let subscription: Subscription;
+  let subscriptions: Subscription[] = [];
   let adapter: MorphoAaveV3Adapter;
   let simulator: MorphoAaveV3Simulator;
 
@@ -22,10 +22,10 @@ describe("Simulator", () => {
 
   const subscribeErrors = () => {
     const errors: SimulationError[] = [];
-    subscription = simulator.error$.subscribe(
-      (error: SimulationError | null) => {
+    subscriptions.push(
+      simulator.error$.subscribe((error: SimulationError | null) => {
         if (error) errors.push(error);
-      }
+      })
     );
     return errors;
   };
@@ -45,7 +45,8 @@ describe("Simulator", () => {
   });
 
   afterEach(async () => {
-    subscription?.unsubscribe();
+    subscriptions.forEach((subscription) => subscription.unsubscribe());
+    subscriptions = [];
   });
 
   afterAll(async () => {
@@ -57,11 +58,13 @@ describe("Simulator", () => {
     it("Should increase the totalSupply", async () => {
       let totalSupply;
 
-      subscription = simulator.userMarketsData$.subscribe({
-        next: (userMarketsData) => {
-          totalSupply = userMarketsData[Underlying.weth]?.totalSupply;
-        },
-      });
+      subscriptions.push(
+        simulator.userMarketsData$.subscribe({
+          next: (userMarketsData) => {
+            totalSupply = userMarketsData[Underlying.weth]?.totalSupply;
+          },
+        })
+      );
 
       const initialTotalSupply = constants.Zero; // generated a first test run
       const marketData = simulator.getUserMarketsData()[Underlying.weth]!;
@@ -164,11 +167,13 @@ describe("Simulator", () => {
       expect(marketData.totalCollateral).toBnEq(initialTotalCollateral);
 
       let totalCollateral;
-      subscription = simulator.userMarketsData$.subscribe({
-        next: (userMarketsData) => {
-          totalCollateral = userMarketsData[Underlying.dai]?.totalCollateral;
-        },
-      });
+      subscriptions.push(
+        simulator.userMarketsData$.subscribe({
+          next: (userMarketsData) => {
+            totalCollateral = userMarketsData[Underlying.dai]?.totalCollateral;
+          },
+        })
+      );
 
       const walletBalance = marketData!.walletBalance;
       const supplyCollateralAmount = BigNumber.from("11");
@@ -439,6 +444,57 @@ describe("Simulator", () => {
       expect(
         errors.find((e) => e.errorCode === ErrorCode.collateralCapacityReached)
       ).toBeDefined();
+    });
+
+    it("Should be able to withdraw collateral all if no borrow", async () => {
+      const errors = subscribeErrors();
+      const marketsData = simulator.getUserMarketsData();
+      const underlyingAddresses = Object.values(Underlying);
+
+      const allCollaterals: { [key: string]: BigNumber } = {};
+      subscriptions.push(
+        simulator.userMarketsData$.subscribe((userMarketsData) => {
+          underlyingAddresses.forEach((underlyingAddress) => {
+            allCollaterals[underlyingAddress] =
+              userMarketsData[underlyingAddress]!.totalCollateral;
+          });
+        })
+      );
+
+      simulator.simulate([
+        // Repay everything
+        ...underlyingAddresses.flatMap((underlyingAddress) => {
+          const marketData = marketsData[underlyingAddress];
+          if (!marketData) return [];
+          if (marketData.totalBorrow.isZero()) return [];
+          return [
+            {
+              type: TransactionType.repay,
+              amount: marketData.totalBorrow,
+              underlyingAddress,
+            },
+          ];
+        }),
+        // Withdraw all collateral
+        ...underlyingAddresses.flatMap((underlyingAddress) => {
+          const marketData = marketsData[underlyingAddress];
+          if (!marketData) return [];
+          if (marketData.totalCollateral.isZero()) return [];
+          return [
+            {
+              type: TransactionType.withdrawCollateral,
+              amount: marketData.totalCollateral,
+              underlyingAddress,
+            },
+          ];
+        }),
+      ]);
+      await sleep(100);
+
+      underlyingAddresses.forEach((underlyingAddress) =>
+        expect(allCollaterals[underlyingAddress]).toBnEq(constants.Zero)
+      );
+      expect(errors).toHaveLength(0);
     });
   });
 });
