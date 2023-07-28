@@ -333,6 +333,35 @@ describe("Simulator", () => {
       )!.amount;
       expect(finalDaiBorrowCapacity).toBnLte(initialDaiBorrowCapacity);
     });
+
+    // TODO Fix this test and fix the simulator.
+    // eslint-disable-next-line
+    it.skip("Should not be able to borrow more than pool liquidity", async () => {
+      const errors = subscribeErrors();
+      const marketData = simulator.getMarketsData()[Underlying.weth]!;
+      const amountToBorrow = marketData.poolLiquidity.add(1);
+      const supplyCollateralCapacity = simulator.getUserMaxCapacity(
+        Underlying.dai,
+        TransactionType.supplyCollateral
+      )!.amount;
+      simulator.simulate([
+        {
+          type: TransactionType.supplyCollateral,
+          amount: supplyCollateralCapacity,
+          underlyingAddress: Underlying.dai,
+        },
+        {
+          type: TransactionType.borrow,
+          amount: amountToBorrow,
+          underlyingAddress: Underlying.weth,
+        },
+      ]);
+      await sleep(100);
+      // The error is collateralCapacityReached.
+      expect(
+        errors.find((e) => e.errorCode === ErrorCode.notEnoughLiquidity)
+      ).toBeDefined();
+    });
   });
 
   describe("On Repay", () => {
