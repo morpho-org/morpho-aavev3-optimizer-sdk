@@ -8,7 +8,7 @@ import {
   ErrorCode,
   SimulationError,
 } from "../../src/simulation/SimulationError";
-import { TransactionType } from "../../src/types";
+import { MaxCapacityLimiter, TransactionType } from "../../src/types";
 import { sleep } from "../helpers/sleep";
 import { ADAPTER_MOCK } from "../mocks/mock";
 
@@ -405,6 +405,40 @@ describe("Simulator", () => {
       )!.amount;
 
       expect(initialBorrowCapacity).toBnGt(finalBorrowCapacity);
+    });
+
+    it("Should not be able to withdraw more than collateralized position", async () => {
+      const errors = subscribeErrors();
+      const withdrawCollateralCapacity = simulator.getUserMaxCapacity(
+        Underlying.dai,
+        TransactionType.withdrawCollateral
+      )!;
+      const borrowCapacity = simulator.getUserMaxCapacity(
+        Underlying.weth,
+        TransactionType.borrow
+      )!.amount;
+
+      expect(withdrawCollateralCapacity.limiter).toMatch(
+        MaxCapacityLimiter.balance
+      );
+
+      simulator.simulate([
+        {
+          type: TransactionType.borrow,
+          amount: borrowCapacity,
+          underlyingAddress: Underlying.weth,
+        },
+        {
+          type: TransactionType.withdrawCollateral,
+          amount: withdrawCollateralCapacity!.amount,
+          underlyingAddress: Underlying.dai,
+        },
+      ]);
+      await sleep(100);
+
+      expect(
+        errors.find((e) => e.errorCode === ErrorCode.collateralCapacityReached)
+      ).toBeDefined();
     });
   });
 });
