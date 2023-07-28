@@ -13,7 +13,7 @@ import {
 import { UserMarketsData } from "src/adapter.types";
 
 import { WadRayMath } from "@morpho-labs/ethers-utils/lib/maths";
-import { minBN } from "@morpho-labs/ethers-utils/lib/utils";
+import { maxBN, minBN } from "@morpho-labs/ethers-utils/lib/utils";
 
 import { MorphoAaveV3DataEmitter } from "../MorphoAaveV3DataEmitter";
 import { MorphoAaveV3DataHolder } from "../MorphoAaveV3DataHolder";
@@ -395,12 +395,6 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
     /* Simulated Data Computation */
     /*** Errors are not blocking **/
     /******************************/
-    if (userMarketData.walletBalance.lt(amount))
-      return this._raiseError(
-        index,
-        ErrorCode.insufficientWalletBalance,
-        operation
-      );
 
     const p2pAmount = minBN(amount, marketData.morphoBorrowOnPool);
     const poolAmount = amount.sub(p2pAmount);
@@ -450,7 +444,32 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
     };
 
     /* Update user market data */
-    const walletBalance = userMarketData.walletBalance.sub(amount);
+    let walletBalance = userMarketData.walletBalance.sub(amount);
+    let newUserData = data.getUserData();
+
+    if (this._allowWrapping && newUserData) {
+      if (getAddress(operation.underlyingAddress) === addresses.weth) {
+        const missingWeth = maxBN(
+          constants.Zero,
+          amount.sub(userMarketData.walletBalance)
+        );
+        if (missingWeth.gt(0)) {
+          walletBalance = constants.Zero;
+          newUserData = {
+            ...newUserData,
+            ethBalance: newUserData.ethBalance.sub(missingWeth),
+          };
+        }
+      }
+    }
+
+    if (walletBalance.isNegative() || newUserData?.ethBalance.isNegative())
+      return this._raiseError(
+        index,
+        ErrorCode.insufficientWalletBalance,
+        operation
+      );
+
     const totalSupply = userMarketData.totalSupply.add(amount);
     const supplyOnPool = userMarketData.supplyOnPool.add(poolAmount);
     const supplyInP2P = userMarketData.supplyInP2P.add(p2pAmount);
@@ -500,7 +519,7 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
       newMarketsData,
       data.getMarketsList(),
       data.getGlobalData(),
-      data.getUserData(),
+      newUserData,
       newUserMarketsData
     );
   }
@@ -610,7 +629,22 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
     };
 
     /* Update user market data */
-    const walletBalance = userMarketData.walletBalance.add(amount);
+    let walletBalance = userMarketData.walletBalance;
+    let newUserData = data.getUserData();
+
+    if (
+      operation.unwrap &&
+      newUserData &&
+      getAddress(operation.underlyingAddress) === addresses.weth
+    ) {
+      newUserData = {
+        ...newUserData,
+        ethBalance: newUserData.ethBalance.add(amount),
+      };
+    } else {
+      walletBalance = userMarketData.walletBalance.add(amount);
+    }
+
     const totalBorrow = userMarketData.totalBorrow.add(amount);
     const borrowOnPool = userMarketData.borrowOnPool.add(poolAmount);
     const borrowInP2P = userMarketData.borrowInP2P.add(p2pAmount);
@@ -660,7 +694,7 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
       newMarketsData,
       data.getMarketsList(),
       data.getGlobalData(),
-      data.getUserData(),
+      newUserData,
       newUserMarketsData
     );
   }
@@ -704,13 +738,6 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
     /*** Errors are not blocking **/
     /******************************/
 
-    if (userMarketData.walletBalance.lt(amount))
-      return this._raiseError(
-        index,
-        ErrorCode.insufficientWalletBalance,
-        operation
-      );
-
     /* Update market data */
     const totalMorphoCollateral = marketData.totalMorphoCollateral.add(amount);
     const poolLiquidity = marketData.poolLiquidity.add(amount);
@@ -729,7 +756,43 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
     };
 
     /* Update user market data */
-    const walletBalance = userMarketData.walletBalance.sub(amount);
+    let walletBalance = userMarketData.walletBalance.sub(amount);
+    let newUserData = data.getUserData();
+
+    if (this._allowWrapping && newUserData) {
+      if (getAddress(operation.underlyingAddress) === addresses.wsteth) {
+        const missingWsteth = maxBN(
+          constants.Zero,
+          amount.sub(userMarketData.walletBalance)
+        );
+        if (missingWsteth.gt(0)) {
+          walletBalance = constants.Zero;
+          newUserData = {
+            ...newUserData,
+            stEthData: {
+              ...newUserData.stEthData,
+              balance: newUserData.stEthData.balance.sub(
+                WadRayMath.wadMul(
+                  newUserData.stEthData.stethPerWsteth,
+                  missingWsteth
+                )
+              ),
+            },
+          };
+        }
+      }
+    }
+
+    if (
+      walletBalance.isNegative() ||
+      newUserData?.stEthData.balance.isNegative()
+    )
+      return this._raiseError(
+        index,
+        ErrorCode.insufficientWalletBalance,
+        operation
+      );
+
     const totalCollateral = userMarketData.totalCollateral.add(amount);
 
     const newUserMarketData: UserMarketData = {
@@ -755,7 +818,7 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
       newMarketsData,
       data.getMarketsList(),
       data.getGlobalData(),
-      data.getUserData(),
+      newUserData,
       newUserMarketsData
     );
   }
@@ -852,7 +915,22 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
     };
 
     /* Update user market data */
-    const walletBalance = userMarketData.walletBalance.add(amount);
+    let walletBalance = userMarketData.walletBalance;
+    let newUserData = data.getUserData();
+
+    if (
+      operation.unwrap &&
+      newUserData &&
+      getAddress(operation.underlyingAddress) === addresses.weth
+    ) {
+      newUserData = {
+        ...newUserData,
+        ethBalance: newUserData.ethBalance.add(amount),
+      };
+    } else {
+      walletBalance = userMarketData.walletBalance.add(amount);
+    }
+
     const totalSupply = userMarketData.totalSupply.sub(amount);
     const supplyOnPool = userMarketData.supplyOnPool.sub(poolAmount);
     const supplyInP2P = userMarketData.supplyInP2P.sub(p2pAmount);
@@ -902,7 +980,7 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
       newMarketsData,
       data.getMarketsList(),
       data.getGlobalData(),
-      data.getUserData(),
+      newUserData,
       newUserMarketsData
     );
   }
@@ -951,13 +1029,6 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
     const poolAmount = minBN(amount, userMarketData.borrowOnPool);
     const p2pAmount = amount.sub(poolAmount);
 
-    if (userMarketData.walletBalance.lt(amount))
-      return this._raiseError(
-        index,
-        ErrorCode.insufficientWalletBalance,
-        operation
-      );
-
     /* Update market data */
     const morphoBorrowInP2P = marketData.morphoBorrowInP2P.sub(p2pAmount);
     const morphoBorrowOnPool = marketData.morphoBorrowOnPool.sub(poolAmount);
@@ -996,7 +1067,32 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
     };
 
     /* Update user market data */
-    const walletBalance = userMarketData.walletBalance.sub(amount);
+    let walletBalance = userMarketData.walletBalance.sub(amount);
+    let newUserData = data.getUserData();
+
+    if (this._allowWrapping && newUserData) {
+      if (getAddress(operation.underlyingAddress) === addresses.weth) {
+        const missingWeth = maxBN(
+          constants.Zero,
+          amount.sub(userMarketData.walletBalance)
+        );
+        if (missingWeth.gt(0)) {
+          walletBalance = constants.Zero;
+          newUserData = {
+            ...newUserData,
+            ethBalance: newUserData.ethBalance.sub(missingWeth),
+          };
+        }
+      }
+    }
+
+    if (walletBalance.isNegative() || newUserData?.ethBalance.isNegative())
+      return this._raiseError(
+        index,
+        ErrorCode.insufficientWalletBalance,
+        operation
+      );
+
     const totalBorrow = userMarketData.totalBorrow.sub(amount);
     const borrowOnPool = userMarketData.borrowOnPool.sub(poolAmount);
     const borrowInP2P = userMarketData.borrowInP2P.sub(p2pAmount);
@@ -1046,7 +1142,7 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
       newMarketsData,
       data.getMarketsList(),
       data.getGlobalData(),
-      data.getUserData(),
+      newUserData,
       newUserMarketsData
     );
   }
@@ -1107,7 +1203,27 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
     };
 
     /* Update user market data */
-    const walletBalance = userMarketData.walletBalance.add(amount);
+    let walletBalance = userMarketData.walletBalance;
+    let newUserData = data.getUserData();
+
+    if (
+      operation.unwrap &&
+      newUserData &&
+      getAddress(operation.underlyingAddress) === addresses.wsteth
+    ) {
+      newUserData = {
+        ...newUserData,
+        stEthData: {
+          ...newUserData.stEthData,
+          balance: newUserData.stEthData.balance.add(
+            WadRayMath.wadMul(newUserData.stEthData.stethPerWsteth, amount)
+          ),
+        },
+      };
+    } else {
+      walletBalance = userMarketData.walletBalance.add(amount);
+    }
+
     const totalCollateral = userMarketData.totalCollateral.sub(amount);
 
     const newUserMarketData: UserMarketData = {
