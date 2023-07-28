@@ -82,11 +82,11 @@ const USER_MARKETS_DATA: MarketMapping<ScaledUserMarketData> = {
   [Underlying.weth]: {
     underlyingAddress: Underlying.weth,
     scaledBorrowInP2P: parseUnits("0", 18),
-    scaledBorrowOnPool: parseUnits("0", 18),
+    scaledBorrowOnPool: parseUnits("1", 18),
     scaledCollateral: parseUnits("0", 18),
     scaledSupplyInP2P: parseUnits("0", 18),
     scaledSupplyOnPool: parseUnits("0", 18),
-    walletBalance: parseUnits("1", 18),
+    walletBalance: parseUnits("10", 18),
     approval: constants.Zero,
     bulkerApproval: constants.Zero,
     permit2Approval: constants.Zero,

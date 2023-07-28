@@ -267,7 +267,7 @@ describe("Simulator", () => {
         TransactionType.borrow
       )!.amount;
 
-      const expectedBorrowCapacity = BigNumber.from("719016088337257425742574");
+      const expectedBorrowCapacity = BigNumber.from("716955720391356435643564");
       expect(initialBorrowCapacity).toBnEq(expectedBorrowCapacity);
 
       simulator.simulate([
@@ -434,7 +434,7 @@ describe("Simulator", () => {
 
     it("Should not be able to repay more than wallet balance", async () => {
       const errors = subscribeErrors();
-      const amountToBorrowSupply = parseEther("2");
+      const amountToBorrowSupply = parseEther("30");
       const marketData = simulator.getUserMarketsData()[Underlying.weth]!;
       const walletBalance = marketData.walletBalance;
       expect(amountToBorrowSupply).toBnGt(walletBalance);
@@ -651,6 +651,42 @@ describe("Simulator", () => {
       expect(initialBorrowCapacity).toBnLt(finalBorrowCapacity);
       expect(finalWethBalance).toBnEq(initialWethBalance.add(amountToBorrow));
       expect(finalDaiBalance).toBnEq(initialDaiBalance.sub(amountToSupply));
+    });
+
+    it("Should be able to repay and withdraw", async () => {
+      const errors = subscribeErrors();
+      const amountToRepay = simulator.getUserMaxCapacity(
+        Underlying.weth,
+        TransactionType.repay
+      )!.amount;
+      const initialWethBalance =
+        simulator.getUserMarketsData()[Underlying.weth]!.walletBalance;
+      const initialDaiBalance =
+        simulator.getUserMarketsData()[Underlying.dai]!.walletBalance;
+
+      const amountToWithdraw = parseUnits("10");
+      simulator.simulate([
+        {
+          type: TransactionType.repay,
+          amount: amountToRepay,
+          underlyingAddress: Underlying.weth,
+        },
+        {
+          type: TransactionType.withdrawCollateral,
+          amount: amountToWithdraw,
+          underlyingAddress: Underlying.dai,
+        },
+      ]);
+      await sleep(100);
+
+      const finalWethBalance =
+        simulator.getUserMarketsData()[Underlying.weth]!.walletBalance;
+      const finalDaiBalance =
+        simulator.getUserMarketsData()[Underlying.dai]!.walletBalance;
+
+      expect(errors).toHaveLength(0);
+      expect(finalWethBalance).toBnEq(initialWethBalance.sub(amountToRepay));
+      expect(finalDaiBalance).toBnEq(initialDaiBalance.add(amountToWithdraw));
     });
   });
 });
