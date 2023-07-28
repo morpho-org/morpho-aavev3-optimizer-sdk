@@ -240,6 +240,23 @@ describe("Simulator", () => {
         errors.find((e) => e.errorCode === ErrorCode.insufficientWalletBalance)
       ).toBeDefined();
     });
+
+    it("Should not be able to supply collateral 0", async () => {
+      const errors = subscribeErrors();
+
+      simulator.simulate([
+        {
+          type: TransactionType.supplyCollateral,
+          amount: constants.Zero,
+          underlyingAddress: Underlying.dai,
+        },
+      ]);
+      await sleep(100);
+
+      expect(
+        errors.find((e) => e.errorCode === ErrorCode.zeroAmount)
+      ).toBeDefined();
+    });
   });
 
   describe("On Borrow", () => {
