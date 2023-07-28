@@ -496,5 +496,22 @@ describe("Simulator", () => {
       );
       expect(errors).toHaveLength(0);
     });
+
+    it("Should not be able to withdraw 0", async () => {
+      const errors = subscribeErrors();
+
+      simulator.simulate([
+        {
+          type: TransactionType.withdraw,
+          amount: constants.Zero,
+          underlyingAddress: Underlying.weth,
+        },
+      ]);
+      await sleep(100);
+
+      expect(
+        errors.find((e) => e.errorCode === ErrorCode.zeroAmount)
+      ).toBeDefined();
+    });
   });
 });
