@@ -8,7 +8,6 @@ import {
   ErrorCode,
   SimulationError,
 } from "../../src/simulation/SimulationError";
-import { Operation } from "../../src/simulation/simulation.types";
 import { TransactionType } from "../../src/types";
 import { sleep } from "../helpers/sleep";
 import { ADAPTER_MOCK } from "../mocks/mock";
@@ -20,6 +19,16 @@ describe("Simulator", () => {
 
   let sender: string;
   let receiver: string;
+
+  const subscribeErrors = () => {
+    const errors: SimulationError[] = [];
+    subscription = simulator.error$.subscribe(
+      (error: SimulationError | null) => {
+        if (error) errors.push(error);
+      }
+    );
+    return errors;
+  };
 
   beforeAll(async () => {
     adapter = MorphoAaveV3Adapter.fromMock(ADAPTER_MOCK);
@@ -104,12 +113,7 @@ describe("Simulator", () => {
     });
 
     it("should not be able to supply more than wallet balance", async () => {
-      const errors: SimulationError[] = [];
-      subscription = simulator.error$.subscribe(
-        (error: SimulationError | null) => {
-          if (error) errors.push(error);
-        }
-      );
+      const errors = subscribeErrors();
 
       const marketData = simulator.getUserMarketsData()[Underlying.weth]!;
       const walletBalance = marketData.walletBalance;
@@ -134,10 +138,8 @@ describe("Simulator", () => {
     });
 
     it("Should not be able to supply when market is not EMode", async () => {
-      const errors: SimulationError[] = [];
-      subscription = simulator.error$.subscribe(
-        (error) => error && errors.push(error)
-      );
+      const errors = subscribeErrors();
+
       const amountToSupply = BigNumber.from(10);
 
       simulator.simulate([
@@ -214,12 +216,7 @@ describe("Simulator", () => {
     });
 
     it("Should not be able to supply more than wallet balance", async () => {
-      const errors: SimulationError[] = [];
-      subscription = simulator.error$.subscribe(
-        (error: SimulationError | null) => {
-          if (error) errors.push(error);
-        }
-      );
+      const errors = subscribeErrors();
 
       const marketData = simulator.getUserMarketsData()[Underlying.dai]!;
       const walletBalance = marketData.walletBalance;
@@ -267,12 +264,7 @@ describe("Simulator", () => {
     });
 
     it("Should not be able to borrow more than borrowCapacity", async () => {
-      const errors: SimulationError[] = [];
-      subscription = simulator.error$.subscribe(
-        (error: SimulationError | null) => {
-          if (error) errors.push(error);
-        }
-      );
+      const errors = subscribeErrors();
 
       const initialBorrowCapacity = simulator.getUserMaxCapacity(
         Underlying.weth,
@@ -301,7 +293,6 @@ describe("Simulator", () => {
         TransactionType.borrow
       )!.amount;
 
-      const marketData = simulator.getUserMarketsData()[Underlying.weth]!;
       const amountToBorrow = utils.parseEther("1");
 
       simulator.simulate([
