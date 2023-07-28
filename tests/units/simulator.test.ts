@@ -357,6 +357,28 @@ describe("Simulator", () => {
         errors.find((e) => e.errorCode === ErrorCode.zeroAmount)
       ).toBeDefined();
     });
+
+    it("Shold not be able to repay more than what is borrowed", async () => {
+      const errors = subscribeErrors();
+
+      const marketData = simulator.getUserMarketsData()[Underlying.dai]!;
+      const totalBorrow = marketData.totalBorrow;
+      const amountToRepay = totalBorrow.add(1);
+      expect(amountToRepay).toBnLt(marketData.walletBalance);
+
+      simulator.simulate([
+        {
+          type: TransactionType.repay,
+          amount: amountToRepay,
+          underlyingAddress: Underlying.dai,
+        },
+      ]);
+      await sleep(100);
+
+      expect(
+        errors.find((e) => e.errorCode === ErrorCode.insufficientBalance)
+      ).toBeDefined();
+    });
   });
 
   describe("On withdraw", () => {
