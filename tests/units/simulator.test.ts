@@ -339,6 +339,24 @@ describe("Simulator", () => {
       )!.amount;
       expect(finalBorrowCapacity).toBnGt(initialBorrowCapacity);
     });
+
+    it("Should not be able to repay 0", async () => {
+      const errors = subscribeErrors();
+
+      const amountToRepay = BigNumber.from(0);
+      simulator.simulate([
+        {
+          type: TransactionType.repay,
+          amount: amountToRepay,
+          underlyingAddress: Underlying.dai,
+        },
+      ]);
+      await sleep(100);
+
+      expect(
+        errors.find((e) => e.errorCode === ErrorCode.zeroAmount)
+      ).toBeDefined();
+    });
   });
 
   describe("On withdraw", () => {
