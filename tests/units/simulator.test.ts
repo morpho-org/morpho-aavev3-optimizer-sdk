@@ -334,12 +334,12 @@ describe("Simulator", () => {
       expect(finalDaiBorrowCapacity).toBnLte(initialDaiBorrowCapacity);
     });
 
-    // TODO Fix this test and fix the simulator.
-    // eslint-disable-next-line
-    it.skip("Should not be able to borrow more than pool liquidity", async () => {
+    it("Should not be able to borrow more than pool liquidity", async () => {
       const errors = subscribeErrors();
       const marketData = simulator.getMarketsData()[Underlying.weth]!;
-      const amountToBorrow = marketData.poolLiquidity.add(1);
+      const amountToBorrow = marketData.poolLiquidity
+        .add(marketData.morphoBorrowOnPool)
+        .add(1);
       const supplyCollateralCapacity = simulator.getUserMaxCapacity(
         Underlying.dai,
         TransactionType.supplyCollateral
