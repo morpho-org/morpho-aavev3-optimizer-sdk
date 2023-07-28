@@ -1,9 +1,9 @@
 import { BigNumber, ethers } from "ethers";
 
 import { BlockTag } from "@ethersproject/providers";
-import { WadRayMath } from "@morpho-labs/ethers-utils/lib/maths";
 import { pow10 } from "@morpho-labs/ethers-utils/lib/utils";
 import {
+  AToken__factory,
   AaveV3AddressesProvider__factory,
   AaveV3DataProvider,
   AaveV3DataProvider__factory,
@@ -11,7 +11,6 @@ import {
   AaveV3Oracle__factory,
   AaveV3Pool,
   AaveV3Pool__factory,
-  AToken__factory,
   ERC20__factory,
   MorphoAaveV3,
   MorphoAaveV3__factory,
@@ -153,9 +152,7 @@ export class ChainMarketFetcher extends ChainFetcher implements MarketFetcher {
       scaledPoolSupply,
       morphoBorrowOnPool,
       morphoATokens,
-      availableLiquidity,
-      decimals,
-      reserveCaps,
+      poolLiquidity,
     ] = await Promise.all([
       usdPriceFromPriceSource.isZero()
         ? this._oracle!.getAssetPrice(underlyingAddress, overrides)
@@ -166,16 +163,7 @@ export class ChainMarketFetcher extends ChainFetcher implements MarketFetcher {
       variableDebtToken.scaledBalanceOf(this._morpho!.address, overrides),
       aToken.scaledBalanceOf(this._morpho!.address, overrides),
       underlying.balanceOf(aTokenAddress, overrides),
-      underlying.decimals(overrides),
-      this._poolDataProvider!.getReserveCaps(underlyingAddress, overrides),
     ]);
-
-    const borrowCap = reserveCaps.borrowCap.mul(pow10(decimals));
-
-    const poolLiquidity =
-      borrowCap.isZero() || availableLiquidity.lt(borrowCap)
-        ? availableLiquidity
-        : borrowCap.sub(WadRayMath.rayMul(poolBorrow, variableBorrowIndex));
 
     return {
       address: underlyingAddress,

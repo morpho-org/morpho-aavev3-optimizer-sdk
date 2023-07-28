@@ -227,7 +227,7 @@ export interface ScaledMarketData {
    */
   readonly scaledMorphoBorrowInP2P: BigNumber;
 
-  /** The liquidity available on pool as a fallback
+  /** The liquidity available on pool
    *
    * _In underlying_
    *
