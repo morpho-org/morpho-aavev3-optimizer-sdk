@@ -688,5 +688,49 @@ describe("Simulator", () => {
       expect(finalWethBalance).toBnEq(initialWethBalance.sub(amountToRepay));
       expect(finalDaiBalance).toBnEq(initialDaiBalance.add(amountToWithdraw));
     });
+
+    it("Should be able to supply, borrow, repay and withdraw, all at once", async () => {
+      const errors = subscribeErrors();
+      const amountToSupplyWithdraw = parseUnits("100");
+      const amountToBorrowRepay = parseUnits("1");
+
+      const initialWethBalance =
+        simulator.getUserMarketsData()[Underlying.weth]!.walletBalance;
+      const initialDaiBalance =
+        simulator.getUserMarketsData()[Underlying.dai]!.walletBalance;
+
+      simulator.simulate([
+        {
+          type: TransactionType.supplyCollateral,
+          amount: amountToSupplyWithdraw,
+          underlyingAddress: Underlying.dai,
+        },
+        {
+          type: TransactionType.borrow,
+          amount: amountToBorrowRepay,
+          underlyingAddress: Underlying.weth,
+        },
+        {
+          type: TransactionType.repay,
+          amount: amountToBorrowRepay,
+          underlyingAddress: Underlying.weth,
+        },
+        {
+          type: TransactionType.withdrawCollateral,
+          amount: amountToSupplyWithdraw,
+          underlyingAddress: Underlying.dai,
+        },
+      ]);
+      await sleep(100);
+
+      const finalWethBalance =
+        simulator.getUserMarketsData()[Underlying.weth]!.walletBalance;
+      const finalDaiBalance =
+        simulator.getUserMarketsData()[Underlying.dai]!.walletBalance;
+
+      expect(errors).toHaveLength(0);
+      expect(finalWethBalance).toBnEq(initialWethBalance);
+      expect(finalDaiBalance).toBnEq(initialDaiBalance);
+    });
   });
 });
