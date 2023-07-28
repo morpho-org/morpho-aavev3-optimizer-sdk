@@ -1,5 +1,5 @@
 import { BigNumber, constants, utils, Wallet } from "ethers";
-import { parseEther } from "ethers/lib/utils";
+import { parseEther, parseUnits } from "ethers/lib/utils";
 import { Subscription } from "rxjs";
 
 import { MorphoAaveV3Adapter } from "../../src/MorphoAaveV3Adapter";
@@ -607,6 +607,50 @@ describe("Simulator", () => {
       expect(
         errors.find((e) => e.errorCode === ErrorCode.zeroAmount)
       ).toBeDefined();
+    });
+  });
+
+  describe("Userflows", () => {
+    it("Should be able to supply and borrow", async () => {
+      const errors = subscribeErrors();
+      const initialBorrowCapacity = simulator.getUserMaxCapacity(
+        Underlying.weth,
+        TransactionType.borrow
+      )!.amount;
+      const initialWethBalance =
+        simulator.getUserMarketsData()[Underlying.weth]!.walletBalance;
+      const initialDaiBalance =
+        simulator.getUserMarketsData()[Underlying.dai]!.walletBalance;
+
+      const amountToSupply = parseUnits("1000");
+      const amountToBorrow = parseUnits("0.1");
+      simulator.simulate([
+        {
+          type: TransactionType.supplyCollateral,
+          amount: amountToSupply,
+          underlyingAddress: Underlying.dai,
+        },
+        {
+          type: TransactionType.borrow,
+          amount: amountToBorrow,
+          underlyingAddress: Underlying.weth,
+        },
+      ]);
+      await sleep(100);
+
+      const finalWethBalance =
+        simulator.getUserMarketsData()[Underlying.weth]!.walletBalance;
+      const finalDaiBalance =
+        simulator.getUserMarketsData()[Underlying.dai]!.walletBalance;
+      const finalBorrowCapacity = simulator.getUserMaxCapacity(
+        Underlying.weth,
+        TransactionType.borrow
+      )!.amount;
+
+      expect(errors).toHaveLength(0);
+      expect(initialBorrowCapacity).toBnLt(finalBorrowCapacity);
+      expect(finalWethBalance).toBnEq(initialWethBalance.add(amountToBorrow));
+      expect(finalDaiBalance).toBnEq(initialDaiBalance.sub(amountToSupply));
     });
   });
 });
