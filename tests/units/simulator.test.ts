@@ -1,4 +1,5 @@
 import { BigNumber, constants, utils, Wallet } from "ethers";
+import { parseEther } from "ethers/lib/utils";
 import { Subscription } from "rxjs";
 
 import { MorphoAaveV3Adapter } from "../../src/MorphoAaveV3Adapter";
@@ -399,6 +400,35 @@ describe("Simulator", () => {
 
       expect(
         errors.find((e) => e.errorCode === ErrorCode.insufficientBalance)
+      ).toBeDefined();
+    });
+
+    it("Should not be able to repay more than wallet balance", async () => {
+      const errors = subscribeErrors();
+      const amountToBorrowSupply = parseEther("2");
+      const marketData = simulator.getUserMarketsData()[Underlying.weth]!;
+      const walletBalance = marketData.walletBalance;
+      expect(amountToBorrowSupply).toBnGt(walletBalance);
+      simulator.simulate([
+        {
+          type: TransactionType.borrow,
+          amount: amountToBorrowSupply,
+          underlyingAddress: Underlying.weth,
+        },
+        {
+          type: TransactionType.supply,
+          amount: amountToBorrowSupply,
+          underlyingAddress: Underlying.weth,
+        },
+        {
+          type: TransactionType.repay,
+          amount: amountToBorrowSupply,
+          underlyingAddress: Underlying.weth,
+        },
+      ]);
+      await sleep(100);
+      expect(
+        errors.find((e) => e.errorCode === ErrorCode.insufficientWalletBalance)
       ).toBeDefined();
     });
   });
