@@ -1231,11 +1231,11 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
       ...userData,
       ethBalance: isEth ? userData.ethBalance.add(amount) : userData.ethBalance,
       stEthData: isEth
-        ? {
+        ? userData.stEthData
+        : {
             ...userData.stEthData,
             balance: userData.stEthData.balance.add(convertSteth(amount)),
-          }
-        : userData.stEthData,
+          },
     };
 
     const newUserMarketsData = {
