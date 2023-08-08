@@ -10,6 +10,7 @@ export enum ErrorCode {
   borrowCapReached = "BORROW_CAP_REACHED",
   supplyCapReached = "SUPPLY_CAP_REACHED",
   collateralCapacityReached = "COLLATERAL_CAPACITY_REACHED",
+  borrowCapacityReached = "BORROW_CAPACITY_REACHED",
   insufficientWalletBalance = "INSUFFICIENT_WALLET_BALANCE",
   insufficientBalance = "INSUFFICIENT_BALANCE",
 }

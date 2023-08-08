@@ -267,7 +267,7 @@ describe("Simulator", () => {
         TransactionType.borrow
       )!.amount;
 
-      const expectedBorrowCapacity = BigNumber.from("716955720391356435643564");
+      const expectedBorrowCapacity = BigNumber.from("717673393785148514851485");
       expect(initialBorrowCapacity).toBnEq(expectedBorrowCapacity);
 
       simulator.simulate([
@@ -294,7 +294,7 @@ describe("Simulator", () => {
         TransactionType.borrow
       )!.amount;
 
-      const amountToBorrow = initialBorrowCapacity.add(1);
+      const amountToBorrow = initialBorrowCapacity.mul(2);
 
       simulator.simulate([
         {
@@ -306,7 +306,7 @@ describe("Simulator", () => {
       await sleep(100);
 
       expect(
-        errors.find((e) => e.errorCode === ErrorCode.collateralCapacityReached)
+        errors.find((e) => e.errorCode === ErrorCode.borrowCapacityReached)
       ).toBeDefined();
     });
 

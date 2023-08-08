@@ -564,7 +564,7 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
     if (!borrowCapacity || borrowCapacity.amount.lt(operation.amount))
       return this._raiseError(
         index,
-        ErrorCode.collateralCapacityReached,
+        ErrorCode.borrowCapacityReached,
         operation
       );
 

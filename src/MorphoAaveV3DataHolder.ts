@@ -346,10 +346,7 @@ export class MorphoAaveV3DataHolder {
           };
 
         const maxBorrowFromBC = this.__MATH__.divDown(
-          this._userData.borrowCapacity
-            .sub(this._userData.totalBorrow)
-            .mul(LT_LOWER_BOUND.sub(1))
-            .div(LT_LOWER_BOUND),
+          this._userData.borrowCapacity.sub(this._userData.totalBorrow),
           marketData.usdPrice
         );
 
@@ -475,15 +472,12 @@ export class MorphoAaveV3DataHolder {
           this._userData.totalBorrow.isZero()
             ? constants.MaxUint256
             : this.__MATH__.divDown(
-                this.__MATH__
-                  .percentDiv(
-                    this._userData.liquidationValue.sub(
-                      this._userData.totalBorrow
-                    ),
-                    marketConfig.collateralFactor
-                  )
-                  .mul(LT_LOWER_BOUND.sub(1))
-                  .div(LT_LOWER_BOUND),
+                this.__MATH__.percentDiv(
+                  this._userData.liquidationValue.sub(
+                    this._userData.totalBorrow
+                  ),
+                  marketConfig.collateralFactor
+                ),
                 marketData.usdPrice
               );
 
