@@ -53,12 +53,12 @@ type FullfillableSignature<Fullfilled extends boolean = boolean> =
     ? { deadline: BigNumber; signature: Signature }
     : undefined;
 
-interface BaseBulkerSignature<Fullfilled extends boolean> {
+interface BaseBulkerSignature<Fullfilled extends boolean = boolean> {
   signature: FullfillableSignature<Fullfilled>;
   transactionIndex: number;
   nonce: BigNumber;
 }
-export interface BulkerTransferSignature<Fullfilled extends boolean>
+export interface BulkerTransferSignature<Fullfilled extends boolean = boolean>
   extends BaseBulkerSignature<Fullfilled> {
   type: BulkerSignatureType.transfer;
   underlyingAddress: Address;
@@ -66,7 +66,7 @@ export interface BulkerTransferSignature<Fullfilled extends boolean>
   to: Address;
 }
 
-export interface BulkerApprovalSignature<Fullfilled extends boolean>
+export interface BulkerApprovalSignature<Fullfilled extends boolean = boolean>
   extends BaseBulkerSignature<Fullfilled> {
   type: BulkerSignatureType.managerApproval;
   manager: Address;
