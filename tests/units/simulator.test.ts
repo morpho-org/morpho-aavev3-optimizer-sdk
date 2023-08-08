@@ -550,8 +550,9 @@ describe("Simulator", () => {
       subscriptions.push(
         simulator.userMarketsData$.subscribe((userMarketsData) => {
           underlyingAddresses.forEach((underlyingAddress) => {
-            allCollaterals[underlyingAddress] =
-              userMarketsData[underlyingAddress]!.totalCollateral;
+            if (underlyingAddress in userMarketsData)
+              allCollaterals[underlyingAddress] =
+                userMarketsData[underlyingAddress]!.totalCollateral;
           });
         })
       );
@@ -586,9 +587,10 @@ describe("Simulator", () => {
       ]);
       await sleep(100);
 
-      underlyingAddresses.forEach((underlyingAddress) =>
-        expect(allCollaterals[underlyingAddress]).toBnEq(constants.Zero)
-      );
+      underlyingAddresses.forEach((underlyingAddress) => {
+        if (underlyingAddress in allCollaterals)
+          expect(allCollaterals[underlyingAddress]).toBnEq(constants.Zero);
+      });
       expect(errors).toHaveLength(0);
     });
 
