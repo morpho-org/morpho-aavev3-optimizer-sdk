@@ -388,6 +388,7 @@ describe("bulker", () => {
             [Underlying.weth]: {
               ...ADAPTER_MOCK.userMarketsData[Underlying.wsteth],
               walletBalance: constants.Zero,
+              scaledBorrowOnPool: parseUnits("40"),
             },
           },
           userData: {
@@ -416,9 +417,9 @@ describe("bulker", () => {
           2,
           expect.objectContaining({
             index: 0,
-            errorCode: ErrorCode.insufficientBalance,
+            errorCode: ErrorCode.insufficientWalletBalance,
             operation: {
-              type: OperationType.wrap,
+              type: typeEth,
               underlyingAddress: Underlying.weth,
               amount,
               formattedAmount: amount,
@@ -551,6 +552,7 @@ describe("bulker", () => {
             [Underlying.wsteth]: {
               ...ADAPTER_MOCK.userMarketsData[Underlying.wsteth],
               walletBalance: constants.Zero,
+              scaledBorrowOnPool: parseUnits("100"),
             },
           },
         };
@@ -573,12 +575,12 @@ describe("bulker", () => {
         expect(mockError).toHaveBeenNthCalledWith(1, null); // initialization
         expect(mockError).toHaveBeenNthCalledWith(2, {
           index: 0,
-          errorCode: ErrorCode.insufficientBalance,
+          errorCode: ErrorCode.insufficientWalletBalance,
           operation: {
-            type: OperationType.wrap,
+            type,
             underlyingAddress: Underlying.wsteth,
-            amount: BigNumber.from("100000000000100000000"),
-            formattedAmount: BigNumber.from("100000000000100000000"),
+            amount,
+            formattedAmount: amount,
           },
         });
       });
