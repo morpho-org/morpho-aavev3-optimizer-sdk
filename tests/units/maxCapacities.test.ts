@@ -153,8 +153,6 @@ describe("getUserMaxCapacity", () => {
       // borrowCapacityLeft
       const expectedMaxCapacity = borrowCapacity
         .sub(totalBorrow)
-        .mul(LT_LOWER_BOUND.sub(1))
-        .div(LT_LOWER_BOUND)
         .mul(pow10(6))
         .div(chainUsdPrice);
 
