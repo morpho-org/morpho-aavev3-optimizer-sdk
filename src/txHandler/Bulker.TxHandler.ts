@@ -7,13 +7,14 @@ import {
 } from "ethers/lib/utils";
 import { BehaviorSubject, Subject } from "rxjs";
 
-import { WadRayMath } from "@morpho-labs/ethers-utils/lib/maths";
+import { PercentMath, WadRayMath } from "@morpho-labs/ethers-utils/lib/maths";
 import { maxBN } from "@morpho-labs/ethers-utils/lib/utils";
 import { MorphoBulkerGateway__factory } from "@morpho-labs/morpho-ethers-contract";
 
 import sdk from "..";
 import { MorphoAaveV3Adapter } from "../MorphoAaveV3Adapter";
 import { MorphoAaveV3DataHolder } from "../MorphoAaveV3DataHolder";
+import { MAX_UINT_160 } from "../constants";
 import addresses from "../contracts/addresses";
 import { safeSignTypedData } from "../helpers/signatures";
 import { Underlying } from "../mocks/markets";
@@ -52,22 +53,23 @@ type FullfillableSignature<Fullfilled extends boolean = boolean> =
     ? { deadline: BigNumber; signature: Signature }
     : undefined;
 
-export interface BulkerTransferSignature<Fullfilled extends boolean = boolean> {
+interface BaseBulkerSignature<Fullfilled extends boolean = boolean> {
+  signature: FullfillableSignature<Fullfilled>;
+  transactionIndex: number;
+  nonce: BigNumber;
+}
+export interface BulkerTransferSignature<Fullfilled extends boolean = boolean>
+  extends BaseBulkerSignature<Fullfilled> {
   type: BulkerSignatureType.transfer;
   underlyingAddress: Address;
   amount: BigNumber;
   to: Address;
-  nonce: BigNumber;
-  signature: FullfillableSignature<Fullfilled>;
-  transactionIndex: number;
 }
 
-export interface BulkerApprovalSignature<Fullfilled extends boolean = boolean> {
+export interface BulkerApprovalSignature<Fullfilled extends boolean = boolean>
+  extends BaseBulkerSignature<Fullfilled> {
   type: BulkerSignatureType.managerApproval;
   manager: Address;
-  nonce: BigNumber;
-  signature: FullfillableSignature<Fullfilled>;
-  transactionIndex: number;
 }
 
 export type BulkerSignature<Fullfilled extends boolean = boolean> =
@@ -315,12 +317,16 @@ export default class BulkerTxHandler
 
   async executeBatch(options?: BulkerTransactionOptions): Promise<any> {
     const signer = this._signer;
-    if (!signer) return;
+    if (!signer) throw Error(`No signer provided`);
 
     const bulkerTransactions = this.bulkerOperations$.getValue();
     const operations = this.simulatorOperations$.getValue();
 
-    if (bulkerTransactions.length === 0) return;
+    if (bulkerTransactions.length === 0)
+      throw Error(`No transactions to execute`);
+
+    if (this.error$.getValue())
+      throw Error(`Error in the batch, cannot execute`);
 
     if (operations.length === 1) {
       if (
@@ -574,10 +580,8 @@ export default class BulkerTxHandler
       });
     });
 
-    if (missingSignatures.length > 0) {
-      console.error(`Missing signatures: ${JSON.stringify(missingSignatures)}`);
-      return;
-    }
+    if (missingSignatures.length > 0)
+      throw new Error(`missing  ${missingSignatures.length} signatures`);
 
     let success: boolean;
     let receipt: ContractReceipt | undefined;
@@ -588,8 +592,17 @@ export default class BulkerTxHandler
         signer
       );
 
+      const gasLimit = await bulker.estimateGas.execute(actions, data, {
+        ...options?.overrides,
+        value,
+      });
+
       const resp = await bulker.execute(actions, data, {
         ...options?.overrides,
+        gasLimit: PercentMath.percentMul(
+          gasLimit,
+          sdk.configuration.gasLimitPercent
+        ),
         value,
       });
 
