@@ -1,4 +1,4 @@
-import { BigNumber, constants, ethers, Signer } from "ethers";
+import { BigNumber, constants, ethers, providers, Signer } from "ethers";
 import {
   deepCopy,
   formatUnits,
@@ -137,6 +137,12 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
 
   private _ready: boolean = false;
 
+  private __provider: providers.BaseProvider =
+    sdk.configuration.defaultProvider;
+  get _provider() {
+    return this.__provider;
+  }
+
   constructor(
     private _marketFetcher: MarketFetcher,
     private _userFetcher: UserFetcher,
@@ -257,6 +263,8 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
 
   private async _setProvider(provider?: ethers.providers.BaseProvider) {
     provider ??= sdk.configuration.defaultProvider;
+
+    this.__provider = provider;
 
     if (ChainFetcher.isChainFetcher(this._marketFetcher)) {
       await this._marketFetcher.setProvider(provider);

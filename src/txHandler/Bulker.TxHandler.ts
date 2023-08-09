@@ -902,12 +902,6 @@ export default class BulkerTxHandler
     if (!stateAfterBorrow) return null;
 
     if (operation.unwrap) {
-      const unwrapOp = {
-        type: OperationType.unwrap,
-        amount: operation.formattedAmount!,
-        underlyingAddress: operation.underlyingAddress,
-      } as const;
-
       if (![Underlying.wsteth, Underlying.weth].includes(underlyingAddress))
         return this._raiseError(index, ErrorCode.unknownMarket, operation);
 
@@ -917,17 +911,6 @@ export default class BulkerTxHandler
         receiver: userData.address,
         amount: constants.MaxUint256, // Use maxUint to unwrap all and transfer all to the user
       });
-      this.bulkerOperations$.next([
-        ...this.bulkerOperations$.getValue(),
-        batch,
-      ]);
-
-      return this._applyOperation(
-        stateAfterBorrow,
-        unwrapOp,
-        index,
-        _operations
-      );
     }
     this.bulkerOperations$.next([...this.bulkerOperations$.getValue(), batch]);
 
@@ -990,12 +973,6 @@ export default class BulkerTxHandler
     if (!stateAfterWithdraw) return null;
 
     if (operation.unwrap) {
-      const unwrapOp = {
-        type: OperationType.unwrap,
-        amount: operation.formattedAmount!,
-        underlyingAddress: operation.underlyingAddress,
-      } as const;
-
       if (![Underlying.wsteth, Underlying.weth].includes(underlyingAddress))
         return this._raiseError(index, ErrorCode.unknownMarket, operation);
 
@@ -1005,18 +982,6 @@ export default class BulkerTxHandler
         receiver: userData.address,
         amount: constants.MaxUint256, // Use maxUint to unwrap all and transfer all to the user
       });
-
-      this.bulkerOperations$.next([
-        ...this.bulkerOperations$.getValue(),
-        batch,
-      ]);
-
-      return this._applyOperation(
-        stateAfterWithdraw,
-        unwrapOp,
-        index,
-        _operations
-      );
     }
 
     this.bulkerOperations$.next([...this.bulkerOperations$.getValue(), batch]);
@@ -1082,12 +1047,6 @@ export default class BulkerTxHandler
     if (!stateAfterWithdraw) return null;
 
     if (operation.unwrap) {
-      const unwrapOp = {
-        type: OperationType.unwrap,
-        amount: operation.formattedAmount!,
-        underlyingAddress: operation.underlyingAddress,
-      } as const;
-
       if (![Underlying.wsteth, Underlying.weth].includes(underlyingAddress))
         return this._raiseError(index, ErrorCode.unknownMarket, operation);
 
@@ -1097,18 +1056,6 @@ export default class BulkerTxHandler
         receiver: userData.address,
         amount: constants.MaxUint256, // Use maxUint to unwrap all and transfer all to the user
       });
-
-      this.bulkerOperations$.next([
-        ...this.bulkerOperations$.getValue(),
-        batch,
-      ]);
-
-      return this._applyOperation(
-        stateAfterWithdraw,
-        unwrapOp,
-        index,
-        _operations
-      );
     }
 
     this.bulkerOperations$.next([...this.bulkerOperations$.getValue(), batch]);
@@ -1201,16 +1148,6 @@ export default class BulkerTxHandler
             amount: amountToWrap,
           }
         );
-        simulatedData = this._applyOperation(
-          simulatedData,
-          {
-            type: OperationType.wrap,
-            amount: amountToWrap,
-            underlyingAddress: addresses.wsteth,
-          },
-          index,
-          _operations
-        );
         //  defer the skim to the end of the batch
         defers.push({
           type: BulkerTx.skim,
@@ -1231,17 +1168,6 @@ export default class BulkerTxHandler
           amount: wethMissing,
           value: wethMissing,
         });
-        simulatedData = this._applyOperation(
-          simulatedData,
-          {
-            type: OperationType.wrap,
-            amount: wethMissing,
-            underlyingAddress: addresses.weth,
-          },
-          index,
-          _operations
-        );
-
         // no skim needed since the eth wrapping is a 1:1 operation
         toTransfer = toTransfer.sub(wethMissing);
       }

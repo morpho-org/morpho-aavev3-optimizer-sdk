@@ -321,267 +321,272 @@ describe("bulker", () => {
         expect(bulkerHandler.getValue()).toBnEq(parseUnits("50"));
       });
 
-      it(`should wrap steth for ${name}`, async () => {
-        //  set the  weth balance to 0
-        const mock = {
-          ...ADAPTER_MOCK,
-          userMarketsData: {
-            ...ADAPTER_MOCK.userMarketsData,
-            [Underlying.wsteth]: {
-              ...ADAPTER_MOCK.userMarketsData[Underlying.wsteth],
-              scaledBorrowOnPool: parseUnits("100"),
-              walletBalance: constants.Zero,
+      //can't repay stEth
+      if (name !== "repay") {
+        it(`should wrap steth for ${name}`, async () => {
+          //  set the  weth balance to 0
+          const mock = {
+            ...ADAPTER_MOCK,
+            userMarketsData: {
+              ...ADAPTER_MOCK.userMarketsData,
+              [Underlying.wsteth]: {
+                ...ADAPTER_MOCK.userMarketsData[Underlying.wsteth],
+                scaledBorrowOnPool: parseUnits("100"),
+                walletBalance: constants.Zero,
+              },
             },
-          },
-        };
-        const adapter = MorphoAaveV3Adapter.fromMock(mock);
-        bulkerHandler.close();
-        bulkerHandler = new BulkerTxHandler(adapter);
-        await adapter.connect(userAddress);
-        await adapter.refreshAll();
-        const amount = parseUnits("40");
+          };
+          const adapter = MorphoAaveV3Adapter.fromMock(mock);
+          bulkerHandler.close();
+          bulkerHandler = new BulkerTxHandler(adapter);
+          await adapter.connect(userAddress);
+          await adapter.refreshAll();
+          const amount = parseUnits("40");
 
-        await bulkerHandler.addOperation({
-          type,
-          underlyingAddress: Underlying.wsteth,
-          amount,
+          await bulkerHandler.addOperation({
+            type,
+            underlyingAddress: Underlying.wsteth,
+            amount,
+          });
+
+          const operations = bulkerHandler.getBulkerTransactions();
+          expect(operations).toHaveLength(5);
+
+          expect(operations[0].type).toEqual(Bulker.TransactionType.approve2);
+          const approval = operations[0] as Bulker.Approve2Transaction;
+          expect(approval.amount).toBnEq("40000000000100000000"); // add a buffer for the wrap
+
+          expect(operations[1].type).toEqual(
+            Bulker.TransactionType.transferFrom2
+          );
+          const transfer = operations[1] as Bulker.TransferFrom2Transaction;
+          expect(transfer.amount).toBnEq("40000000000100000000");
+          expect(transfer.asset).toEqual(CONTRACT_ADDRESSES.steth);
+
+          expect(operations[2].type).toEqual(Bulker.TransactionType.wrap);
+          const wrap = operations[2] as Bulker.WrapTransaction;
+          expect(wrap.amount).toBnEq("40000000000100000000");
+          expect(wrap.asset).toEqual(Underlying.wsteth);
+
+          expect(operations[3].type).toEqual(bulkerTx);
+          const morphoTx = operations[3] as
+            | Bulker.SupplyCollateralTransaction
+            | Bulker.RepayTransaction;
+          expect(morphoTx.amount).toBnEq(amount);
+          expect(morphoTx.asset).toEqual(Underlying.wsteth);
+
+          expect(operations[4].type).toEqual(Bulker.TransactionType.skim);
+          const skim = operations[4] as Bulker.SkimTransaction;
+          expect(skim.asset).toBnEq(Underlying.wsteth);
+
+          expect(bulkerHandler.getValue()).toBnEq(0);
         });
-
-        const operations = bulkerHandler.getBulkerTransactions();
-        expect(operations).toHaveLength(5);
-
-        expect(operations[0].type).toEqual(Bulker.TransactionType.approve2);
-        const approval = operations[0] as Bulker.Approve2Transaction;
-        expect(approval.amount).toBnEq("40000000000100000000"); // add a buffer for the wrap
-
-        expect(operations[1].type).toEqual(
-          Bulker.TransactionType.transferFrom2
-        );
-        const transfer = operations[1] as Bulker.TransferFrom2Transaction;
-        expect(transfer.amount).toBnEq("40000000000100000000");
-        expect(transfer.asset).toEqual(CONTRACT_ADDRESSES.steth);
-
-        expect(operations[2].type).toEqual(Bulker.TransactionType.wrap);
-        const wrap = operations[2] as Bulker.WrapTransaction;
-        expect(wrap.amount).toBnEq("40000000000100000000");
-        expect(wrap.asset).toEqual(Underlying.wsteth);
-
-        expect(operations[3].type).toEqual(bulkerTx);
-        const morphoTx = operations[3] as
-          | Bulker.SupplyCollateralTransaction
-          | Bulker.RepayTransaction;
-        expect(morphoTx.amount).toBnEq(amount);
-        expect(morphoTx.asset).toEqual(Underlying.wsteth);
-
-        expect(operations[4].type).toEqual(Bulker.TransactionType.skim);
-        const skim = operations[4] as Bulker.SkimTransaction;
-        expect(skim.asset).toBnEq(Underlying.wsteth);
-
-        expect(bulkerHandler.getValue()).toBnEq(0);
-      });
-      it(`should throw an error if not enough ETH for ${name}`, async () => {
-        //  set the  weth balance to 0
-        const mock = {
-          ...ADAPTER_MOCK,
-          userMarketsData: {
-            ...ADAPTER_MOCK.userMarketsData,
-            [Underlying.weth]: {
-              ...ADAPTER_MOCK.userMarketsData[Underlying.wsteth],
-              walletBalance: constants.Zero,
+        it(`should throw an error if not enough ETH for ${name}`, async () => {
+          //  set the  weth balance to 0
+          const mock = {
+            ...ADAPTER_MOCK,
+            userMarketsData: {
+              ...ADAPTER_MOCK.userMarketsData,
+              [Underlying.weth]: {
+                ...ADAPTER_MOCK.userMarketsData[Underlying.wsteth],
+                walletBalance: constants.Zero,
+                scaledBorrowOnPool: parseUnits("40"),
+              },
             },
-          },
-          userData: {
-            ...ADAPTER_MOCK.userData,
-            ethBalance: parseUnits("10"),
-          },
-        };
-        const adapter = MorphoAaveV3Adapter.fromMock(mock);
-        bulkerHandler.close();
-        bulkerHandler = new BulkerTxHandler(adapter);
-        await adapter.connect(userAddress);
-        await adapter.refreshAll();
+            userData: {
+              ...ADAPTER_MOCK.userData,
+              ethBalance: parseUnits("10"),
+            },
+          };
+          const adapter = MorphoAaveV3Adapter.fromMock(mock);
+          bulkerHandler.close();
+          bulkerHandler = new BulkerTxHandler(adapter);
+          await adapter.connect(userAddress);
+          await adapter.refreshAll();
 
-        const amount = parseUnits("40");
+          const amount = parseUnits("40");
 
-        const mockError = jest.fn();
-        bulkerHandler.error$.subscribe(mockError);
-        await bulkerHandler.addOperation({
-          type: typeEth,
-          underlyingAddress: Underlying.weth,
-          amount,
+          const mockError = jest.fn();
+          bulkerHandler.error$.subscribe(mockError);
+          await bulkerHandler.addOperation({
+            type: typeEth,
+            underlyingAddress: Underlying.weth,
+            amount,
+          });
+          expect(mockError).toHaveBeenCalledTimes(2);
+          expect(mockError).toHaveBeenNthCalledWith(1, null); // initial value
+          expect(mockError).toHaveBeenNthCalledWith(
+            2,
+            expect.objectContaining({
+              index: 0,
+              errorCode: ErrorCode.insufficientWalletBalance,
+              operation: {
+                type: typeEth,
+                underlyingAddress: Underlying.weth,
+                amount,
+                formattedAmount: amount,
+              },
+            })
+          );
         });
-        expect(mockError).toHaveBeenCalledTimes(2);
-        expect(mockError).toHaveBeenNthCalledWith(1, null); // initial value
-        expect(mockError).toHaveBeenNthCalledWith(
-          2,
-          expect.objectContaining({
+        it(`should use approval in steth wrap for ${name}`, async () => {
+          //  set the  weth balance to 0
+          const mock = {
+            ...ADAPTER_MOCK,
+            userData: {
+              ...ADAPTER_MOCK.userData,
+              stEthData: {
+                ...ADAPTER_MOCK.userData.stEthData,
+                bulkerApproval: parseUnits("100"),
+              },
+            },
+            userMarketsData: {
+              ...ADAPTER_MOCK.userMarketsData,
+              [Underlying.wsteth]: {
+                ...ADAPTER_MOCK.userMarketsData[Underlying.wsteth],
+                scaledBorrowOnPool: parseUnits("100"),
+                walletBalance: constants.Zero,
+              },
+            },
+          };
+          const adapter = MorphoAaveV3Adapter.fromMock(mock);
+          bulkerHandler.close();
+          bulkerHandler = new BulkerTxHandler(adapter);
+
+          await adapter.connect(userAddress);
+          await adapter.refreshAll();
+
+          const amount = parseUnits("40");
+          await bulkerHandler.addOperation({
+            type,
+            underlyingAddress: Underlying.wsteth,
+            amount,
+          });
+          const operations = bulkerHandler.getBulkerTransactions();
+          expect(operations).toHaveLength(4);
+
+          expect(operations[0].type).toEqual(
+            Bulker.TransactionType.transferFrom2
+          );
+          const transfer = operations[0] as Bulker.TransferFrom2Transaction;
+          expect(transfer.amount).toBnEq("40000000000100000000");
+          expect(transfer.asset).toEqual(CONTRACT_ADDRESSES.steth);
+
+          expect(operations[1].type).toEqual(Bulker.TransactionType.wrap);
+          const wrap = operations[1] as Bulker.WrapTransaction;
+          expect(wrap.amount).toBnEq("40000000000100000000");
+          expect(wrap.asset).toEqual(Underlying.wsteth);
+        });
+        it(`should partially wrap steth for ${name}`, async () => {
+          //  set the  weth balance to 0
+          const mock = {
+            ...ADAPTER_MOCK,
+            userMarketsData: {
+              ...ADAPTER_MOCK.userMarketsData,
+              [Underlying.wsteth]: {
+                ...ADAPTER_MOCK.userMarketsData[Underlying.wsteth],
+                scaledBorrowOnPool: parseUnits("100"),
+                walletBalance: parseUnits("20"),
+              },
+            },
+          };
+          const adapter = MorphoAaveV3Adapter.fromMock(mock);
+          bulkerHandler.close();
+          bulkerHandler = new BulkerTxHandler(adapter);
+          await adapter.connect(userAddress);
+          await adapter.refreshAll();
+
+          const amount = parseUnits("40");
+          await bulkerHandler.addOperation({
+            type,
+            underlyingAddress: Underlying.wsteth,
+            amount,
+          });
+          const operations = bulkerHandler.getBulkerTransactions();
+          expect(operations).toHaveLength(7);
+
+          expect(operations[0].type).toEqual(Bulker.TransactionType.approve2);
+          const approval = operations[0] as Bulker.Approve2Transaction;
+          expect(approval.amount).toBnEq("20000000000100000000"); // add a buffer for the wrap
+
+          expect(operations[1].type).toEqual(
+            Bulker.TransactionType.transferFrom2
+          );
+          const transfer = operations[1] as Bulker.TransferFrom2Transaction;
+          expect(transfer.amount).toBnEq("20000000000100000000");
+          expect(transfer.asset).toEqual(CONTRACT_ADDRESSES.steth);
+
+          expect(operations[2].type).toEqual(Bulker.TransactionType.wrap);
+          const wrap = operations[2] as Bulker.WrapTransaction;
+          expect(wrap.amount).toBnEq("20000000000100000000");
+          expect(wrap.asset).toEqual(Underlying.wsteth);
+
+          expect(operations[3].type).toEqual(Bulker.TransactionType.approve2);
+          const wrappedApproval = operations[3] as Bulker.Approve2Transaction;
+          expect(wrappedApproval.amount).toBnEq(parseUnits("20")); // add a buffer for the wrap
+
+          expect(operations[4].type).toEqual(
+            Bulker.TransactionType.transferFrom2
+          );
+          const wrappedTransfer =
+            operations[4] as Bulker.TransferFrom2Transaction;
+          expect(wrappedTransfer.amount).toBnEq(parseUnits("20"));
+          expect(wrappedTransfer.asset).toEqual(CONTRACT_ADDRESSES.wsteth);
+
+          expect(operations[5].type).toEqual(bulkerTx);
+          const morphoTx = operations[5] as
+            | Bulker.SupplyCollateralTransaction
+            | Bulker.RepayTransaction;
+          expect(morphoTx.amount).toBnEq(amount);
+          expect(morphoTx.asset).toEqual(Underlying.wsteth);
+
+          expect(operations[6].type).toEqual(Bulker.TransactionType.skim);
+          const skim = operations[6] as Bulker.SkimTransaction;
+          expect(skim.asset).toBnEq(Underlying.wsteth);
+
+          expect(bulkerHandler.getValue()).toBnEq(0);
+        });
+        it(`should throw an error if there is no enough steth to wrap for ${name}`, async () => {
+          const mock = {
+            ...ADAPTER_MOCK,
+            userMarketsData: {
+              ...ADAPTER_MOCK.userMarketsData,
+              [Underlying.wsteth]: {
+                ...ADAPTER_MOCK.userMarketsData[Underlying.wsteth],
+                walletBalance: constants.Zero,
+                scaledBorrowOnPool: parseUnits("100"),
+              },
+            },
+          };
+          const adapter = MorphoAaveV3Adapter.fromMock(mock);
+          bulkerHandler.close();
+          bulkerHandler = new BulkerTxHandler(adapter);
+          await adapter.connect(userAddress);
+          await adapter.refreshAll();
+
+          const amount = parseUnits("100");
+
+          const mockError = jest.fn();
+          bulkerHandler.error$.subscribe(mockError);
+          await bulkerHandler.addOperation({
+            type,
+            underlyingAddress: Underlying.wsteth,
+            amount,
+          });
+          expect(mockError).toHaveBeenCalledTimes(2);
+          expect(mockError).toHaveBeenNthCalledWith(1, null); // initialization
+          expect(mockError).toHaveBeenNthCalledWith(2, {
             index: 0,
-            errorCode: ErrorCode.insufficientBalance,
+            errorCode: ErrorCode.insufficientWalletBalance,
             operation: {
-              type: OperationType.wrap,
-              underlyingAddress: Underlying.weth,
+              type,
+              underlyingAddress: Underlying.wsteth,
               amount,
               formattedAmount: amount,
             },
-          })
-        );
-      });
-      it(`should use approval in steth wrap for ${name}`, async () => {
-        //  set the  weth balance to 0
-        const mock = {
-          ...ADAPTER_MOCK,
-          userData: {
-            ...ADAPTER_MOCK.userData,
-            stEthData: {
-              ...ADAPTER_MOCK.userData.stEthData,
-              bulkerApproval: parseUnits("100"),
-            },
-          },
-          userMarketsData: {
-            ...ADAPTER_MOCK.userMarketsData,
-            [Underlying.wsteth]: {
-              ...ADAPTER_MOCK.userMarketsData[Underlying.wsteth],
-              scaledBorrowOnPool: parseUnits("100"),
-              walletBalance: constants.Zero,
-            },
-          },
-        };
-        const adapter = MorphoAaveV3Adapter.fromMock(mock);
-        bulkerHandler.close();
-        bulkerHandler = new BulkerTxHandler(adapter);
-
-        await adapter.connect(userAddress);
-        await adapter.refreshAll();
-
-        const amount = parseUnits("40");
-        await bulkerHandler.addOperation({
-          type,
-          underlyingAddress: Underlying.wsteth,
-          amount,
+          });
         });
-        const operations = bulkerHandler.getBulkerTransactions();
-        expect(operations).toHaveLength(4);
-
-        expect(operations[0].type).toEqual(
-          Bulker.TransactionType.transferFrom2
-        );
-        const transfer = operations[0] as Bulker.TransferFrom2Transaction;
-        expect(transfer.amount).toBnEq("40000000000100000000");
-        expect(transfer.asset).toEqual(CONTRACT_ADDRESSES.steth);
-
-        expect(operations[1].type).toEqual(Bulker.TransactionType.wrap);
-        const wrap = operations[1] as Bulker.WrapTransaction;
-        expect(wrap.amount).toBnEq("40000000000100000000");
-        expect(wrap.asset).toEqual(Underlying.wsteth);
-      });
-      it(`should partially wrap steth for ${name}`, async () => {
-        //  set the  weth balance to 0
-        const mock = {
-          ...ADAPTER_MOCK,
-          userMarketsData: {
-            ...ADAPTER_MOCK.userMarketsData,
-            [Underlying.wsteth]: {
-              ...ADAPTER_MOCK.userMarketsData[Underlying.wsteth],
-              scaledBorrowOnPool: parseUnits("100"),
-              walletBalance: parseUnits("20"),
-            },
-          },
-        };
-        const adapter = MorphoAaveV3Adapter.fromMock(mock);
-        bulkerHandler.close();
-        bulkerHandler = new BulkerTxHandler(adapter);
-        await adapter.connect(userAddress);
-        await adapter.refreshAll();
-
-        const amount = parseUnits("40");
-        await bulkerHandler.addOperation({
-          type,
-          underlyingAddress: Underlying.wsteth,
-          amount,
-        });
-        const operations = bulkerHandler.getBulkerTransactions();
-        expect(operations).toHaveLength(7);
-
-        expect(operations[0].type).toEqual(Bulker.TransactionType.approve2);
-        const approval = operations[0] as Bulker.Approve2Transaction;
-        expect(approval.amount).toBnEq("20000000000100000000"); // add a buffer for the wrap
-
-        expect(operations[1].type).toEqual(
-          Bulker.TransactionType.transferFrom2
-        );
-        const transfer = operations[1] as Bulker.TransferFrom2Transaction;
-        expect(transfer.amount).toBnEq("20000000000100000000");
-        expect(transfer.asset).toEqual(CONTRACT_ADDRESSES.steth);
-
-        expect(operations[2].type).toEqual(Bulker.TransactionType.wrap);
-        const wrap = operations[2] as Bulker.WrapTransaction;
-        expect(wrap.amount).toBnEq("20000000000100000000");
-        expect(wrap.asset).toEqual(Underlying.wsteth);
-
-        expect(operations[3].type).toEqual(Bulker.TransactionType.approve2);
-        const wrappedApproval = operations[3] as Bulker.Approve2Transaction;
-        expect(wrappedApproval.amount).toBnEq(parseUnits("20")); // add a buffer for the wrap
-
-        expect(operations[4].type).toEqual(
-          Bulker.TransactionType.transferFrom2
-        );
-        const wrappedTransfer =
-          operations[4] as Bulker.TransferFrom2Transaction;
-        expect(wrappedTransfer.amount).toBnEq(parseUnits("20"));
-        expect(wrappedTransfer.asset).toEqual(CONTRACT_ADDRESSES.wsteth);
-
-        expect(operations[5].type).toEqual(bulkerTx);
-        const morphoTx = operations[5] as
-          | Bulker.SupplyCollateralTransaction
-          | Bulker.RepayTransaction;
-        expect(morphoTx.amount).toBnEq(amount);
-        expect(morphoTx.asset).toEqual(Underlying.wsteth);
-
-        expect(operations[6].type).toEqual(Bulker.TransactionType.skim);
-        const skim = operations[6] as Bulker.SkimTransaction;
-        expect(skim.asset).toBnEq(Underlying.wsteth);
-
-        expect(bulkerHandler.getValue()).toBnEq(0);
-      });
-      it(`should throw an error if there is no enough steth to wrap for ${name}`, async () => {
-        const mock = {
-          ...ADAPTER_MOCK,
-          userMarketsData: {
-            ...ADAPTER_MOCK.userMarketsData,
-            [Underlying.wsteth]: {
-              ...ADAPTER_MOCK.userMarketsData[Underlying.wsteth],
-              walletBalance: constants.Zero,
-            },
-          },
-        };
-        const adapter = MorphoAaveV3Adapter.fromMock(mock);
-        bulkerHandler.close();
-        bulkerHandler = new BulkerTxHandler(adapter);
-        await adapter.connect(userAddress);
-        await adapter.refreshAll();
-
-        const amount = parseUnits("100");
-
-        const mockError = jest.fn();
-        bulkerHandler.error$.subscribe(mockError);
-        await bulkerHandler.addOperation({
-          type,
-          underlyingAddress: Underlying.wsteth,
-          amount,
-        });
-        expect(mockError).toHaveBeenCalledTimes(2);
-        expect(mockError).toHaveBeenNthCalledWith(1, null); // initialization
-        expect(mockError).toHaveBeenNthCalledWith(2, {
-          index: 0,
-          errorCode: ErrorCode.insufficientBalance,
-          operation: {
-            type: OperationType.wrap,
-            underlyingAddress: Underlying.wsteth,
-            amount: BigNumber.from("100000000000100000000"),
-            formattedAmount: BigNumber.from("100000000000100000000"),
-          },
-        });
-      });
+      }
     }
   );
   describe("Borrow", () => {
