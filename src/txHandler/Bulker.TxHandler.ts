@@ -1287,7 +1287,7 @@ export default class BulkerTxHandler
         }
       );
     }
-    const permit2Approval = userData.stEthData.permit2Approval;
+    const permit2Approval = userMarketData.permit2Approval;
     if (permit2Approval.eq(constants.MaxUint256)) return data;
     return new MorphoAaveV3DataHolder(
       marketsConfigs,
