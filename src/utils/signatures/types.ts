@@ -1,3 +1,5 @@
+import { BigNumber } from "ethers";
+
 export interface SignatureMessage {
   data: {
     domain: {
@@ -13,7 +15,7 @@ export interface SignatureMessage {
         type: string;
       }[]
     >;
-    message: object;
+    message: { details: object; spender: string; sigDeadline: BigNumber };
   };
   hash: string;
 }
