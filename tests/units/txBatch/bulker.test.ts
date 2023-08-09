@@ -693,7 +693,7 @@ describe("bulker", () => {
         2,
         expect.objectContaining({
           index: 0,
-          errorCode: ErrorCode.collateralCapacityReached,
+          errorCode: ErrorCode.borrowCapacityReached,
         })
       );
     });
