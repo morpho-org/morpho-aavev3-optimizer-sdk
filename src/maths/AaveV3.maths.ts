@@ -104,6 +104,7 @@ export class MorphoAaveMath implements IMath {
         this.INDEX_ONE.sub(borrowProportionDelta),
         borrowRatesWithFees
       ).add(this.indexMul(borrowProportionDelta, poolBorrowRate)),
+      midRate,
     };
   }
 
@@ -152,7 +153,7 @@ export class MorphoAaveMath implements IMath {
     proportionIdle: BigNumber = constants.Zero,
     reserveFactor: BigNumber = constants.Zero
   ) {
-    const { p2pBorrowRate, p2pSupplyRate } = this._computeP2PRates(
+    const { p2pBorrowRate, p2pSupplyRate, midRate } = this._computeP2PRates(
       poolSupplyRate,
       poolBorrowRate,
       p2pIndexCursor,
@@ -167,6 +168,7 @@ export class MorphoAaveMath implements IMath {
       poolSupplyAPY: this._rateToAPY(poolSupplyRate),
       p2pSupplyAPY: this._rateToAPY(p2pSupplyRate),
       p2pBorrowAPY: this._rateToAPY(p2pBorrowRate),
+      p2pAPY: this._rateToAPY(midRate),
     };
   }
 }
