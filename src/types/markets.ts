@@ -348,6 +348,16 @@ export interface MarketData
    */
   readonly p2pBorrowAPY: BigNumber;
 
+  /**
+   * P2P APY.
+   *
+   * Theoritical APY if taking into account peer-to-peer cursor only.
+   *
+   * Number of decimals:
+   * `4` _(BASE_UNITS)_
+   */
+  readonly p2pAPY: BigNumber;
+
   /** The amount supplied on the pool by morpho, available for matching
    *
    * _in underlying_
