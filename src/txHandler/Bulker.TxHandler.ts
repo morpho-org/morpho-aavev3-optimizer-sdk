@@ -14,7 +14,6 @@ import { MorphoBulkerGateway__factory } from "@morpho-labs/morpho-ethers-contrac
 import sdk from "..";
 import { MorphoAaveV3Adapter } from "../MorphoAaveV3Adapter";
 import { MorphoAaveV3DataHolder } from "../MorphoAaveV3DataHolder";
-import { MAX_UINT_160 } from "../constants";
 import addresses from "../contracts/addresses";
 import { safeSignTypedData } from "../helpers/signatures";
 import { Underlying } from "../mocks/markets";

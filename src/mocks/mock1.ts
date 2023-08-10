@@ -160,6 +160,7 @@ export const ADAPTER_MOCK_1: AdapterMock = {
       permit2Approval: constants.MaxUint256,
       balance: parseUnits("50"),
       bulkerNonce: BigNumber.from(0),
+      wstEthApproval: constants.MaxUint256,
     },
   },
   marketsConfigs: MARKETS_CONFIGS,

@@ -167,6 +167,7 @@ export class ChainUserFetcher extends ChainFetcher implements UserFetcher {
       permit2Approval,
       bulkerApproval,
       { nonce: bulkerNonce },
+      wstEthApproval,
     ] = await Promise.all([
       stEth.balanceOf(userAddress, {
         blockTag,
@@ -179,6 +180,7 @@ export class ChainUserFetcher extends ChainFetcher implements UserFetcher {
         addresses.steth,
         CONTRACT_ADDRESSES.bulker
       ),
+      stEth.allowance(userAddress, CONTRACT_ADDRESSES.wsteth),
     ]);
 
     return {
@@ -187,6 +189,7 @@ export class ChainUserFetcher extends ChainFetcher implements UserFetcher {
       permit2Approval,
       bulkerApproval,
       bulkerNonce: BigNumber.from(bulkerNonce),
+      wstEthApproval,
     };
   }
 }

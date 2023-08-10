@@ -441,4 +441,7 @@ export interface StEthData {
 
   /** The permit2 nonce of the user for the bulker contract */
   readonly bulkerNonce: BigNumber;
+
+  /** Approval of the wstEth contract for stEth tokens */
+  readonly wstEthApproval: BigNumber;
 }
