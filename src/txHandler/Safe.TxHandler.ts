@@ -1,6 +1,7 @@
 import { BigNumber, constants } from "ethers";
 import { getAddress } from "ethers/lib/utils";
 
+import SafeAppsSDK, { BaseTransaction } from "@gnosis.pm/safe-apps-sdk";
 import { TxBuilder } from "@morpho-labs/gnosis-tx-builder";
 import { BatchFile } from "@morpho-labs/gnosis-tx-builder/lib/src/types";
 import {
@@ -261,18 +262,54 @@ export class SafeTxHandler extends BulkerTxHandler implements IBatchTxHandler {
       operationsCount: this.bulkerOperations$.getValue().length,
     });
 
-    const batchFile = this.generateJSON(options);
-    if ("errorCode" in batchFile) {
+    let success: boolean;
+    try {
+      const batchFile = this.generateJSON(options);
+      if ("errorCode" in batchFile) {
+        throw Error(batchFile.errorCode as string);
+      }
+
+      const safeSdk = new SafeAppsSDK();
+
+      const { isReadOnly } = await safeSdk.safe.getInfo();
+
+      await notifier?.notify?.(
+        notificationId,
+        NotificationCode.batchExecPending
+      );
+      console.debug("A");
+      const resp = await safeSdk.txs
+        .send({
+          txs: batchFile.transactions.filter(
+            (t) => !!t.data
+          ) as BaseTransaction[],
+        })
+        .catch(async (error) => {
+          if (isReadOnly) {
+            throw Error("Cannot send tx in read only mode");
+          } else {
+            throw Error(error);
+          }
+        });
+
+      console.debug("B");
+      if (resp) {
+        await notifier?.notify?.(
+          notificationId,
+          NotificationCode.batchExecSuccess,
+          { hash: resp?.safeTxHash }
+        );
+      }
+      success = true;
+    } catch (error) {
       await notifier?.notify?.(
         notificationId,
         NotificationCode.batchExecError,
-        { error: `Error: ${batchFile.errorCode}` }
+        { error }
       );
-      return;
+      success = false;
     }
-    console.debug(batchFile);
-
-    await notifier?.notify?.(notificationId, NotificationCode.batchExecSuccess);
+    await notifier?.close?.(notificationId, success);
   }
 
   protected _approveManager(data: MorphoAaveV3DataHolder) {
