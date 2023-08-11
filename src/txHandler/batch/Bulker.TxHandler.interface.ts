@@ -1,22 +1,41 @@
 import { BigNumber, CallOverrides, Signature } from "ethers";
 
-import { Address } from "../types";
+import { Address } from "../../types";
 
 export namespace Bulker {
-  export interface SignatureHook {
-    handleTokenSignatures(
-      params: { token: Address; amount: BigNumber; receiver: Address }[]
-    ): Promise<Signature[]>;
-    handleManagerSignature(
-      params: { isAllowed: boolean; nonce: BigNumber; deadline: BigNumber }[]
-    ): Promise<Signature>;
-  }
+  export namespace Signature {
+    export enum BulkerSignatureType {
+      transfer = "TRANSFER",
+      managerApproval = "BULKER_APPROVAL",
+    }
+    type FullfillableSignature<Fullfilled extends boolean = boolean> =
+      Fullfilled extends true
+        ? { deadline: BigNumber; signature: Signature }
+        : undefined;
 
-  export enum Signatures {
-    approveManager = "approveManager",
-    approve2 = "approve2",
-  }
+    interface BaseBulkerSignature<Fullfilled extends boolean = boolean> {
+      signature: FullfillableSignature<Fullfilled>;
+      transactionIndex: number;
+      nonce: BigNumber;
+    }
+    interface BulkerTransferSignature<Fullfilled extends boolean = boolean>
+      extends BaseBulkerSignature<Fullfilled> {
+      type: BulkerSignatureType.transfer;
+      underlyingAddress: Address;
+      amount: BigNumber;
+      to: Address;
+    }
 
+    interface BulkerApprovalSignature<Fullfilled extends boolean = boolean>
+      extends BaseBulkerSignature<Fullfilled> {
+      type: BulkerSignatureType.managerApproval;
+      manager: Address;
+    }
+
+    export type BulkerSignature<Fullfilled extends boolean = boolean> =
+      | BulkerTransferSignature<Fullfilled>
+      | BulkerApprovalSignature<Fullfilled>;
+  }
   export enum TransactionType {
     approve2 = "Approve2",
     transferFrom2 = "TransferFrom2",

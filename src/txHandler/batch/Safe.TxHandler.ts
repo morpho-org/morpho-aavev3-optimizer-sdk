@@ -12,18 +12,16 @@ import {
 } from "@morpho-labs/morpho-ethers-contract";
 import addresses from "@morpho-labs/morpho-ethers-contract/lib/addresses";
 
-import sdk from "..";
-import { MorphoAaveV3DataHolder } from "../MorphoAaveV3DataHolder";
-import CONTRACT_ADDRESSES from "../contracts/addresses";
+import sdk from "../..";
+import { MorphoAaveV3DataHolder } from "../../MorphoAaveV3DataHolder";
+import CONTRACT_ADDRESSES from "../../contracts/addresses";
+import { IBatchTxHandler } from "../TxHandler.interface";
 
-import BulkerTxHandler, {
-  BulkerSignature,
-  NotificationCode,
-} from "./Bulker.TxHandler";
+import BulkerTxHandler, { NotificationCode } from "./Bulker.TxHandler";
 import { Bulker } from "./Bulker.TxHandler.interface";
-import { IBatchTxHandler } from "./TxHandler.interface";
 
 import BulkerTx = Bulker.TransactionType;
+import BulkerSignature = Bulker.Signature.BulkerSignature;
 
 export class SafeTxHandler extends BulkerTxHandler implements IBatchTxHandler {
   readonly autosign = false; // no signature on safe

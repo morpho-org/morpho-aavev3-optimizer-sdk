@@ -11,7 +11,7 @@ import {
 } from "../types";
 
 import { ApprovalHandlerInterface } from "./ApprovalHandler.interface";
-import { BulkerSignature } from "./Bulker.TxHandler";
+import { BulkerSignature } from "./batch/Bulker.TxHandler";
 import { ITransactionNotifier } from "./notifiers/TransactionNotifier.interface";
 
 export interface INotifierManager {

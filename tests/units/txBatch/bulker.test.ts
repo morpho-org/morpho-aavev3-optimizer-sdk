@@ -7,8 +7,8 @@ import { AdapterMock } from "../../../src/mocks";
 import { Underlying } from "../../../src/mocks/markets";
 import { ErrorCode } from "../../../src/simulation/SimulationError";
 import { OperationType } from "../../../src/simulation/simulation.types";
-import BulkerTxHandler from "../../../src/txHandler/Bulker.TxHandler";
-import { Bulker } from "../../../src/txHandler/Bulker.TxHandler.interface";
+import BulkerTxHandler from "../../../src/txHandler/batch/Bulker.TxHandler";
+import { Bulker } from "../../../src/txHandler/batch/Bulker.TxHandler.interface";
 import { TransactionType } from "../../../src/types";
 import { ADAPTER_MOCK } from "../../mocks/mock";
 

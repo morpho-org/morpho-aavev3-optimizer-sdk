@@ -1,4 +1,4 @@
-import { BigNumber, constants, ContractReceipt, Signature } from "ethers";
+import { BigNumber, constants, ContractReceipt } from "ethers";
 import {
   AbiCoder,
   getAddress,
@@ -11,69 +11,30 @@ import { PercentMath, WadRayMath } from "@morpho-labs/ethers-utils/lib/maths";
 import { maxBN } from "@morpho-labs/ethers-utils/lib/utils";
 import { MorphoBulkerGateway__factory } from "@morpho-labs/morpho-ethers-contract";
 
-import sdk from "..";
-import { MorphoAaveV3Adapter } from "../MorphoAaveV3Adapter";
-import { MorphoAaveV3DataHolder } from "../MorphoAaveV3DataHolder";
-import addresses from "../contracts/addresses";
-import { safeSignTypedData } from "../helpers/signatures";
-import { Underlying } from "../mocks/markets";
-import { MorphoAaveV3Simulator } from "../simulation/MorphoAaveV3Simulator";
-import { ErrorCode } from "../simulation/SimulationError";
-import {
-  Operation,
-  OperationType,
-  TxOperation,
-} from "../simulation/simulation.types";
-import {
-  Address,
-  MaxCapacityLimiter,
-  TransactionType,
-  UserData,
-} from "../types";
-import { Connectable } from "../utils/mixins/Connectable";
-import { UpdatableBehaviorSubject } from "../utils/rxjs/UpdatableBehaviorSubject";
-import { getManagerApprovalMessage } from "../utils/signatures/manager";
-import { getPermit2Message } from "../utils/signatures/permit2";
-import { SignatureMessage } from "../utils/signatures/types";
+import sdk from "../..";
+import { MorphoAaveV3Adapter } from "../../MorphoAaveV3Adapter";
+import { MorphoAaveV3DataHolder } from "../../MorphoAaveV3DataHolder";
+import addresses from "../../contracts/addresses";
+import { safeSignTypedData } from "../../helpers/signatures";
+import { Underlying } from "../../mocks/markets";
+import { MorphoAaveV3Simulator } from "../../simulation/MorphoAaveV3Simulator";
+import { ErrorCode } from "../../simulation/SimulationError";
+import { Operation, TxOperation } from "../../simulation/simulation.types";
+import { MaxCapacityLimiter, TransactionType, UserData } from "../../types";
+import { Connectable } from "../../utils/mixins/Connectable";
+import { UpdatableBehaviorSubject } from "../../utils/rxjs/UpdatableBehaviorSubject";
+import { getManagerApprovalMessage } from "../../utils/signatures/manager";
+import { getPermit2Message } from "../../utils/signatures/permit2";
+import { SignatureMessage } from "../../utils/signatures/types";
+import { IBatchTxHandler } from "../TxHandler.interface";
+import { NotifierManager } from "../mixins/NotifierManager";
 
 import { Bulker } from "./Bulker.TxHandler.interface";
-import { IBatchTxHandler } from "./TxHandler.interface";
-import { NotifierManager } from "./mixins/NotifierManager";
 
 import BulkerTx = Bulker.TransactionType;
 import BulkerTransactionOptions = Bulker.TransactionOptions;
-
-export enum BulkerSignatureType {
-  transfer = "TRANSFER",
-  managerApproval = "BULKER_APPROVAL",
-}
-type FullfillableSignature<Fullfilled extends boolean = boolean> =
-  Fullfilled extends true
-    ? { deadline: BigNumber; signature: Signature }
-    : undefined;
-
-interface BaseBulkerSignature<Fullfilled extends boolean = boolean> {
-  signature: FullfillableSignature<Fullfilled>;
-  transactionIndex: number;
-  nonce: BigNumber;
-}
-export interface BulkerTransferSignature<Fullfilled extends boolean = boolean>
-  extends BaseBulkerSignature<Fullfilled> {
-  type: BulkerSignatureType.transfer;
-  underlyingAddress: Address;
-  amount: BigNumber;
-  to: Address;
-}
-
-export interface BulkerApprovalSignature<Fullfilled extends boolean = boolean>
-  extends BaseBulkerSignature<Fullfilled> {
-  type: BulkerSignatureType.managerApproval;
-  manager: Address;
-}
-
-export type BulkerSignature<Fullfilled extends boolean = boolean> =
-  | BulkerTransferSignature<Fullfilled>
-  | BulkerApprovalSignature<Fullfilled>;
+import BulkerSignature = Bulker.Signature.BulkerSignature;
+import BulkerSignatureType = Bulker.Signature.BulkerSignatureType;
 
 export enum NotificationCode {
   transferSignatureStart = "TRANSFER_SIGNATURE_START",

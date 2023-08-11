@@ -27,7 +27,7 @@ import { MorphoAaveV3Adapter } from "../../src";
 import CONTRACT_ADDRESSES from "../../src/contracts/addresses";
 import addresses from "../../src/contracts/addresses";
 import { Underlying } from "../../src/mocks/markets";
-import BulkerTxHandler from "../../src/txHandler/Bulker.TxHandler";
+import BulkerTxHandler from "../../src/txHandler/batch/Bulker.TxHandler";
 import { MaxCapacityLimiter, TransactionType } from "../../src/types";
 import { delay } from "../../src/utils/promises";
 import { approxEqual } from "../helpers/bn";
