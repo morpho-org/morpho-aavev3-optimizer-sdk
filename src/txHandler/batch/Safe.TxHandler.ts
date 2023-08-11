@@ -1,7 +1,12 @@
 import { BigNumber, constants } from "ethers";
 import { getAddress } from "ethers/lib/utils";
+import { ErrorCode } from "src/simulation/SimulationError";
+import { TxOperation } from "src/simulation/simulation.types";
+import { TransactionType } from "src/types";
 
 import SafeAppsSDK, { BaseTransaction } from "@gnosis.pm/safe-apps-sdk";
+import { WadRayMath } from "@morpho-labs/ethers-utils/lib/maths";
+import { maxBN } from "@morpho-labs/ethers-utils/lib/utils";
 import { TxBuilder } from "@morpho-labs/gnosis-tx-builder";
 import { BatchFile } from "@morpho-labs/gnosis-tx-builder/lib/src/types";
 import {
@@ -15,31 +20,14 @@ import addresses from "@morpho-labs/morpho-ethers-contract/lib/addresses";
 import sdk from "../..";
 import { MorphoAaveV3DataHolder } from "../../MorphoAaveV3DataHolder";
 import CONTRACT_ADDRESSES from "../../contracts/addresses";
-import { IBatchTxHandler } from "../TxHandler.interface";
 
-import BulkerTxHandler from "./Bulker.TxHandler";
+import BaseBatchTxHandler from "./BaseBatch.TxHandler";
 import { Bulker } from "./Bulker.TxHandler.interface";
 
 import BulkerTx = Bulker.TransactionType;
-import BulkerSignature = Bulker.Signature.BulkerSignature;
 import NotificationCodes = Bulker.NotificationsCodes;
 
-export default class SafeTxHandler
-  extends BulkerTxHandler
-  implements IBatchTxHandler
-{
-  readonly autosign = false; // no signature on safe
-
-  public async sign(toSign: BulkerSignature<false>): Promise<void> {
-    throw Error("Cannot sign using the SafeTxHandler");
-  }
-
-  protected _removeSignature(): void {}
-
-  protected _askForSignature() {}
-
-  protected _addSignature() {}
-
+export default class SafeTxHandler extends BaseBatchTxHandler {
   generateJSON(options?: Bulker.TransactionOptions): BatchFile {
     const signer = this._signer;
     if (!signer) throw Error(`No signer provided`);
@@ -318,11 +306,83 @@ export default class SafeTxHandler
     await notifier?.close?.(notificationId, success);
   }
 
-  protected _approveManager(data: MorphoAaveV3DataHolder) {
-    return { data, batch: [] };
+  protected _beforeOperation(
+    data: MorphoAaveV3DataHolder,
+    operation: TxOperation<never>,
+    index: number
+  ): {
+    batch: Bulker.Transactions[];
+    defers: Bulker.Transactions[];
+    data: MorphoAaveV3DataHolder | null;
+  } | null {
+    switch (operation.type) {
+      case TransactionType.supply:
+      case TransactionType.supplyCollateral:
+      case TransactionType.repay: {
+        return this.#wrapMissingAssets(data, operation, index);
+      }
+    }
+
+    return { data, batch: [], defers: [] };
   }
 
-  protected _transferToBulker(data: MorphoAaveV3DataHolder) {
-    return { data, batch: [], defers: [] };
+  #wrapMissingAssets(
+    data: MorphoAaveV3DataHolder,
+    operation: TxOperation<never>,
+    index: number
+  ) {
+    const batch: Bulker.Transactions[] = [];
+
+    const { underlyingAddress, formattedAmount } = operation;
+
+    const amount = formattedAmount!;
+
+    const userMarketsData = data.getUserMarketsData();
+    const userData = data.getUserData();
+    if (!userData || !userMarketsData)
+      return this._raiseError(index, ErrorCode.missingData);
+
+    let toTransfer = amount;
+
+    if (getAddress(underlyingAddress) === CONTRACT_ADDRESSES.wsteth) {
+      const wstethMissing = maxBN(
+        amount.sub(userMarketsData[underlyingAddress]!.walletBalance),
+        constants.Zero
+      );
+
+      if (wstethMissing.gt(0)) {
+        // we need to wrap some stETH
+        // To be sure that  , we add a buffer to the amount wrapped
+        const WRAP_BUFFER = sdk.configuration.bulkerWrapBuffer;
+        const amountToWrap = WadRayMath.wadMul(
+          wstethMissing.add(WRAP_BUFFER),
+          userData.stEthData.stethPerWsteth
+        );
+
+        batch.push({
+          type: BulkerTx.wrap,
+          asset: CONTRACT_ADDRESSES.wsteth,
+          amount: amountToWrap,
+        });
+
+        toTransfer = toTransfer.sub(wstethMissing);
+      }
+    } else if (getAddress(underlyingAddress) === CONTRACT_ADDRESSES.weth) {
+      const wethMissing = maxBN(
+        amount.sub(userMarketsData[underlyingAddress]!.walletBalance),
+        constants.Zero
+      );
+
+      if (wethMissing.gt(0)) {
+        batch.push({
+          type: BulkerTx.wrap,
+          asset: CONTRACT_ADDRESSES.weth,
+          amount: wethMissing,
+          value: wethMissing,
+        });
+        toTransfer = toTransfer.sub(wethMissing);
+      }
+    }
+    return { batch, defers: [], data };
   }
 }
