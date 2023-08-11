@@ -156,6 +156,7 @@ export const ADAPTER_MOCK: AdapterMock = {
       bulkerApproval: constants.Zero,
       stethPerWsteth: constants.WeiPerEther,
       permit2Approval: constants.MaxUint256,
+      wstEthApproval: constants.MaxUint256,
       bulkerNonce: BigNumber.from(0),
       balance: parseUnits("50"),
     },
