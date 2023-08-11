@@ -271,7 +271,7 @@ export default class SafeTxHandler extends BaseBatchTxHandler {
         notificationId,
         NotificationCodes.Execution.pending
       );
-      console.debug("A");
+
       const resp = await safeSdk.txs
         .send({
           txs: batchFile.transactions.filter(
@@ -286,7 +286,6 @@ export default class SafeTxHandler extends BaseBatchTxHandler {
           }
         });
 
-      console.debug("B");
       if (resp) {
         await notifier?.notify?.(
           notificationId,
