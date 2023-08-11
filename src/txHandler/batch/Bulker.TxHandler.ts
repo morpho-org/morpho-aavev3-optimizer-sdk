@@ -35,18 +35,7 @@ import BulkerTx = Bulker.TransactionType;
 import BulkerTransactionOptions = Bulker.TransactionOptions;
 import BulkerSignature = Bulker.Signature.BulkerSignature;
 import BulkerSignatureType = Bulker.Signature.BulkerSignatureType;
-
-export enum NotificationCode {
-  transferSignatureStart = "TRANSFER_SIGNATURE_START",
-  transferSignatureEnd = "TRANSFER_SIGNATURE_END",
-  managerSignatureStart = "MANAGER_SIGNATURE_START",
-  managerSignatureEnd = "MANAGER_SIGNATURE_END",
-  batchExecStart = "BATCH_EXEC_START",
-  batchExecSuccess = "BATCH_EXEC_SUCCESS",
-  batchExecError = "BATCH_EXEC_ERROR",
-  batchExecPending = "BATCH_EXEC_PENDING",
-  signatureError = "SIGNATURE_ERROR",
-}
+import NotificationCodes = Bulker.NotificationsCodes;
 
 export default class BulkerTxHandler
   extends NotifierManager(Connectable(MorphoAaveV3Simulator))
@@ -225,7 +214,7 @@ export default class BulkerTxHandler
         }
         await notifier?.notify?.(
           notificationId,
-          NotificationCode.transferSignatureStart,
+          NotificationCodes.Signature.transferStart,
           { ...toSign, symbol }
         );
         sigMessage = getPermit2Message(
@@ -238,7 +227,7 @@ export default class BulkerTxHandler
       } else {
         await notifier?.notify?.(
           notificationId,
-          NotificationCode.managerSignatureStart
+          NotificationCodes.Signature.managerStart
         );
         sigMessage = getManagerApprovalMessage(
           userData.address,
@@ -260,18 +249,18 @@ export default class BulkerTxHandler
       if (toSign.type === BulkerSignatureType.transfer) {
         await notifier?.notify?.(
           notificationId,
-          NotificationCode.transferSignatureEnd
+          NotificationCodes.Signature.transferEnd
         );
       } else {
         await notifier?.notify?.(
           notificationId,
-          NotificationCode.managerSignatureEnd
+          NotificationCodes.Signature.managerEnd
         );
       }
 
       success = true;
     } catch (e: any) {
-      notifier?.notify?.(notificationId, NotificationCode.signatureError, {
+      notifier?.notify?.(notificationId, NotificationCodes.Signature.error, {
         error: e,
       });
       success = false;
@@ -315,9 +304,13 @@ export default class BulkerTxHandler
     const notifier = this.notifier;
     const notificationId = Date.now().toString();
 
-    await notifier?.notify?.(notificationId, NotificationCode.batchExecStart, {
-      operationsCount: operations.length,
-    });
+    await notifier?.notify?.(
+      notificationId,
+      NotificationCodes.Execution.start,
+      {
+        operationsCount: operations.length,
+      }
+    );
 
     const actions: Bulker.ActionType[] = [];
     const data: string[] = [];
@@ -572,21 +565,21 @@ export default class BulkerTxHandler
 
       await notifier?.notify?.(
         notificationId,
-        NotificationCode.batchExecPending,
+        NotificationCodes.Execution.pending,
         { hash: resp.hash }
       );
       receipt = await resp.wait();
       await this.#adapter.refetchData("latest");
       await notifier?.notify?.(
         notificationId,
-        NotificationCode.batchExecSuccess,
+        NotificationCodes.Execution.success,
         { hash: receipt.transactionHash }
       );
       success = true;
     } catch (e: any) {
       await notifier?.notify?.(
         notificationId,
-        NotificationCode.batchExecError,
+        NotificationCodes.Execution.error,
         { error: e, hash: receipt?.transactionHash }
       );
       success = false;

@@ -17,13 +17,17 @@ import { MorphoAaveV3DataHolder } from "../../MorphoAaveV3DataHolder";
 import CONTRACT_ADDRESSES from "../../contracts/addresses";
 import { IBatchTxHandler } from "../TxHandler.interface";
 
-import BulkerTxHandler, { NotificationCode } from "./Bulker.TxHandler";
+import BulkerTxHandler from "./Bulker.TxHandler";
 import { Bulker } from "./Bulker.TxHandler.interface";
 
 import BulkerTx = Bulker.TransactionType;
 import BulkerSignature = Bulker.Signature.BulkerSignature;
+import NotificationCodes = Bulker.NotificationsCodes;
 
-export class SafeTxHandler extends BulkerTxHandler implements IBatchTxHandler {
+export default class SafeTxHandler
+  extends BulkerTxHandler
+  implements IBatchTxHandler
+{
   readonly autosign = false; // no signature on safe
 
   public async sign(toSign: BulkerSignature<false>): Promise<void> {
@@ -256,9 +260,13 @@ export class SafeTxHandler extends BulkerTxHandler implements IBatchTxHandler {
     const notifier = this.notifier;
     const notificationId = Date.now().toString();
 
-    await notifier?.notify?.(notificationId, NotificationCode.batchExecStart, {
-      operationsCount: this.bulkerOperations$.getValue().length,
-    });
+    await notifier?.notify?.(
+      notificationId,
+      NotificationCodes.Execution.start,
+      {
+        operationsCount: this.bulkerOperations$.getValue().length,
+      }
+    );
 
     let success: boolean;
     try {
@@ -273,7 +281,7 @@ export class SafeTxHandler extends BulkerTxHandler implements IBatchTxHandler {
 
       await notifier?.notify?.(
         notificationId,
-        NotificationCode.batchExecPending
+        NotificationCodes.Execution.pending
       );
       console.debug("A");
       const resp = await safeSdk.txs
@@ -294,7 +302,7 @@ export class SafeTxHandler extends BulkerTxHandler implements IBatchTxHandler {
       if (resp) {
         await notifier?.notify?.(
           notificationId,
-          NotificationCode.batchExecSuccess,
+          NotificationCodes.Execution.success,
           { hash: resp?.safeTxHash }
         );
       }
@@ -302,7 +310,7 @@ export class SafeTxHandler extends BulkerTxHandler implements IBatchTxHandler {
     } catch (error) {
       await notifier?.notify?.(
         notificationId,
-        NotificationCode.batchExecError,
+        NotificationCodes.Execution.error,
         { error }
       );
       success = false;

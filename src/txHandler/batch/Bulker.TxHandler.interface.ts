@@ -36,6 +36,24 @@ export namespace Bulker {
       | BulkerTransferSignature<Fullfilled>
       | BulkerApprovalSignature<Fullfilled>;
   }
+
+  export namespace NotificationsCodes {
+    export enum Execution {
+      start = "BATCH_EXEC_START",
+      success = "BATCH_EXEC_SUCCESS",
+      error = "BATCH_EXEC_ERROR",
+      pending = "BATCH_EXEC_PENDING",
+    }
+
+    export enum Signature {
+      transferStart = "BATCH_SIGNATURE_START",
+      transferEnd = "BATCH_SIGNATURE_TRANSFER_END",
+      managerStart = "BATCH_SIGNATURE_MANAGER_START",
+      managerEnd = "BATCH_SIGNATURE_MANAGER_END",
+      error = "BATCH_SIGNATURE_ERROR",
+    }
+  }
+
   export enum TransactionType {
     approve2 = "Approve2",
     transferFrom2 = "TransferFrom2",
