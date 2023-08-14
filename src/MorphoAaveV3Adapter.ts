@@ -216,10 +216,11 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
     this._user = user;
     this._signer = signer;
 
-    if (signer?.provider)
+    if (signer?.provider) {
       await this._setProvider(signer.provider as BaseProvider);
+    }
 
-    await this._updateUserData(true);
+    await this.refreshAll("latest");
 
     if (isConnectable(this._txHandler)) {
       this._txHandler.connect(signer, user);
