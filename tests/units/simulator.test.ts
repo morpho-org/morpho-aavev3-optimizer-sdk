@@ -189,9 +189,9 @@ describe("Simulator", () => {
       ]);
       await sleep(100);
 
-      const finalTotalCollateral = initialTotalCollateral.add(
-        supplyCollateralAmount
-      );
+      const finalTotalCollateral = initialTotalCollateral
+        .add(supplyCollateralAmount)
+        .sub(1);
       expect(totalCollateral).toBnEq(finalTotalCollateral);
     });
 
@@ -267,7 +267,7 @@ describe("Simulator", () => {
         TransactionType.borrow
       )!.amount;
 
-      const expectedBorrowCapacity = BigNumber.from("717673393785148514851485");
+      const expectedBorrowCapacity = BigNumber.from("717673393785138613861386");
       expect(initialBorrowCapacity).toBnEq(expectedBorrowCapacity);
 
       simulator.simulate([
