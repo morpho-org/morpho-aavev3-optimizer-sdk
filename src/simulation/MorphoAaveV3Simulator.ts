@@ -796,7 +796,8 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
         operation
       );
 
-    const totalCollateral = userMarketData.totalCollateral.add(amount);
+    // Since it's gonna be scaled and unscaled, the value is gonna be reduced by one
+    const totalCollateral = userMarketData.totalCollateral.add(amount.sub(1));
 
     const newUserMarketData: UserMarketData = {
       ...userMarketData,

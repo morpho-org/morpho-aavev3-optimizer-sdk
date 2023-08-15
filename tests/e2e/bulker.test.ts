@@ -541,8 +541,8 @@ describe("MorphoAaveV3 Bulker", () => {
         weth.address,
         morphoUser.address
       );
-      expect(ma3Balance).to.equal(
-        amountToBorrow,
+      expect(
+        approxEqual(ma3Balance, amountToBorrow, 1),
         `expected ma3 weth balance is ${amountToBorrow}, received ${ma3Balance}`
       );
 

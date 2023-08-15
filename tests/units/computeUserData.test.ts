@@ -131,7 +131,7 @@ describe("computeUserData", () => {
           .div(underlyingUnit);
 
         expectedBorrowCapacity = expectedBorrowCapacity.add(
-          PercentMath.percentMul(
+          __MATHS__.percentMulDown(
             userCollateralUSD.mul(LT_LOWER_BOUND.sub(1)).div(LT_LOWER_BOUND), // the borrow capacity is reduced by a small amount
             borrowableFactor
           )

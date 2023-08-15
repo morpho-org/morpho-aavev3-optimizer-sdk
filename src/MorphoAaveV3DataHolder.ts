@@ -106,7 +106,7 @@ export class MorphoAaveV3DataHolder {
         );
 
         borrowCapacity = borrowCapacity.add(
-          PercentMath.percentMul(
+          this.__MATH__.percentMulDown(
             collateralReduced,
             marketConfig.borrowableFactor
           )
