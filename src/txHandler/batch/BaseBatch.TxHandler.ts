@@ -148,11 +148,11 @@ export default abstract class BaseBatchTxHandler
                 } else if (lastOperation.amount.eq(operation.amount)) {
                   newOperation = null;
                 } else {
-                  const mainOperation = lastOperation.amount.gt(
+                  const mainOperation = lastOperation.formattedAmount?.lte(
                     operation.amount
                   )
-                    ? lastOperation
-                    : operation;
+                    ? operation
+                    : lastOperation;
 
                   let amount: BigNumber;
 
@@ -170,12 +170,16 @@ export default abstract class BaseBatchTxHandler
                     amount = lastOperation.amount.sub(operation.amount).abs();
                   }
 
-                  newOperation = {
-                    type: mainOperation.type,
-                    amount,
-                    underlyingAddress: mainOperation.underlyingAddress,
-                    unwrap: mainOperation.unwrap,
-                  };
+                  if (amount.isZero()) {
+                    newOperation = null;
+                  } else {
+                    newOperation = {
+                      type: mainOperation.type,
+                      amount,
+                      underlyingAddress: mainOperation.underlyingAddress,
+                      unwrap: mainOperation.unwrap,
+                    };
+                  }
                 }
               }
             }
