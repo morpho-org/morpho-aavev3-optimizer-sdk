@@ -3,19 +3,24 @@ import { parseUnits } from "ethers/lib/utils";
 
 import { MorphoAaveV3Adapter } from "../../../src";
 import { AdapterMock } from "../../../src/mocks";
-import { BASE_BLOCK_TIMESTAMP } from "../../../src/mocks/global";
 import { Underlying } from "../../../src/mocks/markets";
 import { TxOperation } from "../../../src/simulation/simulation.types";
 import BulkerTxHandler from "../../../src/txHandler/Bulker.TxHandler";
 import { TransactionType } from "../../../src/types";
-import { ADAPTER_MOCK } from "../../mocks/mock";
+import { reverseTransactionType } from "../../../src/utils/transactions";
+import {
+  BASE_ADAPTER_MOCK,
+  BASE_GLOBAL_DATA,
+  BASE_MARKET_CONFIG,
+  BASE_MARKET_DATA,
+  BASE_USER_MARKET_DATA,
+} from "../../mocks/base";
 
 enum OperationRelation {
   smaller = "smaller",
   equivalent = "equivalent",
   bigger = "bigger",
 }
-
 const BASE_AMOUNT = parseUnits("10");
 const DELTA = parseUnits("5");
 const AMOUNTS = {
@@ -24,115 +29,142 @@ const AMOUNTS = {
   [OperationRelation.bigger]: BASE_AMOUNT.add(DELTA),
 };
 
-/**
- *
- * @param txType
- * @param reverse true for repay/withdraw , false for supply/borrow
- * @returns
- */
-const getTxTypeFromSide = (txType: TransactionType, reverse: boolean) => {
+const getTxType = (txType: TransactionType, reverse: boolean) => {
   if (!reverse) return txType;
+  return reverseTransactionType(txType);
+};
+
+const getMock = (
+  txType: TransactionType,
+  reverse: boolean,
+  relation?: OperationRelation
+): AdapterMock => {
+  const mock = {
+    ...BASE_ADAPTER_MOCK,
+    marketsList: [Underlying.weth, Underlying.dai],
+    userMarketsData: {
+      [Underlying.weth]: {
+        underlyingAddress: Underlying.weth,
+        ...BASE_USER_MARKET_DATA,
+        scaledSupplyOnPool: constants.Zero,
+        scaledCollateral: constants.Zero,
+        scaledBorrowOnPool: constants.Zero,
+        walletBalance: constants.Zero,
+      },
+      [Underlying.dai]: {
+        underlyingAddress: Underlying.dai,
+        ...BASE_USER_MARKET_DATA,
+        scaledSupplyOnPool: constants.Zero,
+        scaledCollateral: constants.Zero,
+        scaledBorrowOnPool: constants.Zero,
+        walletBalance: constants.Zero,
+      },
+    },
+    marketsConfigs: {
+      [Underlying.dai]: {
+        ...BASE_MARKET_CONFIG,
+        symbol: "DAI",
+        address: Underlying.dai,
+      },
+      [Underlying.weth]: {
+        ...BASE_MARKET_CONFIG,
+        isCollateral: false,
+        symbol: "WETH",
+        address: Underlying.weth,
+        eModeCategoryId: BASE_GLOBAL_DATA.eModeCategoryData.eModeId,
+      },
+    },
+    marketsData: {
+      [Underlying.weth]: {
+        ...BASE_MARKET_DATA,
+        address: Underlying.weth,
+      },
+      [Underlying.dai]: {
+        ...BASE_MARKET_DATA,
+        address: Underlying.dai,
+      },
+    },
+  };
 
   switch (txType) {
-    case TransactionType.borrow:
-      return TransactionType.repay;
-    case TransactionType.supply:
-      return TransactionType.withdraw;
-    case TransactionType.supplyCollateral:
-      return TransactionType.withdrawCollateral;
-    case TransactionType.repay:
-      return TransactionType.borrow;
-    case TransactionType.withdraw:
-      return TransactionType.supply;
-    case TransactionType.withdrawCollateral:
-      return TransactionType.supplyCollateral;
+    case TransactionType.withdrawCollateral: {
+      mock.userMarketsData[Underlying.dai].scaledCollateral = reverse
+        ? BASE_AMOUNT
+        : BASE_AMOUNT.mul(2);
+
+      if (reverse && relation === OperationRelation.bigger) {
+        mock.userMarketsData[Underlying.dai].walletBalance = DELTA;
+      }
+      break;
+    }
+    case TransactionType.borrow: {
+      mock.userMarketsData[Underlying.dai].scaledCollateral =
+        parseUnits("1000"); //Borrow capacity shouldn't be a problem
+      mock.marketsData[Underlying.weth].poolLiquidity = reverse
+        ? BASE_AMOUNT
+        : BASE_AMOUNT.mul(2);
+
+      if (reverse && relation === OperationRelation.bigger) {
+        mock.userMarketsData[Underlying.weth].walletBalance = DELTA;
+        mock.userMarketsData[Underlying.weth].scaledBorrowOnPool = DELTA;
+      }
+      break;
+    }
+    case TransactionType.withdraw: {
+      mock.userMarketsData[Underlying.weth].scaledSupplyOnPool = reverse
+        ? BASE_AMOUNT
+        : BASE_AMOUNT.mul(2);
+
+      if (reverse && relation === OperationRelation.bigger) {
+        mock.userMarketsData[Underlying.weth].walletBalance = DELTA;
+      }
+      break;
+    }
+    case TransactionType.repay: {
+      mock.marketsData[Underlying.weth].poolLiquidity = constants.Zero;
+      mock.userMarketsData[Underlying.dai].scaledCollateral =
+        parseUnits("1000"); //Borrow capacity shouldn't be a problem
+      mock.userMarketsData[Underlying.weth].walletBalance = reverse
+        ? BASE_AMOUNT
+        : BASE_AMOUNT.mul(2);
+      mock.userMarketsData[Underlying.weth].scaledBorrowOnPool = reverse
+        ? BASE_AMOUNT
+        : BASE_AMOUNT.mul(2);
+
+      if (reverse && relation === OperationRelation.bigger) {
+        mock.marketsData[Underlying.weth].poolLiquidity = DELTA;
+      }
+
+      break;
+    }
+    case TransactionType.supply: {
+      mock.userMarketsData[Underlying.weth].walletBalance = reverse
+        ? BASE_AMOUNT
+        : BASE_AMOUNT.mul(2);
+
+      if (reverse && relation === OperationRelation.bigger) {
+        mock.userMarketsData[Underlying.weth].scaledSupplyOnPool = DELTA;
+      }
+      break;
+    }
+    case TransactionType.supplyCollateral: {
+      mock.userMarketsData[Underlying.dai].walletBalance = reverse
+        ? BASE_AMOUNT
+        : BASE_AMOUNT.mul(2);
+
+      if (reverse && relation === OperationRelation.bigger) {
+        mock.userMarketsData[Underlying.dai].scaledCollateral = DELTA;
+      }
+      break;
+    }
   }
+  return mock;
 };
 
 describe("Bulker should merge", () => {
   const userAddress = Wallet.createRandom().address;
   let bulkerHandler: BulkerTxHandler;
   let adapter: MorphoAaveV3Adapter;
-  const mock: AdapterMock = {
-    ...ADAPTER_MOCK,
-    marketsList: [Underlying.weth, Underlying.dai],
-    userData: {
-      ...ADAPTER_MOCK.userData,
-      ethBalance: constants.Zero,
-    },
-    userMarketsData: {
-      [Underlying.weth]: {
-        ...ADAPTER_MOCK.userMarketsData[Underlying.weth],
-        scaledSupplyInP2P: BASE_AMOUNT,
-        scaledSupplyOnPool: constants.Zero,
-        scaledCollateral: constants.Zero,
-        scaledBorrowInP2P: constants.Zero,
-        scaledBorrowOnPool: constants.Zero, // Must be set if borrow side
-        walletBalance: BASE_AMOUNT,
-      },
-      [Underlying.dai]: {
-        ...ADAPTER_MOCK.userMarketsData[Underlying.dai],
-        scaledSupplyInP2P: constants.Zero,
-        scaledSupplyOnPool: constants.Zero,
-        scaledCollateral: BASE_AMOUNT,
-        scaledBorrowInP2P: constants.Zero,
-        scaledBorrowOnPool: constants.Zero,
-        walletBalance: BASE_AMOUNT,
-      },
-    },
-    marketsConfigs: {
-      ...ADAPTER_MOCK.marketsConfigs,
-      [Underlying.dai]: {
-        ...ADAPTER_MOCK.marketsConfigs[Underlying.dai],
-        borrowableFactor: parseUnits("10", 4), //Borrow capacity shouldn't be limiting
-      },
-    },
-    marketsData: {
-      [Underlying.weth]: {
-        ...ADAPTER_MOCK.marketsData[Underlying.weth],
-        chainUsdPrice: parseUnits("1", 8),
-        poolLiquidity: parseUnits("10"), //Sets max borrow to exactly 10ETH
-        indexes: {
-          lastUpdateTimestamp: BigNumber.from(BASE_BLOCK_TIMESTAMP),
-          p2pBorrowIndex: parseUnits("1", 27),
-          p2pSupplyIndex: parseUnits("1", 27),
-          poolBorrowIndex: parseUnits("1", 27),
-          poolSupplyIndex: parseUnits("1", 27),
-        },
-        aaveIndexes: {
-          ...ADAPTER_MOCK.marketsData[Underlying.weth].aaveIndexes,
-          lastUpdateTimestamp: BigNumber.from(BASE_BLOCK_TIMESTAMP),
-          liquidityIndex: parseUnits("1", 27),
-          variableBorrowIndex: parseUnits("1", 27),
-        },
-      },
-      [Underlying.dai]: {
-        ...ADAPTER_MOCK.marketsData[Underlying.dai],
-        chainUsdPrice: parseUnits("1", 8),
-        indexes: {
-          lastUpdateTimestamp: BigNumber.from(BASE_BLOCK_TIMESTAMP),
-          p2pBorrowIndex: parseUnits("1", 27),
-          p2pSupplyIndex: parseUnits("1", 27),
-          poolBorrowIndex: parseUnits("1", 27),
-          poolSupplyIndex: parseUnits("1", 27),
-        },
-        aaveIndexes: {
-          ...ADAPTER_MOCK.marketsData[Underlying.dai].aaveIndexes,
-          lastUpdateTimestamp: BigNumber.from(BASE_BLOCK_TIMESTAMP),
-          liquidityIndex: parseUnits("1", 27),
-          variableBorrowIndex: parseUnits("1", 27),
-        },
-      },
-    },
-  };
-
-  beforeEach(async () => {
-    adapter = MorphoAaveV3Adapter.fromMock(mock);
-    bulkerHandler = new BulkerTxHandler(adapter);
-    await adapter.connect(userAddress);
-    await adapter.refreshAll();
-    expect(bulkerHandler.getBulkerTransactions()).toHaveLength(0);
-  });
 
   afterEach(() => {
     bulkerHandler.close();
@@ -145,10 +177,10 @@ describe("Bulker should merge", () => {
   ].forEach((baseTxSide) => {
     [false, true].forEach((baseReverse) => {
       [true, false].forEach((baseMax) => {
-        describe(`a ${getTxTypeFromSide(baseTxSide, baseReverse)}${
+        describe(`a ${getTxType(baseTxSide, baseReverse)}${
           baseMax ? " max" : ""
         } operation`, () => {
-          const baseTxType = getTxTypeFromSide(baseTxSide, baseReverse);
+          const baseTxType = getTxType(baseTxSide, baseReverse);
           const baseOperation = {
             type: baseTxType,
             underlyingAddress:
@@ -200,71 +232,22 @@ describe("Bulker should merge", () => {
               relation: OperationRelation.bigger,
             },
           ].forEach(({ txType, reverse, max, relation }) => {
-            it(`with a ${relation ? relation + " " : ""}${getTxTypeFromSide(
+            it(`with a ${relation ? relation + " " : ""}${getTxType(
               txType,
               reverse
             )}${max ? " max" : ""} operation`, async () => {
-              const userMarketData = {
-                ...mock.userMarketsData[baseOperation.underlyingAddress],
-              };
-              const marketData = {
-                ...mock.marketsData[baseOperation.underlyingAddress],
-              };
-              let updateMock = false;
-
-              if (baseTxSide === TransactionType.borrow) {
-                updateMock = true;
-                userMarketData.scaledBorrowOnPool = BASE_AMOUNT;
-              }
-
-              if (relation === OperationRelation.equivalent && max) {
-                updateMock = true;
-                switch (baseTxType) {
-                  case TransactionType.withdrawCollateral:
-                  case TransactionType.borrow:
-                  case TransactionType.withdraw: {
-                    userMarketData.walletBalance = constants.Zero;
-                    break;
-                  }
-                  case TransactionType.repay: {
-                    marketData.poolLiquidity = constants.Zero;
-                    break;
-                  }
-                  case TransactionType.supply: {
-                    userMarketData.scaledSupplyInP2P = constants.Zero;
-                    userMarketData.scaledSupplyOnPool = constants.Zero;
-                    break;
-                  }
-                  case TransactionType.supplyCollateral: {
-                    userMarketData.scaledCollateral = constants.Zero;
-                    break;
-                  }
-                }
-              }
-
-              if (updateMock) {
-                adapter = MorphoAaveV3Adapter.fromMock({
-                  ...mock,
-                  userMarketsData: {
-                    ...mock.userMarketsData,
-                    [baseOperation.underlyingAddress]: userMarketData,
-                  },
-                  marketsData: {
-                    ...mock.marketsData,
-                    [baseOperation.underlyingAddress]: marketData,
-                  },
-                });
-                bulkerHandler.close();
-                bulkerHandler = new BulkerTxHandler(adapter);
-                await adapter.connect(userAddress);
-                await adapter.refreshAll();
-                expect(bulkerHandler.getBulkerTransactions()).toHaveLength(0);
-              }
+              adapter = MorphoAaveV3Adapter.fromMock(
+                getMock(txType, reverse, relation)
+              );
+              bulkerHandler = new BulkerTxHandler(adapter);
+              await adapter.connect(userAddress);
+              await adapter.refreshAll();
+              expect(bulkerHandler.getBulkerTransactions()).toHaveLength(0);
 
               await bulkerHandler.addOperation(baseOperation);
 
               const operation = {
-                type: getTxTypeFromSide(txType, reverse),
+                type: getTxType(txType, reverse),
                 amount: max
                   ? constants.MaxUint256
                   : relation
@@ -272,8 +255,6 @@ describe("Bulker should merge", () => {
                   : BASE_AMOUNT,
                 underlyingAddress: baseOperation.underlyingAddress,
               };
-
-              console.debug(baseOperation, operation);
 
               await bulkerHandler.addOperation(operation);
 
@@ -289,7 +270,7 @@ describe("Bulker should merge", () => {
               const { type, underlyingAddress, amount } =
                 operations[0] as TxOperation;
               expect(type).toEqual(
-                getTxTypeFromSide(
+                getTxType(
                   baseOperation.type,
                   relation === OperationRelation.bigger
                 )
@@ -303,7 +284,7 @@ describe("Bulker should merge", () => {
               if (max) {
                 targetAmount = constants.MaxUint256;
               } else if (!reverse) {
-                if (baseOperation.amount.eq(constants.MaxUint256)) {
+                if (baseMax) {
                   targetAmount = constants.MaxUint256;
                 } else {
                   targetAmount = baseOperation.amount.add(BASE_AMOUNT);
