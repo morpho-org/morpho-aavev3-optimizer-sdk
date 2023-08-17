@@ -609,7 +609,7 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
         if (fetch) {
           const userMarketData = await this._userFetcher
             .fetchUserMarketData(underlyingAddress, user, blockTag)
-            .catch();
+            .catch(() => {});
           if (!userMarketData) return;
           this._scaledUserMarketsData[underlyingAddress] = userMarketData;
         }
@@ -814,7 +814,7 @@ export class MorphoAaveV3Adapter extends MorphoAaveV3DataEmitter {
           this._marketsList!.forEach(this._updateMarketData.bind(this));
         }
       })
-    ).catch();
+    ).catch(() => {});
   }
 
   private _updateMarketData(underlyingAddress: Address) {
