@@ -4,12 +4,9 @@ import { Subject } from "rxjs";
 
 import { MorphoAaveV3Adapter } from "../../MorphoAaveV3Adapter";
 import { MorphoAaveV3DataHolder } from "../../MorphoAaveV3DataHolder";
-import addresses from "../../contracts/addresses";
-import { Underlying } from "../../mocks/markets";
 import { MorphoAaveV3Simulator } from "../../simulation/MorphoAaveV3Simulator";
 import { ErrorCode } from "../../simulation/SimulationError";
 import { Operation, TxOperation } from "../../simulation/simulation.types";
-import { MaxCapacityLimiter, TransactionType } from "../../types";
 import { Connectable } from "../../utils/mixins/Connectable";
 import { UpdatableBehaviorSubject } from "../../utils/rxjs/UpdatableBehaviorSubject";
 import { IBatchTxHandler } from "../TxHandler.interface";
@@ -17,11 +14,7 @@ import { NotifierManager } from "../mixins/NotifierManager";
 
 import { Bulker } from "./Bulker.TxHandler.interface";
 
-import BulkerTx = Bulker.TransactionType;
 import BulkerTransactionOptions = Bulker.TransactionOptions;
-import BulkerSignature = Bulker.Signature.BulkerSignature;
-import BulkerSignatureType = Bulker.Signature.BulkerSignatureType;
-import NotificationCodes = Bulker.NotificationsCodes;
 
 export default abstract class BaseBatchTxHandler
   extends NotifierManager(Connectable(MorphoAaveV3Simulator))
@@ -88,6 +81,12 @@ export default abstract class BaseBatchTxHandler
     return nOperations - 1;
   }
 
+  protected abstract _operationToBatch(
+    data: MorphoAaveV3DataHolder,
+    operation: TxOperation,
+    index: number
+  ): Bulker.Transactions[] | null;
+
   _applyOperations({
     operations,
     data,
@@ -118,8 +117,6 @@ export default abstract class BaseBatchTxHandler
     index: number,
     _operations: Operation[]
   ): MorphoAaveV3DataHolder | null {
-    const { underlyingAddress, amount } = operation;
-
     const transferData = this._beforeOperation(data, operation, index);
     if (!transferData) return null;
 
@@ -142,11 +139,11 @@ export default abstract class BaseBatchTxHandler
 
     const batch: Bulker.Transactions[] = transferBatch;
 
-    batch.push({
-      type: BulkerTx.supply,
-      asset: underlyingAddress,
-      amount,
-    });
+    const txBatch = this._operationToBatch(dataAfterTransfer, operation, index);
+    if (!txBatch) return null;
+
+    batch.push(...txBatch);
+
     if (defers.length > 0) batch.push(...defers);
     this.bulkerOperations$.next([...this.bulkerOperations$.getValue(), batch]);
 
@@ -159,8 +156,6 @@ export default abstract class BaseBatchTxHandler
     index: number,
     _operations: Operation[]
   ): MorphoAaveV3DataHolder | null {
-    const { underlyingAddress, amount } = operation;
-
     const transferData = this._beforeOperation(data, operation, index);
     if (!transferData) return null;
 
@@ -183,11 +178,11 @@ export default abstract class BaseBatchTxHandler
 
     const batch: Bulker.Transactions[] = transferBatch;
 
-    batch.push({
-      type: BulkerTx.supplyCollateral,
-      asset: underlyingAddress,
-      amount,
-    });
+    const txBatch = this._operationToBatch(dataAfterTransfer, operation, index);
+    if (!txBatch) return null;
+
+    batch.push(...txBatch);
+
     if (defers.length > 0) batch.push(...defers);
     this.bulkerOperations$.next([...this.bulkerOperations$.getValue(), batch]);
 
@@ -200,8 +195,6 @@ export default abstract class BaseBatchTxHandler
     index: number,
     _operations: Operation[]
   ): MorphoAaveV3DataHolder | null {
-    const { underlyingAddress, amount } = operation;
-
     const transferData = this._beforeOperation(data, operation, index);
 
     if (!transferData) return null;
@@ -225,11 +218,10 @@ export default abstract class BaseBatchTxHandler
 
     const batch: Bulker.Transactions[] = transferBatch;
 
-    batch.push({
-      type: BulkerTx.repay,
-      asset: underlyingAddress,
-      amount,
-    });
+    const txBatch = this._operationToBatch(dataAfterTransfer, operation, index);
+    if (!txBatch) return null;
+
+    batch.push(...txBatch);
     if (defers.length > 0) batch.push(...defers);
     this.bulkerOperations$.next([...this.bulkerOperations$.getValue(), batch]);
 
@@ -242,10 +234,7 @@ export default abstract class BaseBatchTxHandler
     index: number,
     _operations: Operation[]
   ): MorphoAaveV3DataHolder | null {
-    const underlyingAddress = getAddress(operation.underlyingAddress);
-
     const batch: Bulker.Transactions[] = [];
-    const txType = BulkerTx.borrow;
 
     const userMarketsData = data.getUserMarketsData();
     const userData = data.getUserData();
@@ -268,15 +257,6 @@ export default abstract class BaseBatchTxHandler
 
     batch.push(...approvalBatch);
 
-    const receiver = operation.unwrap ? addresses.bulker : userData.address;
-
-    batch.push({
-      type: txType,
-      to: receiver,
-      asset: underlyingAddress,
-      amount: operation.formattedAmount!,
-    });
-
     const stateAfterBorrow = super._applyBorrowOperation(
       stateAfterManagerApproval,
       operation,
@@ -285,17 +265,15 @@ export default abstract class BaseBatchTxHandler
     );
     if (!stateAfterBorrow) return null;
 
-    if (operation.unwrap) {
-      if (![Underlying.wsteth, Underlying.weth].includes(underlyingAddress))
-        return this._raiseError(index, ErrorCode.unknownMarket, operation);
+    const txBatch = this._operationToBatch(
+      stateAfterManagerApproval,
+      operation,
+      index
+    );
+    if (!txBatch) return null;
 
-      batch.push({
-        type: BulkerTx.unwrap,
-        asset: underlyingAddress,
-        receiver: userData.address,
-        amount: constants.MaxUint256, // Use maxUint to unwrap all and transfer all to the user
-      });
-    }
+    batch.push(...txBatch);
+
     this.bulkerOperations$.next([...this.bulkerOperations$.getValue(), batch]);
 
     return stateAfterBorrow;
@@ -310,7 +288,6 @@ export default abstract class BaseBatchTxHandler
     const underlyingAddress = getAddress(operation.underlyingAddress);
 
     const batch: Bulker.Transactions[] = [];
-    const txType = BulkerTx.withdraw;
 
     const userMarketsData = data.getUserMarketsData();
     const userData = data.getUserData();
@@ -323,14 +300,6 @@ export default abstract class BaseBatchTxHandler
     )
       return this._raiseError(index, ErrorCode.missingData, operation);
 
-    const { amount: max, limiter } =
-      data.getUserMaxCapacity(underlyingAddress, TransactionType.withdraw) ??
-      {};
-    if (!max || !limiter)
-      return this._raiseError(index, ErrorCode.missingData, operation);
-
-    const receiver = operation.unwrap ? addresses.bulker : userData.address;
-
     const approvalData = this._beforeOperation(data, operation, index);
 
     if (!approvalData || !approvalData.data) return null;
@@ -340,18 +309,6 @@ export default abstract class BaseBatchTxHandler
 
     batch.push(...approvalBatch);
 
-    const amount =
-      limiter === MaxCapacityLimiter.balance
-        ? operation.amount
-        : operation.formattedAmount!;
-
-    batch.push({
-      type: txType,
-      receiver,
-      asset: underlyingAddress,
-      amount,
-    });
-
     const stateAfterWithdraw = super._applyWithdrawOperation(
       stateAfterManagerApproval,
       operation,
@@ -360,17 +317,14 @@ export default abstract class BaseBatchTxHandler
     );
     if (!stateAfterWithdraw) return null;
 
-    if (operation.unwrap) {
-      if (![Underlying.wsteth, Underlying.weth].includes(underlyingAddress))
-        return this._raiseError(index, ErrorCode.unknownMarket, operation);
+    const txBatch = this._operationToBatch(
+      stateAfterManagerApproval,
+      operation,
+      index
+    );
+    if (!txBatch) return null;
 
-      batch.push({
-        type: BulkerTx.unwrap,
-        asset: underlyingAddress,
-        receiver: userData.address,
-        amount: constants.MaxUint256, // Use maxUint to unwrap all and transfer all to the user
-      });
-    }
+    batch.push(...txBatch);
 
     this.bulkerOperations$.next([...this.bulkerOperations$.getValue(), batch]);
 
@@ -386,7 +340,6 @@ export default abstract class BaseBatchTxHandler
     const underlyingAddress = getAddress(operation.underlyingAddress);
 
     const batch: Bulker.Transactions[] = [];
-    const txType = BulkerTx.withdrawCollateral;
 
     const userMarketsData = data.getUserMarketsData();
     const userData = data.getUserData();
@@ -399,16 +352,6 @@ export default abstract class BaseBatchTxHandler
     )
       return this._raiseError(index, ErrorCode.missingData, operation);
 
-    const { amount: max, limiter } =
-      data.getUserMaxCapacity(
-        underlyingAddress,
-        TransactionType.withdrawCollateral
-      ) ?? {};
-    if (!max || !limiter)
-      return this._raiseError(index, ErrorCode.missingData, operation);
-
-    const receiver = operation.unwrap ? addresses.bulker : userData.address;
-
     const approvalData = this._beforeOperation(data, operation, index);
 
     if (!approvalData || !approvalData.data) return null;
@@ -418,18 +361,6 @@ export default abstract class BaseBatchTxHandler
 
     batch.push(...approvalBatch);
 
-    const amount =
-      limiter === MaxCapacityLimiter.balance
-        ? operation.amount
-        : operation.formattedAmount!;
-
-    batch.push({
-      type: txType,
-      receiver,
-      asset: underlyingAddress,
-      amount,
-    });
-
     const stateAfterWithdraw = super._applyWithdrawCollateralOperation(
       stateAfterManagerApproval,
       operation,
@@ -438,17 +369,14 @@ export default abstract class BaseBatchTxHandler
     );
     if (!stateAfterWithdraw) return null;
 
-    if (operation.unwrap) {
-      if (![Underlying.wsteth, Underlying.weth].includes(underlyingAddress))
-        return this._raiseError(index, ErrorCode.unknownMarket, operation);
+    const txBatch = this._operationToBatch(
+      stateAfterManagerApproval,
+      operation,
+      index
+    );
+    if (!txBatch) return null;
 
-      batch.push({
-        type: BulkerTx.unwrap,
-        asset: underlyingAddress,
-        receiver: userData.address,
-        amount: constants.MaxUint256, // Use maxUint to unwrap all and transfer all to the user
-      });
-    }
+    batch.push(...txBatch);
 
     this.bulkerOperations$.next([...this.bulkerOperations$.getValue(), batch]);
 

@@ -1,8 +1,5 @@
 import { BigNumber, constants } from "ethers";
 import { getAddress } from "ethers/lib/utils";
-import { ErrorCode } from "src/simulation/SimulationError";
-import { TxOperation } from "src/simulation/simulation.types";
-import { TransactionType } from "src/types";
 
 import SafeAppsSDK, { BaseTransaction } from "@gnosis.pm/safe-apps-sdk";
 import { WadRayMath } from "@morpho-labs/ethers-utils/lib/maths";
@@ -20,6 +17,10 @@ import addresses from "@morpho-labs/morpho-ethers-contract/lib/addresses";
 import sdk from "../..";
 import { MorphoAaveV3DataHolder } from "../../MorphoAaveV3DataHolder";
 import CONTRACT_ADDRESSES from "../../contracts/addresses";
+import { Underlying } from "../../mocks/markets";
+import { ErrorCode } from "../../simulation/SimulationError";
+import { TxOperation } from "../../simulation/simulation.types";
+import { MaxCapacityLimiter, TransactionType } from "../../types";
 
 import BaseBatchTxHandler from "./BaseBatch.TxHandler";
 import { Bulker } from "./Bulker.TxHandler.interface";
@@ -29,9 +30,6 @@ import NotificationCodes = Bulker.NotificationsCodes;
 
 export default class SafeTxHandler extends BaseBatchTxHandler {
   generateJSON(options?: Bulker.TransactionOptions): BatchFile {
-    const signer = this._signer;
-    if (!signer) throw Error(`No signer provided`);
-
     const bulkerTransactions = this.bulkerOperations$.getValue();
 
     if (bulkerTransactions.length === 0)
@@ -259,6 +257,7 @@ export default class SafeTxHandler extends BaseBatchTxHandler {
     let success: boolean;
     try {
       const batchFile = this.generateJSON(options);
+      console.debug(batchFile);
       if ("errorCode" in batchFile) {
         throw Error(batchFile.errorCode as string);
       }
@@ -383,5 +382,136 @@ export default class SafeTxHandler extends BaseBatchTxHandler {
       }
     }
     return { batch, defers: [], data };
+  }
+
+  protected _operationToBatch(
+    data: MorphoAaveV3DataHolder,
+    operation: TxOperation,
+    index: number
+  ): Bulker.Transactions[] | null {
+    const { formattedAmount, underlyingAddress, type } = operation;
+    const amount = formattedAmount!;
+    const batch: Bulker.Transactions[] = [];
+    const userData = data.getUserData();
+    if (!userData || userData.address === constants.AddressZero) {
+      return this._raiseError(index, ErrorCode.missingData, operation);
+    }
+
+    switch (type) {
+      case TransactionType.supply: {
+        batch.push({
+          type: BulkerTx.supply,
+          asset: underlyingAddress,
+          amount,
+        });
+        break;
+      }
+      case TransactionType.supplyCollateral: {
+        batch.push({
+          type: BulkerTx.supplyCollateral,
+          asset: underlyingAddress,
+          amount,
+        });
+        break;
+      }
+      case TransactionType.repay: {
+        batch.push({
+          type: BulkerTx.repay,
+          asset: underlyingAddress,
+          amount,
+        });
+        break;
+      }
+      case TransactionType.borrow: {
+        const receiver = userData.address;
+        batch.push({
+          type: BulkerTx.borrow,
+          to: receiver,
+          asset: underlyingAddress,
+          amount,
+        });
+        if (operation.unwrap) {
+          if (![Underlying.wsteth, Underlying.weth].includes(underlyingAddress))
+            return this._raiseError(index, ErrorCode.unknownMarket, operation);
+
+          batch.push({
+            type: BulkerTx.unwrap,
+            asset: underlyingAddress,
+            receiver,
+            amount,
+          });
+        }
+        break;
+      }
+      case TransactionType.withdraw: {
+        const { limiter } =
+          data.getUserMaxCapacity(
+            underlyingAddress,
+            TransactionType.withdraw
+          ) ?? {};
+        if (!limiter)
+          return this._raiseError(index, ErrorCode.missingData, operation);
+
+        const receiver = userData.address;
+        const amount =
+          limiter === MaxCapacityLimiter.balance
+            ? operation.amount
+            : operation.formattedAmount!;
+        batch.push({
+          type: BulkerTx.withdraw,
+          receiver,
+          asset: underlyingAddress,
+          amount,
+        });
+        if (operation.unwrap) {
+          if (![Underlying.wsteth, Underlying.weth].includes(underlyingAddress))
+            return this._raiseError(index, ErrorCode.unknownMarket, operation);
+
+          batch.push({
+            type: BulkerTx.unwrap,
+            asset: underlyingAddress,
+            receiver: userData.address,
+            amount,
+          });
+        }
+        break;
+      }
+      case TransactionType.withdrawCollateral: {
+        const { limiter } =
+          data.getUserMaxCapacity(
+            underlyingAddress,
+            TransactionType.withdrawCollateral
+          ) ?? {};
+        if (!limiter)
+          return this._raiseError(index, ErrorCode.missingData, operation);
+
+        const receiver = userData.address;
+        const amount =
+          limiter === MaxCapacityLimiter.balance
+            ? operation.amount
+            : operation.formattedAmount!;
+
+        batch.push({
+          type: BulkerTx.withdrawCollateral,
+          receiver,
+          asset: underlyingAddress,
+          amount,
+        });
+        if (operation.unwrap) {
+          if (![Underlying.wsteth, Underlying.weth].includes(underlyingAddress))
+            return this._raiseError(index, ErrorCode.unknownMarket, operation);
+
+          batch.push({
+            type: BulkerTx.unwrap,
+            asset: underlyingAddress,
+            receiver: userData.address,
+            amount,
+          });
+        }
+        break;
+      }
+    }
+
+    return batch;
   }
 }

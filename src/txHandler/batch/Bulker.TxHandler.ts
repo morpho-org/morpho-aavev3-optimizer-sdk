@@ -10,9 +10,10 @@ import sdk from "../..";
 import { MorphoAaveV3DataHolder } from "../../MorphoAaveV3DataHolder";
 import addresses from "../../contracts/addresses";
 import { safeSignTypedData } from "../../helpers/signatures";
+import { Underlying } from "../../mocks/markets";
 import { ErrorCode } from "../../simulation/SimulationError";
 import { TxOperation } from "../../simulation/simulation.types";
-import { TransactionType, UserData } from "../../types";
+import { MaxCapacityLimiter, TransactionType, UserData } from "../../types";
 import { getManagerApprovalMessage } from "../../utils/signatures/manager";
 import { getPermit2Message } from "../../utils/signatures/permit2";
 import { SignatureMessage } from "../../utils/signatures/types";
@@ -877,5 +878,135 @@ export default class BulkerTxHandler extends BaseBatchTxHandler {
         },
       }
     );
+  }
+
+  protected _operationToBatch(
+    data: MorphoAaveV3DataHolder,
+    operation: TxOperation,
+    index: number
+  ): Bulker.Transactions[] | null {
+    const { amount, underlyingAddress, type } = operation;
+    const batch: Bulker.Transactions[] = [];
+    const userData = data.getUserData();
+    if (!userData || userData.address === constants.AddressZero) {
+      return this._raiseError(index, ErrorCode.missingData, operation);
+    }
+
+    switch (type) {
+      case TransactionType.supply: {
+        batch.push({
+          type: BulkerTx.supply,
+          asset: underlyingAddress,
+          amount,
+        });
+        break;
+      }
+      case TransactionType.supplyCollateral: {
+        batch.push({
+          type: BulkerTx.supplyCollateral,
+          asset: underlyingAddress,
+          amount,
+        });
+        break;
+      }
+      case TransactionType.repay: {
+        batch.push({
+          type: BulkerTx.repay,
+          asset: underlyingAddress,
+          amount,
+        });
+        break;
+      }
+      case TransactionType.borrow: {
+        const receiver = operation.unwrap ? addresses.bulker : userData.address;
+        batch.push({
+          type: BulkerTx.borrow,
+          to: receiver,
+          asset: underlyingAddress,
+          amount: operation.formattedAmount!,
+        });
+        if (operation.unwrap) {
+          if (![Underlying.wsteth, Underlying.weth].includes(underlyingAddress))
+            return this._raiseError(index, ErrorCode.unknownMarket, operation);
+
+          batch.push({
+            type: BulkerTx.unwrap,
+            asset: underlyingAddress,
+            receiver: userData.address,
+            amount: constants.MaxUint256, // Use maxUint to unwrap all and transfer all to the user
+          });
+        }
+        break;
+      }
+      case TransactionType.withdraw: {
+        const { amount: max, limiter } =
+          data.getUserMaxCapacity(
+            underlyingAddress,
+            TransactionType.withdraw
+          ) ?? {};
+        if (!max || !limiter)
+          return this._raiseError(index, ErrorCode.missingData, operation);
+
+        const receiver = operation.unwrap ? addresses.bulker : userData.address;
+        const amount =
+          limiter === MaxCapacityLimiter.balance
+            ? operation.amount
+            : operation.formattedAmount!;
+        batch.push({
+          type: BulkerTx.withdraw,
+          receiver,
+          asset: underlyingAddress,
+          amount,
+        });
+        if (operation.unwrap) {
+          if (![Underlying.wsteth, Underlying.weth].includes(underlyingAddress))
+            return this._raiseError(index, ErrorCode.unknownMarket, operation);
+
+          batch.push({
+            type: BulkerTx.unwrap,
+            asset: underlyingAddress,
+            receiver: userData.address,
+            amount: constants.MaxUint256, // Use maxUint to unwrap all and transfer all to the user
+          });
+        }
+        break;
+      }
+      case TransactionType.withdrawCollateral: {
+        const { amount: max, limiter } =
+          data.getUserMaxCapacity(
+            underlyingAddress,
+            TransactionType.withdrawCollateral
+          ) ?? {};
+        if (!max || !limiter)
+          return this._raiseError(index, ErrorCode.missingData, operation);
+
+        const receiver = operation.unwrap ? addresses.bulker : userData.address;
+        const amount =
+          limiter === MaxCapacityLimiter.balance
+            ? operation.amount
+            : operation.formattedAmount!;
+
+        batch.push({
+          type: BulkerTx.withdrawCollateral,
+          receiver,
+          asset: underlyingAddress,
+          amount,
+        });
+        if (operation.unwrap) {
+          if (![Underlying.wsteth, Underlying.weth].includes(underlyingAddress))
+            return this._raiseError(index, ErrorCode.unknownMarket, operation);
+
+          batch.push({
+            type: BulkerTx.unwrap,
+            asset: underlyingAddress,
+            receiver: userData.address,
+            amount: constants.MaxUint256, // Use maxUint to unwrap all and transfer all to the user
+          });
+        }
+        break;
+      }
+    }
+
+    return batch;
   }
 }
