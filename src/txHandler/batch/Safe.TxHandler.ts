@@ -220,21 +220,23 @@ export default class SafeTxHandler extends BaseBatchTxHandler {
         };
       });
     const approvalsTxs = Object.entries(approvals)
-      .filter(([, app]) => app.approvalNeeded.gt(app.initialApproval))
-      .flatMap(([token, approvals]) => {
+      .filter(([, approvals]) =>
+        approvals.approvalNeeded.gt(approvals.initialApproval)
+      )
+      .map(([token, approvals]) => {
         const erc20 = ERC20__factory.createInterface();
-        const approvalsTxs: { to: string; value: string; data: string }[] = [];
-        if (approvals.approvalNeeded.gt(approvals.initialApproval)) {
-          approvalsTxs.push({
-            to: token,
-            value: "0",
-            data: erc20.encodeFunctionData("approve", [
-              morphoAddress,
-              approvals.approvalNeeded.sub(approvals.initialApproval),
-            ]),
-          });
-        }
-        return approvalsTxs;
+        const spender =
+          getAddress(token) === CONTRACT_ADDRESSES.steth
+            ? CONTRACT_ADDRESSES.wsteth
+            : morphoAddress;
+        return {
+          to: token,
+          value: "0",
+          data: erc20.encodeFunctionData("approve", [
+            spender,
+            approvals.approvalNeeded.sub(approvals.initialApproval),
+          ]),
+        };
       });
     return TxBuilder.batch(userData.address, [
       ...approvalsTxs,

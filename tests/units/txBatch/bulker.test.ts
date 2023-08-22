@@ -1,4 +1,4 @@
-import { BigNumber, constants, Wallet } from "ethers";
+import { constants, Wallet } from "ethers";
 import { parseUnits } from "ethers/lib/utils";
 
 import { MorphoAaveV3Adapter } from "../../../src";
@@ -6,7 +6,6 @@ import CONTRACT_ADDRESSES from "../../../src/contracts/addresses";
 import { AdapterMock } from "../../../src/mocks";
 import { Underlying } from "../../../src/mocks/markets";
 import { ErrorCode } from "../../../src/simulation/SimulationError";
-import { OperationType } from "../../../src/simulation/simulation.types";
 import BulkerTxHandler from "../../../src/txHandler/batch/Bulker.TxHandler";
 import { Bulker } from "../../../src/txHandler/batch/Bulker.TxHandler.interface";
 import { TransactionType } from "../../../src/types";
