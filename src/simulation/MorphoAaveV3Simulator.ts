@@ -573,7 +573,8 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
     const p2pAmount = minBN(amount, marketData.morphoSupplyOnPool);
     const poolAmount = amount.sub(p2pAmount);
 
-    if (marketData.poolLiquidity.lt(poolAmount))
+    // throw if total borrow amount exceeds available liquidity
+    if (marketData.poolLiquidity.lt(amount))
       return this._raiseError(index, ErrorCode.notEnoughLiquidity, operation);
 
     const borrowCapacity = data.getUserMaxCapacity(
@@ -597,9 +598,15 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
     const morphoSupplyInP2P = marketData.morphoSupplyInP2P.add(p2pAmount); // Matched
     const poolBorrow = marketData.poolBorrow.add(poolAmount);
     const totalMorphoBorrow = marketData.totalMorphoBorrow.add(amount);
-    const poolLiquidity = marketData.poolLiquidity.sub(p2pAmount); // Matched
+    const poolLiquidity = amount.eq(marketData.poolLiquidity)
+      ? constants.Zero
+      : marketData.poolLiquidity.sub(poolAmount);
 
-    if (marketConfig.borrowCap.gt(0) && poolBorrow.gt(marketConfig.borrowCap)) {
+    // throw if total borrow amount exceeds borrow cap
+    if (
+      marketConfig.borrowCap.gt(0) &&
+      poolBorrow.add(p2pAmount).gt(marketConfig.borrowCap)
+    ) {
       return this._raiseError(index, ErrorCode.borrowCapReached, operation);
     }
 
