@@ -77,6 +77,7 @@ export default class SafeTxHandler extends BaseBatchTxHandler {
       .map((operation) => {
         let data = "";
         let contractAddress = "";
+        let value = "0";
         switch (operation.type) {
           case BulkerTx.borrow: {
             data = morphoInterface.encodeFunctionData("borrow", [
@@ -145,6 +146,8 @@ export default class SafeTxHandler extends BaseBatchTxHandler {
           }
           case BulkerTx.supplyCollateral: {
             const approval = getOrInitInitialApproval(operation.asset);
+
+            // Adding both values avoiding overflow
             approval.approvalNeeded = constants.MaxUint256.sub(
               approval.approvalNeeded
             ).lte(operation.amount)
@@ -162,11 +165,9 @@ export default class SafeTxHandler extends BaseBatchTxHandler {
           case BulkerTx.wrap: {
             if (getAddress(operation.asset) === CONTRACT_ADDRESSES.weth) {
               const wethInterface = Weth__factory.createInterface();
-              return {
-                to: CONTRACT_ADDRESSES.weth,
-                value: operation.amount.toString(),
-                data: wethInterface.encodeFunctionData("deposit"),
-              };
+              contractAddress = CONTRACT_ADDRESSES.weth;
+              value = operation.amount.toString();
+              data = wethInterface.encodeFunctionData("deposit");
             } else {
               const approval = getOrInitInitialApproval(
                 CONTRACT_ADDRESSES.steth
@@ -178,44 +179,37 @@ export default class SafeTxHandler extends BaseBatchTxHandler {
                 : approval.approvalNeeded.add(operation.amount);
 
               const wstEthInterface = WstETH__factory.createInterface();
-              return {
-                to: CONTRACT_ADDRESSES.wsteth,
-                value: "0",
-                data: wstEthInterface.encodeFunctionData("wrap", [
-                  operation.amount,
-                ]),
-              };
+              contractAddress = CONTRACT_ADDRESSES.wsteth;
+              data = wstEthInterface.encodeFunctionData("wrap", [
+                operation.amount,
+              ]);
             }
+            break;
           }
           case BulkerTx.unwrap: {
             if (getAddress(operation.asset) === CONTRACT_ADDRESSES.weth) {
               const wethInterface = Weth__factory.createInterface();
-              return {
-                to: CONTRACT_ADDRESSES.weth,
-                value: "0",
-                data: wethInterface.encodeFunctionData("withdraw", [
-                  operation.amount,
-                ]),
-              };
+              contractAddress = CONTRACT_ADDRESSES.weth;
+              data = wethInterface.encodeFunctionData("withdraw", [
+                operation.amount,
+              ]);
             } else {
               const wstEthInterface = WstETH__factory.createInterface();
-              return {
-                to: CONTRACT_ADDRESSES.wsteth,
-                value: "0",
-                data: wstEthInterface.encodeFunctionData("unwrap", [
-                  operation.amount,
-                ]),
-              };
+              contractAddress = CONTRACT_ADDRESSES.wsteth;
+              data = wstEthInterface.encodeFunctionData("unwrap", [
+                operation.amount,
+              ]);
             }
+            break;
           }
           default: {
-            throw Error(`${operation.type} not implemented`);
+            throw Error(`${operation.type} not implemented for a safe`);
             break;
           }
         }
         return {
           to: contractAddress,
-          value: "0",
+          value: value,
           data,
         };
       });
@@ -234,7 +228,7 @@ export default class SafeTxHandler extends BaseBatchTxHandler {
           value: "0",
           data: erc20.encodeFunctionData("approve", [
             spender,
-            approvals.approvalNeeded.sub(approvals.initialApproval),
+            approvals.approvalNeeded,
           ]),
         };
       });
@@ -352,7 +346,7 @@ export default class SafeTxHandler extends BaseBatchTxHandler {
 
       if (wstethMissing.gt(0)) {
         // we need to wrap some stETH
-        // To be sure that  , we add a buffer to the amount wrapped
+        // To be sure that we wrap enough tokens for the tx, we add a buffer to the amount wrapped
         const WRAP_BUFFER = sdk.configuration.bulkerWrapBuffer;
         const amountToWrap = WadRayMath.wadMul(
           wstethMissing.add(WRAP_BUFFER),
