@@ -364,6 +364,36 @@ describe("Simulator", () => {
     });
   });
 
+  it("Should not be able to borrow more than pool liquidity even if partially matched", async () => {
+    const errors = subscribeErrors();
+    const marketData = simulator.getMarketsData()[Underlying.weth]!;
+    expect(marketData.morphoSupplyOnPool).toBnGt(constants.WeiPerEther); // some supply should be matchable for the test to be relevant
+    const amountToBorrow = marketData.poolLiquidity.add(
+      marketData.morphoSupplyOnPool.div(2) // normally, "morphoSupplyOnPool" could be matched but the whole amount is exceeding pool liquidity
+    );
+    const supplyCollateralCapacity = simulator.getUserMaxCapacity(
+      Underlying.dai,
+      TransactionType.supplyCollateral
+    )!.amount;
+    simulator.simulate([
+      {
+        type: TransactionType.supplyCollateral,
+        amount: supplyCollateralCapacity,
+        underlyingAddress: Underlying.dai,
+      },
+      {
+        type: TransactionType.borrow,
+        amount: amountToBorrow,
+        underlyingAddress: Underlying.weth,
+      },
+    ]);
+    await sleep(100);
+    // The error is notEnoughLiquidity.
+    expect(
+      errors.find((e) => e.errorCode === ErrorCode.notEnoughLiquidity)
+    ).toBeDefined();
+  });
+
   describe("On Repay", () => {
     it("Should increase borrowCapacity", async () => {
       const initialBorrowCapacity = simulator.getUserMaxCapacity(

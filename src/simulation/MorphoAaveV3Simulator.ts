@@ -598,9 +598,7 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
     const morphoSupplyInP2P = marketData.morphoSupplyInP2P.add(p2pAmount); // Matched
     const poolBorrow = marketData.poolBorrow.add(poolAmount);
     const totalMorphoBorrow = marketData.totalMorphoBorrow.add(amount);
-    const poolLiquidity = amount.eq(marketData.poolLiquidity)
-      ? constants.Zero
-      : marketData.poolLiquidity.sub(poolAmount);
+    const poolLiquidity = marketData.poolLiquidity.sub(amount); // pool borrow + matching of the supplier
 
     // throw if total borrow amount exceeds borrow cap
     if (
