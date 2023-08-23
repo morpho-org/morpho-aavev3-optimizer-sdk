@@ -11,7 +11,6 @@ import {
 } from "../types";
 
 import { ApprovalHandlerInterface } from "./ApprovalHandler.interface";
-import { BulkerSignature } from "./Bulker.TxHandler";
 import { ITransactionNotifier } from "./notifiers/TransactionNotifier.interface";
 
 export interface INotifierManager {
@@ -46,7 +45,6 @@ export interface ISimpleTxHandler
 
 export interface IBatchTxHandler {
   addOperation: (operation: Operation) => Promise<void>;
-  sign: (toSign: BulkerSignature<false>) => Promise<void>;
   removeLastOperation: () => void;
   reset: () => void;
   close: () => any;
