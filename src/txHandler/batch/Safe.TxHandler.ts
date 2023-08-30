@@ -252,7 +252,6 @@ export default class SafeTxHandler extends BaseBatchTxHandler {
     let success: boolean;
     try {
       const batchFile = this.generateJSON(options);
-      console.debug(batchFile);
       if (this.error$.value?.errorCode) {
         throw Error(this.error$.value.errorCode);
       }
