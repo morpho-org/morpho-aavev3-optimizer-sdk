@@ -204,12 +204,11 @@ export default class SafeTxHandler extends BaseBatchTxHandler {
           }
           default: {
             throw Error(`${operation.type} not implemented for a safe`);
-            break;
           }
         }
         return {
           to: contractAddress,
-          value: value,
+          value,
           data,
         };
       });
@@ -254,8 +253,8 @@ export default class SafeTxHandler extends BaseBatchTxHandler {
     try {
       const batchFile = this.generateJSON(options);
       console.debug(batchFile);
-      if ("errorCode" in batchFile) {
-        throw Error(batchFile.errorCode as string);
+      if (this.error$.value?.errorCode) {
+        throw Error(this.error$.value.errorCode);
       }
 
       const safeSdk = new SafeAppsSDK();

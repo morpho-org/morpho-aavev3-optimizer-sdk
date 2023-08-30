@@ -68,6 +68,7 @@ export default abstract class BaseBatchTxHandler
   }
 
   /**
+   * Removes the last operation from the list of operations.
    * @returns the index of the deleted operation, -1 if no operation was deleted
    */
   public removeLastOperation(): number {
@@ -81,11 +82,40 @@ export default abstract class BaseBatchTxHandler
     return nOperations - 1;
   }
 
+  /**
+   * Converts a TxOperation to a Bulker.Transactions[].
+   * @param data The state after the operation has been applied.
+   * @param operation The operation to convert.
+   * @param index The index of the operation in the list of operations.
+   * @returns transactions The list of transactions to execute for the operation.
+   */
   protected abstract _operationToBatch(
     data: MorphoAaveV3DataHolder,
     operation: TxOperation,
     index: number
   ): Bulker.Transactions[] | null;
+
+  /**
+   * Executes the batch of transactions.
+   */
+  abstract executeBatch(options?: BulkerTransactionOptions): Promise<any>;
+
+  /**
+   * A hook that is called before each operation.
+   * @param data The state before the operation has been applied.
+   * @param operation The operation to apply.
+   * @param index The index of the operation in the list of operations.
+   * @returns state An intermediate state injected into the simulation of the operation.
+   */
+  protected abstract _beforeOperation(
+    data: MorphoAaveV3DataHolder,
+    operation: TxOperation,
+    index: number
+  ): {
+    batch: Bulker.Transactions[];
+    defers: Bulker.Transactions[];
+    data: MorphoAaveV3DataHolder | null;
+  } | null;
 
   _applyOperations({
     operations,
@@ -98,18 +128,6 @@ export default abstract class BaseBatchTxHandler
     super._applyOperations({ operations, data });
     this.#done$?.next(true);
   }
-
-  abstract executeBatch(options?: BulkerTransactionOptions): Promise<any>;
-
-  protected abstract _beforeOperation(
-    data: MorphoAaveV3DataHolder,
-    operation: TxOperation,
-    index: number
-  ): {
-    batch: Bulker.Transactions[];
-    defers: Bulker.Transactions[];
-    data: MorphoAaveV3DataHolder | null;
-  } | null;
 
   protected _applySupplyOperation(
     data: MorphoAaveV3DataHolder,
@@ -285,8 +303,6 @@ export default abstract class BaseBatchTxHandler
     index: number,
     _operations: Operation[]
   ): MorphoAaveV3DataHolder | null {
-    const underlyingAddress = getAddress(operation.underlyingAddress);
-
     const batch: Bulker.Transactions[] = [];
 
     const userMarketsData = data.getUserMarketsData();
@@ -337,8 +353,6 @@ export default abstract class BaseBatchTxHandler
     index: number,
     _operations: Operation[]
   ): MorphoAaveV3DataHolder | null {
-    const underlyingAddress = getAddress(operation.underlyingAddress);
-
     const batch: Bulker.Transactions[] = [];
 
     const userMarketsData = data.getUserMarketsData();

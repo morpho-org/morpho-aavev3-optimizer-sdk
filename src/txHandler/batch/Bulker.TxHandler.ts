@@ -34,7 +34,7 @@ export default class BulkerTxHandler extends BaseBatchTxHandler {
     return !!signature.signature;
   }
 
-  autosign = false;
+  public autosign = false;
 
   public readonly signatures$ = new BehaviorSubject<BulkerSignature[]>([]);
 
@@ -513,6 +513,13 @@ export default class BulkerTxHandler extends BaseBatchTxHandler {
     await notifier?.close?.(notificationId, success);
   }
 
+  /**
+   * Adds Bulker specific operations (skim, manager approval, transferToBulker)
+   * @param data
+   * @param operation
+   * @param index
+   * @protected
+   */
   protected _beforeOperation(
     data: MorphoAaveV3DataHolder,
     operation: TxOperation,
@@ -645,8 +652,10 @@ export default class BulkerTxHandler extends BaseBatchTxHandler {
    * And the non wrapped stEth balance
    *
    * If this is not enough, it will revert
+   * @param data
    * @param underlyingAddress
    * @param amount
+   * @param index
    * @private
    */
   #transferToBulker(
