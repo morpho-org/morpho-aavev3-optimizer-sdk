@@ -1258,7 +1258,7 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
       newMarketsData,
       data.getMarketsList(),
       data.getGlobalData(),
-      data.getUserData(),
+      newUserData,
       newUserMarketsData
     );
   }
