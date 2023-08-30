@@ -116,6 +116,7 @@ export default class BulkerTxHandler extends BaseBatchTxHandler {
     const userData = this.getUserData();
     const marketsConfig = this.getMarketsConfigs();
     if (!userData) {
+      // eslint-disable-next-line no-console
       console.error(`Missing user data`);
       return;
     }
@@ -135,6 +136,7 @@ export default class BulkerTxHandler extends BaseBatchTxHandler {
             ? { symbol: "stETH" }
             : marketsConfig?.[toSign.underlyingAddress] ?? {};
         if (!symbol) {
+          // eslint-disable-next-line no-console
           console.error(`Missing market data`);
           return;
         }
