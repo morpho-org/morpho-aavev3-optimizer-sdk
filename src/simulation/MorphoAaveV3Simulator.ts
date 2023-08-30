@@ -413,7 +413,7 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
       marketConfig.supplyCap.gt(0) &&
       poolLiquidity.gt(marketConfig.supplyCap)
     ) {
-      // trow as if all the supply was on pool to be more conservative and prevent the user to supply more than the cap (even if matched p2p)
+      // throw as if all the supply was on pool to be more conservative and prevent the user to supply more than the cap (even if matched p2p)
       return this._raiseError(index, ErrorCode.supplyCapReached, operation);
     }
 
