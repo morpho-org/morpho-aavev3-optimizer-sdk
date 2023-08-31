@@ -66,7 +66,21 @@ jobs:
       - name: Install dependencies
         run: yarn --frozen-lockfile
 
+
+      - name: Load cache
+        uses: dawidd6/action-download-artifact@v2.27.0
+        with:
+          name: hardhat-cache
+          path: cache
+          if_no_artifact_found: ignore
+
       - name: Run e2e test suite
         run: yarn test:e2e
         env:
           RPC_URL: ${{ secrets.RPC_URL }}
+
+      - name: Save cache
+        uses: actions/upload-artifact@v2
+        with:
+          name: hardhat-cache
+          path: cache
