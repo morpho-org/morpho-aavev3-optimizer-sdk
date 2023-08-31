@@ -24,6 +24,7 @@ const config: HardhatUserConfig = {
   },
   paths: {
     tests: "./tests/e2e",
+    cache: "./cache",
   },
   mocha: {
     timeout: 300000,

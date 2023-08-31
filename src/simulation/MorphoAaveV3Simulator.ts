@@ -51,6 +51,7 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
    *
    * @param parentAdapter adapter on which the simulator is based
    * @param _timeout [Optional] Minimum delay between two refresh. Explicitly set to `O` to prevent it from refreshing
+   * @param _allowWrapping Whether or not the simulator will wrap native balances to increase user balance of wrapped tokens before a supply / repay operation.
    */
   constructor(
     parentAdapter: MorphoAaveV3DataEmitter,
@@ -412,6 +413,7 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
       marketConfig.supplyCap.gt(0) &&
       poolLiquidity.gt(marketConfig.supplyCap)
     ) {
+      // throw as if all the supply was on pool to be more conservative and prevent the user to supply more than the cap (even if matched p2p)
       return this._raiseError(index, ErrorCode.supplyCapReached, operation);
     }
 
@@ -1258,7 +1260,7 @@ export class MorphoAaveV3Simulator extends MorphoAaveV3DataEmitter {
       newMarketsData,
       data.getMarketsList(),
       data.getGlobalData(),
-      data.getUserData(),
+      newUserData,
       newUserMarketsData
     );
   }
