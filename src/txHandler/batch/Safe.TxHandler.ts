@@ -216,20 +216,42 @@ export default class SafeTxHandler extends BaseBatchTxHandler {
       .filter(([, approvals]) =>
         approvals.approvalNeeded.gt(approvals.initialApproval)
       )
-      .map(([token, approvals]) => {
+      .flatMap(([token, approvals]) => {
         const erc20 = ERC20__factory.createInterface();
         const spender =
           getAddress(token) === CONTRACT_ADDRESSES.steth
             ? CONTRACT_ADDRESSES.wsteth
             : morphoAddress;
-        return {
-          to: token,
-          value: "0",
-          data: erc20.encodeFunctionData("approve", [
-            spender,
-            approvals.approvalNeeded,
-          ]),
-        };
+        // On usdt, you cannot approve more if you already approved. Youy need to set it to 0 first
+        if (
+          getAddress(token) !== CONTRACT_ADDRESSES.usdt ||
+          approvals.initialApproval.isZero()
+        )
+          return [
+            {
+              to: token,
+              value: "0",
+              data: erc20.encodeFunctionData("approve", [
+                spender,
+                approvals.approvalNeeded,
+              ]),
+            },
+          ];
+        return [
+          {
+            to: token,
+            value: "0",
+            data: erc20.encodeFunctionData("approve", [spender, 0]),
+          },
+          {
+            to: token,
+            value: "0",
+            data: erc20.encodeFunctionData("approve", [
+              spender,
+              approvals.approvalNeeded,
+            ]),
+          },
+        ];
       });
     return TxBuilder.batch(userData.address, [
       ...approvalsTxs,

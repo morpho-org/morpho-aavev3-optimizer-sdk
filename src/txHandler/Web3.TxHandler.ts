@@ -365,7 +365,7 @@ export default class Web3TxHandler
         await notifier?.onApprovalSignatureWaiting?.(id, user, token.symbol);
         const permit2Resp = await this._handlePermit2Signature(
           token,
-          signer as JsonRpcSigner,
+          signer,
           amount,
           nonce,
           deadline
