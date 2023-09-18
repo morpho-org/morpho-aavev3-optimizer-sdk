@@ -56,22 +56,20 @@ export default class BulkerTxHandler extends BaseBatchTxHandler {
   }
 
   public async addOperation(operation: Operation) {
-    const newOperation = await super.addOperation(operation);
-
-    if (newOperation !== undefined) {
-      this.signatures$.next(
-        this.signatures$
-          .getValue()
-          .filter(
-            (s) =>
-              s.transactionIndex !==
-              this.simulatorOperations$.getValue().length -
-                (!!newOperation ? 1 : 0)
-          )
-      );
-    }
-
-    return newOperation;
+    await super.addOperation(operation, (newOperation) => {
+      if (newOperation !== undefined) {
+        this.signatures$.next(
+          this.signatures$
+            .getValue()
+            .filter(
+              (s) =>
+                s.transactionIndex !==
+                this.simulatorOperations$.getValue().length -
+                  (!!newOperation ? 1 : 0)
+            )
+        );
+      }
+    });
   }
 
   protected _askForSignature(signature: BulkerSignature<false>) {

@@ -63,8 +63,9 @@ export default abstract class BaseBatchTxHandler
   }
 
   public async addOperation(
-    operation: Operation
-  ): Promise<Operation | undefined | null> {
+    operation: Operation,
+    callback?: (newOperation?: Operation | null) => any
+  ): Promise<void> {
     this.#done$ = new ReplaySubject<boolean>(1);
     let operations = this.simulatorOperations$.getValue();
 
@@ -192,11 +193,12 @@ export default abstract class BaseBatchTxHandler
     } else {
       operations.push(operation);
     }
+
+    await callback?.(newOperation);
+
     this.simulatorOperations$.next(operations);
 
     await firstValueFrom(this.#done$);
-
-    return newOperation;
   }
 
   /**
