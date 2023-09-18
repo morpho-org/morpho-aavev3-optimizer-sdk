@@ -1,6 +1,6 @@
 import { BigNumber, constants } from "ethers";
-import { getAddress, isAddress } from "ethers/lib/utils";
-import { Subject } from "rxjs";
+import { isAddress } from "ethers/lib/utils";
+import { ReplaySubject, firstValueFrom } from "rxjs";
 
 import { minBN } from "@morpho-labs/ethers-utils/lib/utils";
 
@@ -29,7 +29,7 @@ export default abstract class BaseBatchTxHandler
 {
   protected _adapter: MorphoAaveV3Adapter;
 
-  #done$?: Subject<boolean>;
+  #done$?: ReplaySubject<boolean>;
 
   public readonly bulkerOperations$ = new UpdatableBehaviorSubject<
     Bulker.Transactions[][]
@@ -65,140 +65,138 @@ export default abstract class BaseBatchTxHandler
   public async addOperation(
     operation: Operation
   ): Promise<Operation | undefined | null> {
-    this.#done$ = new Subject();
+    this.#done$ = new ReplaySubject<boolean>(1);
+    let operations = this.simulatorOperations$.getValue();
 
-    return await new Promise((resolve) => {
-      let operations = this.simulatorOperations$.getValue();
+    let newOperation: Operation | undefined | null;
 
-      let newOperation: Operation | undefined | null;
+    const [lastOperation] = operations.slice(-1);
 
-      const [lastOperation] = operations.slice(-1);
-
-      if (lastOperation) {
-        switch (lastOperation.type) {
-          case OperationType.claimMorpho: {
-            break;
+    if (lastOperation) {
+      switch (lastOperation.type) {
+        case OperationType.claimMorpho: {
+          break;
+        }
+        case OperationType.wrap: {
+          if (
+            lastOperation.type === operation.type &&
+            lastOperation.underlyingAddress === operation.underlyingAddress
+          ) {
+            newOperation = {
+              ...operation,
+              amount: minBN(
+                constants.MaxUint256,
+                lastOperation.amount.add(operation.amount)
+              ),
+            };
           }
-          case OperationType.wrap: {
+          break;
+        }
+        case OperationType.unwrap: {
+          if (
+            lastOperation.type === operation.type &&
+            lastOperation.underlyingAddress === operation.underlyingAddress
+          ) {
+            newOperation = {
+              ...operation,
+              amount: minBN(
+                constants.MaxUint256,
+                lastOperation.amount.add(operation.amount)
+              ),
+            };
+          }
+          break;
+        }
+        default: {
+          if (operation.type === lastOperation.type) {
             if (
-              lastOperation.type === operation.type &&
-              lastOperation.underlyingAddress === operation.underlyingAddress
+              lastOperation.underlyingAddress === operation.underlyingAddress &&
+              lastOperation.unwrap === operation.unwrap
             ) {
               newOperation = {
-                ...operation,
+                type: operation.type,
+                underlyingAddress: operation.underlyingAddress,
+                unwrap: operation.unwrap,
                 amount: minBN(
                   constants.MaxUint256,
                   lastOperation.amount.add(operation.amount)
                 ),
               };
             }
-            break;
           }
-          case OperationType.unwrap: {
+          if (operation.type === reverseTransactionType(lastOperation.type)) {
             if (
-              lastOperation.type === operation.type &&
               lastOperation.underlyingAddress === operation.underlyingAddress
             ) {
-              newOperation = {
-                ...operation,
-                amount: minBN(
-                  constants.MaxUint256,
-                  lastOperation.amount.add(operation.amount)
-                ),
-              };
-            }
-            break;
-          }
-          default: {
-            if (operation.type === lastOperation.type) {
-              if (
-                lastOperation.underlyingAddress ===
-                  operation.underlyingAddress &&
-                lastOperation.unwrap === operation.unwrap
-              ) {
-                newOperation = {
-                  type: operation.type,
-                  underlyingAddress: operation.underlyingAddress,
-                  unwrap: operation.unwrap,
-                  amount: minBN(
-                    constants.MaxUint256,
-                    lastOperation.amount.add(operation.amount)
-                  ),
-                };
-              }
-            }
-            if (operation.type === reverseTransactionType(lastOperation.type)) {
-              if (
-                lastOperation.underlyingAddress === operation.underlyingAddress
-              ) {
+              if (operation.amount.eq(constants.MaxUint256)) {
+                if (
+                  lastOperation.formattedAmount &&
+                  this.getUserMaxCapacity(
+                    operation.underlyingAddress,
+                    operation.type
+                  )
+                    ?.amount.sub(lastOperation.formattedAmount)
+                    .gt(0)
+                ) {
+                  newOperation = operation;
+                } else {
+                  newOperation = null;
+                }
+              } else if (lastOperation.amount.eq(operation.amount)) {
+                newOperation = null;
+              } else {
+                const mainOperation = lastOperation.formattedAmount?.lte(
+                  operation.amount
+                )
+                  ? operation
+                  : lastOperation;
+
+                let amount: BigNumber;
+
                 if (operation.amount.eq(constants.MaxUint256)) {
-                  if (
-                    lastOperation.formattedAmount &&
-                    this.getUserMaxCapacity(
-                      operation.underlyingAddress,
-                      operation.type
-                    )
-                      ?.amount.sub(lastOperation.formattedAmount)
-                      .gt(0)
-                  ) {
-                    newOperation = operation;
+                  amount = constants.MaxUint256;
+                } else if (lastOperation.amount.eq(constants.MaxUint256)) {
+                  if (!lastOperation.formattedAmount) {
+                    amount = constants.MaxUint256;
                   } else {
-                    newOperation = null;
+                    amount = lastOperation.formattedAmount
+                      .sub(operation.amount)
+                      .abs();
                   }
-                } else if (lastOperation.amount.eq(operation.amount)) {
+                } else {
+                  amount = lastOperation.amount.sub(operation.amount).abs();
+                }
+
+                if (amount.isZero()) {
                   newOperation = null;
                 } else {
-                  const mainOperation = lastOperation.formattedAmount?.lte(
-                    operation.amount
-                  )
-                    ? operation
-                    : lastOperation;
-
-                  let amount: BigNumber;
-
-                  if (operation.amount.eq(constants.MaxUint256)) {
-                    amount = constants.MaxUint256;
-                  } else if (lastOperation.amount.eq(constants.MaxUint256)) {
-                    if (!lastOperation.formattedAmount) {
-                      amount = constants.MaxUint256;
-                    } else {
-                      amount = lastOperation.formattedAmount
-                        .sub(operation.amount)
-                        .abs();
-                    }
-                  } else {
-                    amount = lastOperation.amount.sub(operation.amount).abs();
-                  }
-
-                  if (amount.isZero()) {
-                    newOperation = null;
-                  } else {
-                    newOperation = {
-                      type: mainOperation.type,
-                      amount,
-                      underlyingAddress: mainOperation.underlyingAddress,
-                      unwrap: mainOperation.unwrap,
-                    };
-                  }
+                  newOperation = {
+                    type: mainOperation.type,
+                    amount,
+                    underlyingAddress: mainOperation.underlyingAddress,
+                    unwrap: mainOperation.unwrap,
+                  };
                 }
               }
             }
-            break;
           }
+          break;
         }
       }
-      if (newOperation !== undefined) {
-        operations = operations.slice(0, -1);
-        if (newOperation) {
-          operations.push(newOperation);
-        }
-      } else {
-        operations.push(operation);
+    }
+    if (newOperation !== undefined) {
+      operations = operations.slice(0, -1);
+      if (newOperation) {
+        operations.push(newOperation);
       }
-      this.simulatorOperations$.next(operations);
+    } else {
+      operations.push(operation);
+    }
+    this.simulatorOperations$.next(operations);
 
-      this.#done$?.subscribe(() => resolve(newOperation));
-    });
+    await firstValueFrom(this.#done$);
+
+    return newOperation;
   }
 
   /**

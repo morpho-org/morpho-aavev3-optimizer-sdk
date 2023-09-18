@@ -65,7 +65,8 @@ export default class BulkerTxHandler extends BaseBatchTxHandler {
           .filter(
             (s) =>
               s.transactionIndex !==
-              this.simulatorOperations$.getValue().length - 1
+              this.simulatorOperations$.getValue().length -
+                (!!newOperation ? 1 : 0)
           )
       );
     }

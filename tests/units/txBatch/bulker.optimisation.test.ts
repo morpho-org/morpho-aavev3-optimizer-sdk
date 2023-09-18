@@ -5,7 +5,7 @@ import { MorphoAaveV3Adapter } from "../../../src";
 import { AdapterMock } from "../../../src/mocks";
 import { Underlying } from "../../../src/mocks/markets";
 import { TxOperation } from "../../../src/simulation/simulation.types";
-import BulkerTxHandler from "../../../src/txHandler/Bulker.TxHandler";
+import BulkerTxHandler from "../../../src/txHandler/batch/Bulker.TxHandler";
 import { TransactionType } from "../../../src/types";
 import { reverseTransactionType } from "../../../src/utils/transactions";
 import {

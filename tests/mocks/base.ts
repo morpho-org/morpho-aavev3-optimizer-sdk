@@ -17,6 +17,7 @@ export const BASE_USER_DATA = {
     stethPerWsteth: constants.WeiPerEther,
     balance: constants.Zero,
     bulkerApproval: constants.Zero,
+    wstEthApproval: constants.Zero,
     permit2Approval: constants.Zero,
     bulkerNonce: constants.Zero,
   },
