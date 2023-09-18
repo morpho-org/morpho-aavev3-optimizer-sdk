@@ -7,7 +7,7 @@ import { GlobalData } from "../types";
 import { Underlying } from "./markets";
 
 const SECONDS_PER_WEEK = 24 * 3600 * 7; // in s
-export const BASE_BLOCK_TIMESTAMP = 1679584232;
+export const INITIAL_BLOCK_TIMESTAMP = 1679584232;
 
 export const GLOBAL_DATA: Omit<
   GlobalData,

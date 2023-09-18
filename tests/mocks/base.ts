@@ -3,7 +3,7 @@ import { parseUnits } from "ethers/lib/utils";
 
 import { MorphoEpochDistribution } from "../../src/helpers/rewards/rewards.types";
 import { AdapterMock } from "../../src/mocks";
-import { BASE_BLOCK_TIMESTAMP } from "../../src/mocks/global";
+import { INITIAL_BLOCK_TIMESTAMP } from "../../src/mocks/global";
 import {
   GlobalData,
   MarketConfig,
@@ -73,14 +73,14 @@ export const BASE_MARKET_DATA: Omit<ScaledMarketData, "address"> = {
   scaledMorphoGlobalPoolSupply: constants.Zero,
   scaledPoolBorrow: constants.Zero,
   indexes: {
-    lastUpdateTimestamp: BigNumber.from(BASE_BLOCK_TIMESTAMP),
+    lastUpdateTimestamp: BigNumber.from(INITIAL_BLOCK_TIMESTAMP),
     p2pBorrowIndex: parseUnits("1", 27),
     p2pSupplyIndex: parseUnits("1", 27),
     poolBorrowIndex: parseUnits("1", 27),
     poolSupplyIndex: parseUnits("1", 27),
   },
   aaveIndexes: {
-    lastUpdateTimestamp: BigNumber.from(BASE_BLOCK_TIMESTAMP),
+    lastUpdateTimestamp: BigNumber.from(INITIAL_BLOCK_TIMESTAMP),
     liquidityIndex: parseUnits("1", 27),
     liquidityRate: parseUnits("1", 27 - 2), // in percent
     variableBorrowIndex: parseUnits("1", 27),

@@ -1,6 +1,6 @@
 import { constants, providers } from "ethers";
 
-import { BASE_BLOCK_TIMESTAMP } from "../../mocks/global";
+import { INITIAL_BLOCK_TIMESTAMP } from "../../mocks/global";
 import { GlobalData } from "../../types";
 import { GlobalDataFetcher } from "../fetchers.interfaces";
 
@@ -25,7 +25,7 @@ export class StaticGlobalDataFetcher
       ...this._globalData,
       lastFetchTimestamp: 1679584231593,
       currentBlock: {
-        timestamp: BASE_BLOCK_TIMESTAMP,
+        timestamp: INITIAL_BLOCK_TIMESTAMP,
         number: 16000000,
         extraData: "",
         _difficulty: constants.Zero,
