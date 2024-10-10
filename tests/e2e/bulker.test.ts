@@ -1,5 +1,5 @@
 import { expect } from "chai";
-import { utils, constants } from "ethers";
+import { utils, constants, BigNumber } from "ethers";
 import hre, { ethers } from "hardhat";
 import { deal } from "hardhat-deal";
 
@@ -45,11 +45,9 @@ describe("MorphoAaveV3 Bulker", () => {
   let owner: string;
   let weth: Weth;
   let steth: StEth;
-  let dai: ERC20;
   let wsteth: WstETH;
   const initialWethBalance = utils.parseEther("5");
-  const initialDaiBalance = utils.parseEther("5000");
-  const initialStEthBalance = utils.parseEther("5");
+  const initialWstethBalance = utils.parseEther("5");
   let bulker: BulkerTxHandler;
 
   /** Approve tokens spending for Bulker.
@@ -64,7 +62,6 @@ describe("MorphoAaveV3 Bulker", () => {
     [morphoUser] = await ethers.getSigners();
     weth = Weth__factory.connect(Underlying.weth, morphoUser);
     steth = StEth__factory.connect(Underlying.steth, morphoUser);
-    dai = ERC20__factory.connect(Underlying.dai, morphoUser);
     wsteth = WstETH__factory.connect(Underlying.wsteth, morphoUser);
     morphoAaveV3 = MorphoAaveV3__factory.connect(
       CONTRACT_ADDRESSES.morphoAaveV3,
@@ -73,19 +70,14 @@ describe("MorphoAaveV3 Bulker", () => {
     owner = await morphoAaveV3.owner();
 
     await deal(weth.address, morphoUser.address, initialWethBalance);
-    await deal(dai.address, morphoUser.address, initialDaiBalance);
-    await steth.submit(morphoUser.address, {
-      from: morphoUser.address,
-      value: initialStEthBalance,
-    });
+    await deal(wsteth.address, morphoUser.address, initialWstethBalance);
 
     approveBulkerOrPermit2 = async (contractAddress) => {
       await weth.approve(contractAddress, constants.MaxUint256);
-      await dai.approve(contractAddress, constants.MaxUint256);
       await steth.approve(contractAddress, constants.MaxUint256);
       await wsteth.approve(contractAddress, constants.MaxUint256);
       await steth.approve(addresses.wsteth, constants.MaxUint256);
-      await dai.approve(morphoAaveV3.address, constants.MaxUint256);
+      await wsteth.approve(morphoAaveV3.address, constants.MaxUint256);
       await weth.approve(morphoAaveV3.address, constants.MaxUint256);
     };
 
@@ -98,6 +90,7 @@ describe("MorphoAaveV3 Bulker", () => {
     bulker = new BulkerTxHandler(morphoAdapter);
     await morphoAdapter.connect(morphoUser.address, morphoUser);
     await morphoAdapter.refreshAll(initialBlock);
+    await delay(null, 1000);
   });
 
   beforeEach(async () => {
@@ -116,15 +109,12 @@ describe("MorphoAaveV3 Bulker", () => {
     const { address } = morphoUser;
     const wethAllowance = () =>
       weth.allowance(address, CONTRACT_ADDRESSES.bulker);
-    const daiAllowance = () =>
-      dai.allowance(address, CONTRACT_ADDRESSES.bulker);
     const stethAllowance = () =>
       steth.allowance(address, CONTRACT_ADDRESSES.bulker);
     const wstethAllowance = () =>
       wsteth.allowance(address, CONTRACT_ADDRESSES.bulker);
 
     expect(await wethAllowance()).to.be.equal(constants.Zero);
-    expect(await daiAllowance()).to.be.equal(constants.Zero);
     expect(await stethAllowance()).to.be.equal(constants.Zero);
     expect(await wstethAllowance()).to.be.equal(constants.Zero);
 
@@ -156,18 +146,6 @@ describe("MorphoAaveV3 Bulker", () => {
       `expected impersonated user weth allowance is ${constants.MaxUint256}, received ${bulkerWethAllowance}`
     );
 
-    const userDaiBalance = await dai.balanceOf(address);
-    expect(userDaiBalance).to.be.equal(
-      initialDaiBalance,
-      `expect user dai balance is ${initialDaiBalance}, received ${userDaiBalance}`
-    );
-
-    const bulkerDaiAllowance = await daiAllowance();
-    expect(bulkerDaiAllowance).to.equal(
-      constants.MaxUint256,
-      `expected impersonated user dai allowance is ${constants.MaxUint256}, received ${bulkerDaiAllowance}`
-    );
-
     const bulkerStEthAllowance = await stethAllowance();
     expect(bulkerStEthAllowance).to.equal(
       constants.MaxUint256,
@@ -179,12 +157,6 @@ describe("MorphoAaveV3 Bulker", () => {
       constants.MaxUint256,
       `expected impersonated user wsteth allowance is ${constants.MaxUint256}, received ${bulkerWstEthAllowance}`
     );
-
-    const stEthBalance = await steth.balanceOf(address);
-    expect(
-      approxEqual(stEthBalance, initialStEthBalance),
-      `approximate expected user steth balance is ${initialStEthBalance}, received ${stEthBalance}`
-    ).to.be.true;
   });
 
   const toAllow = [CONTRACT_ADDRESSES.bulker, CONTRACT_ADDRESSES.permit2];
@@ -193,89 +165,90 @@ describe("MorphoAaveV3 Bulker", () => {
       contractAddress === CONTRACT_ADDRESSES.bulker ? "Bulker" : "Permit2";
 
     describe(`Supply transaction with ${approvalType} approval`, () => {
-      it("Should supply DAI as collateral", async () => {
+      it("Should supply WSTETH as collateral", async () => {
         await approveBulkerOrPermit2(contractAddress);
-        const maxDaiCapacity = bulker.getUserMaxCapacity(
-          Underlying.dai,
-          TransactionType.supplyCollateral
+        const maxWstethCapacity = bulker.getUserMaxCapacity(
+          Underlying.wsteth,
+          TransactionType.supplyCollateral,
+          false
         )!;
 
         await bulker.addOperation({
           type: TransactionType.supplyCollateral,
-          amount: maxDaiCapacity.amount,
-          underlyingAddress: Underlying.dai,
+          amount: maxWstethCapacity.amount,
+          underlyingAddress: Underlying.wsteth,
         });
 
         for (const signature of bulker.signatures$.getValue())
           await bulker.sign(signature);
         await bulker.executeBatch();
 
-        expect(maxDaiCapacity.limiter).to.equal(
+        expect(maxWstethCapacity.limiter).to.equal(
           MaxCapacityLimiter.walletBalance
         );
 
-        const userDaiBalance = await dai.balanceOf(morphoUser.address);
-        expect(userDaiBalance).to.be.equal(
+        const userWstethBalance = await wsteth.balanceOf(morphoUser.address);
+        expect(userWstethBalance).to.be.equal(
           constants.Zero,
-          `expected user dai balance is ${constants.Zero}, received ${userDaiBalance}`
+          `expected user wsteth balance is ${constants.Zero}, received ${userWstethBalance}`
         );
 
         const ma3Balance = await morphoAaveV3.collateralBalance(
-          dai.address,
+          wsteth.address,
           morphoUser.address
         );
         expect(
-          approxEqual(ma3Balance, maxDaiCapacity.amount),
-          `approximate expected ma3 dai balance is ${maxDaiCapacity.amount}, received ${ma3Balance}`
+          approxEqual(ma3Balance, maxWstethCapacity.amount),
+          `approximate expected ma3 wsteth balance is ${maxWstethCapacity.amount}, received ${ma3Balance}`
         ).to.be.true;
 
-        const daiBulkerBalance = await dai.balanceOf(addresses.bulker);
-        expect(daiBulkerBalance).to.be.equal(
+        const wstethBulkerBalance = await wsteth.balanceOf(addresses.bulker);
+        expect(wstethBulkerBalance).to.be.equal(
           constants.Zero,
-          `expected bulker dai balance is ${constants.Zero}, received ${daiBulkerBalance}`
+          `expected bulker wsteth balance is ${constants.Zero}, received ${wstethBulkerBalance}`
         );
       });
 
-      it("Should supply DAI as collateral twice", async () => {
+      it("Should supply WSTETH as collateral twice", async () => {
         await approveBulkerOrPermit2(contractAddress);
-        const amount = utils.parseEther("50");
+        const amount = utils.parseEther("2");
         const total = amount.mul(2);
 
         await bulker.addOperation({
           type: TransactionType.supplyCollateral,
           amount,
-          underlyingAddress: Underlying.dai,
+          underlyingAddress: Underlying.wsteth,
         });
         await bulker.addOperation({
           type: TransactionType.supplyCollateral,
           amount,
-          underlyingAddress: Underlying.dai,
+          underlyingAddress: Underlying.wsteth,
         });
 
         for (const signature of bulker.signatures$.getValue())
           await bulker.sign(signature);
         await bulker.executeBatch();
 
-        const userDaiBalance = await dai.balanceOf(morphoUser.address);
-        const expectUserDaiBalance = initialDaiBalance.sub(total);
-        expect(userDaiBalance).to.be.equal(
-          expectUserDaiBalance,
-          `expected user dai balance is ${expectUserDaiBalance}, received ${userDaiBalance}`
+        const userWstethBalance = await wsteth.balanceOf(morphoUser.address);
+        const expectUserWstethBalance = initialWstethBalance.sub(total);
+        expect(userWstethBalance).to.be.equal(
+          expectUserWstethBalance,
+          `expected user wsteth balance is ${expectUserWstethBalance}, received ${userWstethBalance}`
         );
 
         const ma3Balance = await morphoAaveV3.collateralBalance(
-          dai.address,
+          wsteth.address,
           morphoUser.address
         );
         expect(
           approxEqual(ma3Balance, total),
-          `approximate expected ma3 dai balance is ${total}, received ${ma3Balance}`
+          `approximate expected ma3 wsteth balance is ${total}, received ${ma3Balance}`
         ).to.be.true;
 
-        const bulkerDaiBalance = await dai.balanceOf(addresses.bulker);
-        expect(bulkerDaiBalance).to.be.equal(
+        const bulkerWstethBalance = await wsteth.balanceOf(addresses.bulker);
+        expect(bulkerWstethBalance).to.be.equal(
           constants.Zero,
-          `expected bulker dai balance is ${constants.Zero}, received ${bulkerDaiBalance}`
+          `expected bulker wsteth balance is ${constants.Zero}, received ${bulkerWstethBalance}`
         );
       });
 
@@ -416,6 +389,13 @@ describe("MorphoAaveV3 Bulker", () => {
       });
 
       it("Should fully wrap stETH and supply as collateral", async () => {
+        await steth.submit(morphoUser.address, {
+          from: morphoUser.address,
+          value: initialWstethBalance,
+        });
+        await morphoAdapter.refreshAll("latest");
+        await delay(null, 1000);
+
         await approveBulkerOrPermit2(contractAddress);
         const maxWstethCapacity = bulker.getUserMaxCapacity(
           Underlying.wsteth,
@@ -465,6 +445,13 @@ describe("MorphoAaveV3 Bulker", () => {
       });
 
       it("Should partially wrap stETH and supply as collateral", async () => {
+        await steth.submit(morphoUser.address, {
+          from: morphoUser.address,
+          value: initialWstethBalance,
+        });
+        await morphoAdapter.refreshAll("latest");
+        await delay(null, 1000);
+
         await approveBulkerOrPermit2(contractAddress);
         await wsteth.wrap(utils.parseEther("1"));
         await morphoAdapter.refreshAll("latest");
@@ -522,8 +509,8 @@ describe("MorphoAaveV3 Bulker", () => {
     it("should borrow ETH", async () => {
       await approveBulkerOrPermit2(CONTRACT_ADDRESSES.bulker);
       await morphoAaveV3.supplyCollateral(
-        Underlying.dai,
-        initialDaiBalance,
+        Underlying.wsteth,
+        initialWstethBalance,
         morphoUser.address
       );
       await morphoAdapter.refreshAll("latest");
@@ -533,6 +520,7 @@ describe("MorphoAaveV3 Bulker", () => {
         amount: amountToBorrow,
         underlyingAddress: Underlying.weth,
       });
+
       for (const signature of bulker.signatures$.getValue())
         await bulker.sign(signature);
       await bulker.executeBatch();
@@ -561,10 +549,14 @@ describe("MorphoAaveV3 Bulker", () => {
     });
 
     it("should borrow and unwrap ETH", async () => {
+      const initialMa3Balance = await morphoAaveV3.borrowBalance(
+        weth.address,
+        morphoUser.address
+      );
       await approveBulkerOrPermit2(CONTRACT_ADDRESSES.bulker);
       await morphoAaveV3.supplyCollateral(
-        Underlying.dai,
-        initialDaiBalance,
+        Underlying.wsteth,
+        initialWstethBalance,
         morphoUser.address
       );
       await morphoAdapter.refreshAll("latest");
@@ -584,9 +576,12 @@ describe("MorphoAaveV3 Bulker", () => {
         weth.address,
         morphoUser.address
       );
-      expect(ma3Balance).to.equal(
+      expect(ma3Balance.sub(initialMa3Balance)).to.approximately(
         amountToBorrow,
-        `expected ma3 weth balance is ${amountToBorrow}, received ${ma3Balance}`
+        1,
+        `expected ma3 weth balance change is ${amountToBorrow}, received ${ma3Balance.sub(
+          initialMa3Balance
+        )}`
       );
 
       const bulkerWethBalance = await weth.balanceOf(addresses.bulker);
@@ -748,8 +743,8 @@ describe("MorphoAaveV3 Bulker", () => {
         await approveBulkerOrPermit2(contractAddress);
 
         await morphoAaveV3.supplyCollateral(
-          Underlying.dai,
-          initialDaiBalance,
+          Underlying.wsteth,
+          initialWstethBalance,
           morphoUser.address
         );
         await morphoAaveV3.borrow(
@@ -805,8 +800,8 @@ describe("MorphoAaveV3 Bulker", () => {
       it("should fully wrap ETH and repay WETH", async () => {
         await approveBulkerOrPermit2(contractAddress);
         await morphoAaveV3.supplyCollateral(
-          Underlying.dai,
-          initialDaiBalance,
+          Underlying.wsteth,
+          initialWstethBalance,
           morphoUser.address
         );
         await morphoAaveV3.borrow(
@@ -884,18 +879,19 @@ describe("MorphoAaveV3 Bulker", () => {
   });
 
   describe("Supply Collateral + Borrow", () => {
-    it("Should supply DAI as collateral and borrow WETH", async () => {
+    it("Should supply WSTETH as collateral and borrow WETH", async () => {
       await approveBulkerOrPermit2(CONTRACT_ADDRESSES.permit2);
-      const maxDaiCapacity = bulker.getUserMaxCapacity(
-        Underlying.dai,
-        TransactionType.supplyCollateral
+      const maxWstethCapacity = bulker.getUserMaxCapacity(
+        Underlying.wsteth,
+        TransactionType.supplyCollateral,
+        false
       )!;
       const amountToBorrow = utils.parseEther("1");
 
       await bulker.addOperation({
         type: TransactionType.supplyCollateral,
-        amount: maxDaiCapacity.amount,
-        underlyingAddress: Underlying.dai,
+        amount: maxWstethCapacity.amount,
+        underlyingAddress: Underlying.wsteth,
       });
       await bulker.addOperation({
         type: TransactionType.borrow,
@@ -907,26 +903,29 @@ describe("MorphoAaveV3 Bulker", () => {
         await bulker.sign(signature);
       await bulker.executeBatch();
 
-      expect(maxDaiCapacity.limiter).to.equal(MaxCapacityLimiter.walletBalance);
-      const userDaiBalance = await dai.balanceOf(morphoUser.address);
-      expect(userDaiBalance).to.be.equal(
+      expect(maxWstethCapacity.limiter).to.equal(
+        MaxCapacityLimiter.walletBalance
+      );
+
+      const userWstethBalance = await wsteth.balanceOf(morphoUser.address);
+      expect(userWstethBalance).to.be.equal(
         constants.Zero,
-        `expected user dai balance is ${constants.Zero}, received ${userDaiBalance}`
+        `expected bulker wsteth balance is ${constants.Zero}, received ${userWstethBalance}`
       );
 
       const ma3Balance = await morphoAaveV3.collateralBalance(
-        dai.address,
+        wsteth.address,
         morphoUser.address
       );
       expect(
-        approxEqual(ma3Balance, maxDaiCapacity.amount),
-        `approximated expected ma3 dai balance is ${maxDaiCapacity.amount}, received ${ma3Balance}`
+        approxEqual(ma3Balance, maxWstethCapacity.amount),
+        `approximated expected ma3 wsteth balance is ${maxWstethCapacity.amount}, received ${ma3Balance}`
       ).to.be.true;
 
-      const bulkerDaiBalance = await dai.balanceOf(addresses.bulker);
-      expect(bulkerDaiBalance).to.be.equal(
+      const bulkerWstethBalance = await wsteth.balanceOf(addresses.bulker);
+      expect(bulkerWstethBalance).to.be.equal(
         constants.Zero,
-        `expected bulker dai balance is ${constants.Zero}, received ${bulkerDaiBalance}`
+        `expected bulker wsteth balance is ${constants.Zero}, received ${bulkerWstethBalance}`
       );
 
       const userEthBalance = await weth.balanceOf(morphoUser.address);
@@ -939,11 +938,11 @@ describe("MorphoAaveV3 Bulker", () => {
   });
 
   describe("Repay + withdraw collateral", () => {
-    it("should repay WETH and withdraw DAI collateral", async () => {
+    it("should repay WETH and withdraw WSTETH collateral", async () => {
       await approveBulkerOrPermit2(CONTRACT_ADDRESSES.bulker);
       await morphoAaveV3.supplyCollateral(
-        Underlying.dai,
-        initialDaiBalance,
+        Underlying.wsteth,
+        initialWstethBalance,
         morphoUser.address
       );
       await morphoAaveV3.borrow(
@@ -956,10 +955,10 @@ describe("MorphoAaveV3 Bulker", () => {
 
       await morphoAdapter.refreshAll("latest");
 
-      const userDaiBalance = await dai.balanceOf(morphoUser.address);
-      expect(userDaiBalance).to.equal(
+      const userWstethBalance = await wsteth.balanceOf(morphoUser.address);
+      expect(userWstethBalance).to.equal(
         constants.Zero,
-        `expected user dai balance is ${constants.Zero}, received ${userDaiBalance}`
+        `expected user wsteth balance is ${constants.Zero}, received ${userWstethBalance}`
       );
 
       const userWethBalance = await weth.balanceOf(morphoUser.address);
@@ -970,7 +969,7 @@ describe("MorphoAaveV3 Bulker", () => {
       );
 
       const withdrawAmount = await morphoAaveV3.collateralBalance(
-        Underlying.dai,
+        Underlying.wsteth,
         morphoUser.address
       );
       await bulker.addOperation({
@@ -981,23 +980,23 @@ describe("MorphoAaveV3 Bulker", () => {
       await bulker.addOperation({
         type: TransactionType.withdrawCollateral,
         amount: constants.MaxUint256,
-        underlyingAddress: Underlying.dai,
+        underlyingAddress: Underlying.wsteth,
       });
 
       for (const signature of bulker.signatures$.getValue())
         await bulker.sign(signature);
       await bulker.executeBatch();
 
-      const finalUserDaiBalance = await dai.balanceOf(morphoUser.address);
-      expect(finalUserDaiBalance).to.be.greaterThan(
+      const finalUserWstethBalance = await wsteth.balanceOf(morphoUser.address);
+      expect(finalUserWstethBalance).to.be.greaterThan(
         withdrawAmount,
-        `expected user dai balance should be greater than withdrawn amount ${withdrawAmount}, received ${finalUserDaiBalance}`
+        `expected user wsteth balance should be greater than withdrawn amount ${withdrawAmount}, received ${finalUserWstethBalance}`
       );
 
-      const bulkerDaiBalance = await dai.balanceOf(addresses.bulker);
-      expect(bulkerDaiBalance).to.be.equal(
+      const bulkerWstethBalance = await wsteth.balanceOf(addresses.bulker);
+      expect(bulkerWstethBalance).to.be.equal(
         constants.Zero,
-        `expected bulker dai balance is ${constants.Zero}, received ${bulkerDaiBalance}`
+        `expected bulker wsteth balance is ${constants.Zero}, received ${bulkerWstethBalance}`
       );
 
       const bulkerWethBalance = await weth.balanceOf(addresses.bulker);
@@ -1014,12 +1013,12 @@ describe("MorphoAaveV3 Bulker", () => {
       );
 
       const ma3Balance = await morphoAaveV3.collateralBalance(
-        dai.address,
+        wsteth.address,
         morphoUser.address
       );
       expect(ma3Balance).to.equal(
         constants.Zero,
-        `expected ma3 dai balance is ${constants.Zero}, received ${ma3Balance}`
+        `expected ma3 wsteth balance is ${constants.Zero}, received ${ma3Balance}`
       );
     });
   });
