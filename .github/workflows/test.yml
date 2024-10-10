@@ -66,9 +66,8 @@ jobs:
       - name: Install dependencies
         run: yarn --frozen-lockfile
 
-
       - name: Load cache
-        uses: dawidd6/action-download-artifact@v2.27.0
+        uses: actions/download-artifact@9bc31d5ccc31df68ecc42ccf4149144866c47d8a # v3.0.2
         with:
           name: hardhat-cache
           path: cache
@@ -80,7 +79,7 @@ jobs:
           RPC_URL: ${{ secrets.RPC_URL }}
 
       - name: Save cache
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
         with:
           name: hardhat-cache
           path: cache
