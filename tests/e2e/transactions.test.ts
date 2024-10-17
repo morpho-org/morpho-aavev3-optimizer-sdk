@@ -1,7 +1,7 @@
 import { expect } from "chai";
 import { utils, constants } from "ethers";
 import { getAddress } from "ethers/lib/utils";
-import { ethers, network } from "hardhat";
+import { ethers } from "hardhat";
 import { deal } from "hardhat-deal";
 
 import { BaseProvider } from "@ethersproject/providers";
@@ -37,25 +37,25 @@ describe("MorphoAaveV3", () => {
   let morphoAaveV3: MorphoAaveV3;
   let owner: string;
   let weth: Weth;
-  let dai: ERC20;
+  let wsteth: ERC20;
   const initialWethBalance = utils.parseEther("5");
-  const initialDaiBalance = utils.parseEther("500");
+  const initialWstethBalance = utils.parseEther("500");
 
   before(async () => {
     [morphoUser] = await ethers.getSigners();
     weth = Weth__factory.connect(Underlying.weth, morphoUser);
-    dai = ERC20__factory.connect(Underlying.dai, morphoUser);
+    wsteth = ERC20__factory.connect(Underlying.wsteth, morphoUser);
     morphoAaveV3 = MorphoAaveV3__factory.connect(
       CONTRACT_ADDRESSES.morphoAaveV3,
       morphoUser
     );
     owner = await morphoAaveV3.owner();
 
-    // set user WETH and DAI balance, give impersonated user max allowance on tokens
+    // set user WETH and WSTETH balance, give impersonated user max allowance on tokens
     await weth.approve(CONTRACT_ADDRESSES.morphoAaveV3, constants.MaxUint256);
-    await dai.approve(CONTRACT_ADDRESSES.morphoAaveV3, constants.MaxUint256);
+    await wsteth.approve(CONTRACT_ADDRESSES.morphoAaveV3, constants.MaxUint256);
     await deal(weth.address, morphoUser.address, initialWethBalance);
-    await deal(dai.address, morphoUser.address, initialDaiBalance);
+    await deal(wsteth.address, morphoUser.address, initialWstethBalance);
 
     initialBlock = await time.latestBlock();
 
@@ -101,15 +101,15 @@ describe("MorphoAaveV3", () => {
       constants.MaxUint256,
       "impersonated user weth allowance is not maxUint256"
     );
-    expect(await dai.balanceOf(morphoUser.address)).to.be.equal(
-      initialDaiBalance,
-      `dai balance is not ${initialDaiBalance}`
+    expect(await wsteth.balanceOf(morphoUser.address)).to.be.equal(
+      initialWstethBalance,
+      `wsteth balance is not ${initialWstethBalance}`
     );
     expect(
-      await dai.allowance(morphoUser.address, morphoAaveV3.address)
+      await wsteth.allowance(morphoUser.address, morphoAaveV3.address)
     ).to.equal(
       constants.MaxUint256,
-      "impersonated user dai allowance is not maxUint256"
+      "impersonated user wsteth allowance is not maxUint256"
     );
   });
 
@@ -142,7 +142,7 @@ describe("MorphoAaveV3", () => {
   describe("Supply collateral transaction", () => {
     it("should increase borrow capacity", async () => {
       let borrowCapacity = morphoAdapter.getUserMaxCapacity(
-        Underlying.dai,
+        Underlying.wsteth,
         TransactionType.borrow
       )!;
 
@@ -152,7 +152,7 @@ describe("MorphoAaveV3", () => {
       );
 
       let supplyCapacity = morphoAdapter.getUserMaxCapacity(
-        Underlying.dai,
+        Underlying.wsteth,
         TransactionType.supplyCollateral
       )!;
       expect(supplyCapacity.limiter).to.be.equal(
@@ -162,7 +162,7 @@ describe("MorphoAaveV3", () => {
 
       await morphoAdapter.handleMorphoTransaction(
         TransactionType.supplyCollateral,
-        Underlying.dai,
+        Underlying.wsteth,
         supplyCapacity.amount
       );
 
@@ -179,13 +179,13 @@ describe("MorphoAaveV3", () => {
 
       // refresh supply capacity
       supplyCapacity = morphoAdapter.getUserMaxCapacity(
-        Underlying.dai,
+        Underlying.wsteth,
         TransactionType.supplyCollateral
       )!;
 
       expect(supplyCapacity.amount).to.be.equal(
         constants.Zero,
-        "max dai supply collateral capacity is not 0"
+        "max wsteth supply collateral capacity is not 0"
       );
     });
   });
@@ -193,7 +193,7 @@ describe("MorphoAaveV3", () => {
   describe("Withdraw collateral transaction", () => {
     it("should be limited by balance", async () => {
       const supplyCapacity = morphoAdapter.getUserMaxCapacity(
-        Underlying.dai,
+        Underlying.wsteth,
         TransactionType.supplyCollateral
       )!;
       expect(supplyCapacity.limiter).to.be.equal(
@@ -203,12 +203,12 @@ describe("MorphoAaveV3", () => {
 
       await morphoAdapter.handleMorphoTransaction(
         TransactionType.supplyCollateral,
-        Underlying.dai,
+        Underlying.wsteth,
         supplyCapacity.amount
       );
 
       const withdrawCapacity = morphoAdapter.getUserMaxCapacity(
-        Underlying.dai,
+        Underlying.wsteth,
         TransactionType.withdrawCollateral
       )!;
 
@@ -246,8 +246,8 @@ describe("MorphoAaveV3", () => {
 
       await morphoAdapter.handleMorphoTransaction(
         TransactionType.supplyCollateral,
-        Underlying.dai,
-        initialDaiBalance
+        Underlying.wsteth,
+        initialWstethBalance
       );
 
       // refresh borrow Capacity
@@ -284,27 +284,22 @@ describe("MorphoAaveV3", () => {
         TransactionType.borrow
       )!;
 
-      // Let's now borrow all the liquidity we can
+      // Let's now borrow 90% of borrow capacity
       await morphoAdapter.handleMorphoTransaction(
         TransactionType.borrow,
         Underlying.weth,
-        borrowCapacity.amount
+        borrowCapacity.amount.mul(9).div(10)
       );
       const finalHealthFactor = morphoAdapter.computeUserData().healthFactor;
 
       expect(finalHealthFactor).to.be.lt(intermediaryHealthFactor);
-      // TODO do a check at some decimals precision
-      // expect(finalHealthFactor).to.be.eq(
-      //   WadRayMath.WAD, // won't be exactly 1
-      //   "final health factor is not 1"
-      // );
     });
   });
 
   describe("Repay transaction", () => {
     it("should be limited by balance", async () => {
       const supplyCapacity = morphoAdapter.getUserMaxCapacity(
-        Underlying.dai,
+        Underlying.wsteth,
         TransactionType.supplyCollateral
       )!;
       expect(supplyCapacity.limiter).to.be.equal(
@@ -314,7 +309,7 @@ describe("MorphoAaveV3", () => {
 
       await morphoAdapter.handleMorphoTransaction(
         TransactionType.supplyCollateral,
-        Underlying.dai,
+        Underlying.wsteth,
         supplyCapacity.amount
       );
 
@@ -518,8 +513,8 @@ describe("MorphoAaveV3", () => {
 
       await morphoAdapter.handleMorphoTransaction(
         TransactionType.supplyCollateral,
-        Underlying.dai,
-        initialDaiBalance
+        Underlying.wsteth,
+        initialWstethBalance
       );
 
       // refresh borrow Capacity
