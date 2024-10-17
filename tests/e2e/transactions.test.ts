@@ -284,20 +284,15 @@ describe("MorphoAaveV3", () => {
         TransactionType.borrow
       )!;
 
-      // Let's now borrow all the liquidity we can
+      // Let's now borrow 90% of borrow capacity
       await morphoAdapter.handleMorphoTransaction(
         TransactionType.borrow,
         Underlying.weth,
-        borrowCapacity.amount
+        borrowCapacity.amount.mul(9).div(10)
       );
       const finalHealthFactor = morphoAdapter.computeUserData().healthFactor;
 
       expect(finalHealthFactor).to.be.lt(intermediaryHealthFactor);
-      // TODO do a check at some decimals precision
-      // expect(finalHealthFactor).to.be.eq(
-      //   WadRayMath.WAD, // won't be exactly 1
-      //   "final health factor is not 1"
-      // );
     });
   });
 

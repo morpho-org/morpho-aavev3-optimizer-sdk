@@ -17,7 +17,7 @@ const config: HardhatUserConfig = {
       chainId: 1,
       forking: {
         url: rpcUrl,
-        blockNumber: 20934202,
+        blockNumber: 20984127,
         enabled: true,
       },
     },
